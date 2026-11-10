@@ -1,0 +1,46 @@
+name: Ingest Grid Telemetry
+
+on:
+  schedule:
+    # scheduled batch run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Electrical region to ingest (NR, WR, SR, ER, NER, or ALL)'
+        required: false
+        default: 'ALL'
+      limit:
+        description: 'Number of hourly records to fetch'
+        required: false
+        default: '24'
+
+jobs:
+  ingest:
+    name: Fetch and Ingest Telemetry
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ingest telemetry
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TELEMETRY_API_KEY: ${{ secrets.TELEMETRY_API_KEY }}
+          TELEMETRY_REGION: ${{ github.event.inputs.region || 'ALL' }}
+        run: |
+          python -m src.ingestion.runner --region "${{ github.event.inputs.region || 'ALL' }}" --limit "${{ github.event.inputs.limit || '24' }}"
