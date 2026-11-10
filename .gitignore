@@ -13,6 +13,9 @@ venv/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # tex/latex files
 *.aux
@@ -23,9 +26,11 @@ build/
 *.fls
 *.fdb_latexmk
 
-# data/model weights
-data/raw/
-data/processed/
+# data/model weights/databases
+data/
+*.db
+*.sqlite
+*.sqlite3
 models/*.pkl
 models/*.joblib
 reports/html/
