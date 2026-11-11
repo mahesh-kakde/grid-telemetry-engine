@@ -196,6 +196,45 @@ class DatabaseClient:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_historical_telemetry(
+        self,
+        region: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 720,
+    ) -> list[dict[str, Any]]:
+        cleaned_region = region.strip().upper()
+        if self.mode == "supabase" and self.supabase_client is not None:
+            builder = (
+                self.supabase_client.table("telemetry_raw")
+                .select("*")
+                .eq("region", cleaned_region)
+            )
+            if start_time is not None:
+                builder = builder.gte("timestamp", start_time.isoformat())
+            if end_time is not None:
+                builder = builder.lte("timestamp", end_time.isoformat())
+            response = builder.order("timestamp", desc=False).limit(limit).execute()
+            return response.data or []
+
+        with self._get_sqlite_conn() as conn:
+            cursor = conn.cursor()
+            query = (
+                "select id, timestamp, region, metric_value, metric_type, created_at "
+                "from telemetry_raw where region = ?"
+            )
+            params: list[Any] = [cleaned_region]
+            if start_time is not None:
+                query += " and timestamp >= ?"
+                params.append(start_time.isoformat())
+            if end_time is not None:
+                query += " and timestamp <= ?"
+                params.append(end_time.isoformat())
+            query += " order by timestamp asc limit ?"
+            params.append(limit)
+            cursor.execute(query, tuple(params))
+            return [dict(row) for row in cursor.fetchall()]
+
     # forecast output methods
     def upsert_forecasts(self, records: list[ForecastRecord]) -> int:
         if not records:
