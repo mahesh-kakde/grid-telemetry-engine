@@ -27,13 +27,12 @@ htmlcov/
 *.fdb_latexmk
 
 # data/model weights/databases
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3
-models/*.pkl
-models/*.joblib
-reports/html/
+/models/
+/reports/
 
 # os/editor artifacts
 .DS_Store
