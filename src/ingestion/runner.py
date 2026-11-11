@@ -111,6 +111,12 @@ def main() -> int:
         help="number of hourly records to fetch",
     )
     parser.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help="number of days to fetch (converts to limit = days * 24)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="fetch and validate records without writing to database",
@@ -129,10 +135,12 @@ def main() -> int:
     )
 
     args = parser.parse_args()
+    limit = (args.days * 24) if args.days is not None else args.limit
+
     runner = IngestionRunner()
     result = runner.run(
         region=args.region,
-        limit=args.limit,
+        limit=limit,
         dry_run=args.dry_run,
         endpoint_url=args.endpoint_url,
         export_path=args.export_path,

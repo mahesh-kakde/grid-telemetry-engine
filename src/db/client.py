@@ -184,16 +184,43 @@ class DatabaseClient:
 
         with self._get_sqlite_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                select id, timestamp, region, metric_value, metric_type, created_at
-                from telemetry_raw
-                where region = ?
-                order by timestamp desc
-                limit ?
-                """,
-                (cleaned_region, limit),
-            )
+            if cleaned_region == "ALL":
+                cursor.execute("select count(*) from telemetry_raw where region = 'ALL'")
+                has_explicit_all = (cursor.fetchone()[0] or 0) > 0
+                if has_explicit_all:
+                    cursor.execute(
+                        """
+                        select id, timestamp, region, metric_value, metric_type, created_at
+                        from telemetry_raw
+                        where region = 'ALL'
+                        order by timestamp desc
+                        limit ?
+                        """,
+                        (limit,),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        select timestamp, 'ALL' as region, sum(metric_value) as metric_value,
+                               'DEMAND_MW' as metric_type, max(created_at) as created_at
+                        from telemetry_raw
+                        group by timestamp
+                        order by timestamp desc
+                        limit ?
+                        """,
+                        (limit,),
+                    )
+            else:
+                cursor.execute(
+                    """
+                    select id, timestamp, region, metric_value, metric_type, created_at
+                    from telemetry_raw
+                    where region = ?
+                    order by timestamp desc
+                    limit ?
+                    """,
+                    (cleaned_region, limit),
+                )
             return [dict(row) for row in cursor.fetchall()]
 
     def get_historical_telemetry(
@@ -219,20 +246,58 @@ class DatabaseClient:
 
         with self._get_sqlite_conn() as conn:
             cursor = conn.cursor()
-            query = (
-                "select id, timestamp, region, metric_value, metric_type, created_at "
-                "from telemetry_raw where region = ?"
-            )
-            params: list[Any] = [cleaned_region]
-            if start_time is not None:
-                query += " and timestamp >= ?"
-                params.append(start_time.isoformat())
-            if end_time is not None:
-                query += " and timestamp <= ?"
-                params.append(end_time.isoformat())
-            query += " order by timestamp asc limit ?"
-            params.append(limit)
-            cursor.execute(query, tuple(params))
+            if cleaned_region == "ALL":
+                cursor.execute("select count(*) from telemetry_raw where region = 'ALL'")
+                has_explicit_all = (cursor.fetchone()[0] or 0) > 0
+                if has_explicit_all:
+                    query = (
+                        "select id, timestamp, region, metric_value, metric_type, created_at "
+                        "from telemetry_raw where region = 'ALL'"
+                    )
+                    params: list[Any] = []
+                    if start_time is not None:
+                        query += " and timestamp >= ?"
+                        params.append(start_time.isoformat())
+                    if end_time is not None:
+                        query += " and timestamp <= ?"
+                        params.append(end_time.isoformat())
+                    query += " order by timestamp asc limit ?"
+                    params.append(limit)
+                    cursor.execute(query, tuple(params))
+                else:
+                    query = (
+                        "select timestamp, 'ALL' as region, sum(metric_value) as metric_value, "
+                        "'DEMAND_MW' as metric_type, max(created_at) as created_at "
+                        "from telemetry_raw "
+                    )
+                    conditions = []
+                    params = []
+                    if start_time is not None:
+                        conditions.append("timestamp >= ?")
+                        params.append(start_time.isoformat())
+                    if end_time is not None:
+                        conditions.append("timestamp <= ?")
+                        params.append(end_time.isoformat())
+                    if conditions:
+                        query += "where " + " and ".join(conditions) + " "
+                    query += "group by timestamp order by timestamp asc limit ?"
+                    params.append(limit)
+                    cursor.execute(query, tuple(params))
+            else:
+                query = (
+                    "select id, timestamp, region, metric_value, metric_type, created_at "
+                    "from telemetry_raw where region = ?"
+                )
+                params = [cleaned_region]
+                if start_time is not None:
+                    query += " and timestamp >= ?"
+                    params.append(start_time.isoformat())
+                if end_time is not None:
+                    query += " and timestamp <= ?"
+                    params.append(end_time.isoformat())
+                query += " order by timestamp asc limit ?"
+                params.append(limit)
+                cursor.execute(query, tuple(params))
             return [dict(row) for row in cursor.fetchall()]
 
     # forecast output methods
