@@ -11,7 +11,26 @@ def __getattr__(name: str):
         from src.models.forecast_dataset import ForecastDataset
 
         return ForecastDataset
+    if name == "AnomalyDetector":
+        from src.models.anomaly_detector import AnomalyDetector
+
+        return AnomalyDetector
+    if name == "ExplainabilityEngine":
+        from src.models.explainability import ExplainabilityEngine
+
+        return ExplainabilityEngine
+    if name == "AnomalyRunner":
+        from src.models.anomaly_runner import AnomalyRunner
+
+        return AnomalyRunner
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = ["ForecastDataset", "ForecastEngine", "QuantileRegressor"]
+__all__ = [
+    "AnomalyDetector",
+    "AnomalyRunner",
+    "ExplainabilityEngine",
+    "ForecastDataset",
+    "ForecastEngine",
+    "QuantileRegressor",
+]
