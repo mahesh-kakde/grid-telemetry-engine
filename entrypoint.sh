@@ -27,13 +27,27 @@ streamlit run src/ui/app.py \
     --server.address 127.0.0.1 \
     --server.headless true &
 
-# 3. generate nginx routing config dynamically with $PORT
+# 3. configure generous header buffers in http block to prevent 400 on large Cloudflare cookies
+if grep -q "large_client_header_buffers" /etc/nginx/nginx.conf; then
+    echo "Nginx buffers already configured."
+else
+    sed -i '/http {/a \    large_client_header_buffers 8 64k;\n    client_header_buffer_size 16k;' /etc/nginx/nginx.conf
+fi
+
+# 4. generate nginx routing config dynamically with $PORT
 echo "Configuring Nginx reverse proxy on external port ${PORT}..."
 cat <<EOF > /etc/nginx/conf.d/default.conf
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen ${PORT};
     server_name _;
 
+    client_header_buffer_size 16k;
+    large_client_header_buffers 8 64k;
     client_max_body_size 50M;
 
     # FastAPI OpenAPI documentation, health check, and REST endpoints
@@ -43,6 +57,9 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
     }
 
     # Streamlit UI dashboard and WebSockets
@@ -50,12 +67,16 @@ server {
         proxy_pass http://127.0.0.1:7860;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection \$connection_upgrade;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 86400;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
     }
 }
 EOF
@@ -63,6 +84,6 @@ EOF
 # remove default nginx welcome site if present
 rm -f /etc/nginx/sites-enabled/default
 
-# 4. start nginx in foreground (binds to $PORT)
+# 5. start nginx in foreground (binds to $PORT)
 echo "Starting Nginx on port ${PORT}..."
 exec nginx -g "daemon off;"
