@@ -271,8 +271,8 @@ with st.sidebar:
         """
         <div class="metric-eyebrow">API ENDPOINTS</div>
         <div style="font-size: 0.82rem; color: #6e6e73; line-height: 1.6; margin-top: 0.5rem;">
-            FastAPI OpenAPI: <a href="http://localhost:8000/docs" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/docs</a><br>
-            Health Probe: <a href="http://localhost:8000/health" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/health</a>
+            FastAPI OpenAPI: <a href="/docs" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/docs ↗</a><br>
+            Health Probe: <a href="/health" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/health ↗</a>
         </div>
         """,
         unsafe_allow_html=True,
