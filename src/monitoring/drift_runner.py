@@ -42,13 +42,13 @@ class DriftRunner:
 
     def run(
         self,
-        region: str = "NATIONAL",
+        region: str = "ALL",
         reference_days: int = 30,
         current_days: int = 7,
         drift_share_threshold: float = 0.5,
         save_db: bool = True,
     ) -> tuple[DriftRecord, Path, DriftSuiteResult]:
-        cleaned_region = region.strip().upper()
+        cleaned_region = "ALL" if region.strip().upper() == "NATIONAL" else region.strip().upper()
         logger.info(
             "running evidently drift monitoring for region %s (ref=%d days, curr=%d days)",
             cleaned_region,
@@ -124,7 +124,7 @@ class DriftRunner:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evidently AI drift monitoring runner")
-    parser.add_argument("--region", type=str, default="NATIONAL", help="grid region identifier")
+    parser.add_argument("--region", type=str, default="ALL", help="grid region identifier")
     parser.add_argument("--reference-days", type=int, default=30, help="reference window in days")
     parser.add_argument("--current-days", type=int, default=7, help="current evaluation window in days")
     parser.add_argument("--reports-dir", type=str, default="reports/drift", help="output directory for reports")
