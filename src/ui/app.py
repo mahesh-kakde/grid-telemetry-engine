@@ -25,63 +25,178 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# apple-inspired light design system
+# design system styling
 st.markdown(
     """
     <style>
+    /* global typography */
     html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
         color: #1d1d1f;
+        -webkit-font-smoothing: antialiased;
     }
     .stApp {
         background-color: #fbfbfd;
     }
-    div[data-testid="stSidebar"] {
-        background-color: #f5f5f7;
-        border-right: 1px solid #e5e5ea;
+
+    /* enforce sidebar persistent visibility */
+    section[data-testid="stSidebar"] {
+        background-color: #f5f5f7 !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+        display: block !important;
+        min-width: 280px !important;
     }
-    .metric-card {
+    button[data-testid="baseButton-headerNoPadding"],
+    div[data-testid="stSidebarCollapseButton"] {
+        display: none !important;
+    }
+
+    /* bento grid cards */
+    .card {
         background: #ffffff;
-        border: 1px solid #e5e5ea;
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 18px;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
     }
-    .metric-label {
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #86868b;
+    .card:hover {
+        box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.05);
+    }
+    .metric-eyebrow {
+        font-size: 0.72rem;
         font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #86868b;
     }
-    .metric-value {
-        font-size: 1.85rem;
+    .metric-hero {
+        font-size: 2.25rem;
         font-weight: 700;
+        letter-spacing: -0.03em;
         color: #1d1d1f;
+        line-height: 1.1;
         margin-top: 0.35rem;
-        letter-spacing: -0.02em;
     }
-    .metric-delta {
+    .metric-unit {
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #86868b;
+        margin-left: 0.25rem;
+    }
+    .metric-footer {
         font-size: 0.82rem;
         color: #6e6e73;
-        margin-top: 0.25rem;
+        margin-top: 0.5rem;
     }
+
+    /* status pills */
+    .pill-success {
+        background: rgba(52, 199, 89, 0.12);
+        color: #1b8738;
+        border: 1px solid rgba(52, 199, 89, 0.25);
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .pill-danger {
+        background: rgba(255, 59, 48, 0.12);
+        color: #d70015;
+        border: 1px solid rgba(255, 59, 48, 0.25);
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .pill-neutral {
+        background: #f5f5f7;
+        color: #1d1d1f;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 3px 10px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .button-primary {
+        background: #0071e3;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        padding: 0.45rem 1.1rem;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        box-shadow: 0 1px 2px rgba(0, 113, 227, 0.2);
+        transition: background 0.15s ease;
+    }
+    .button-primary:hover {
+        background: #0077ed;
+    }
+
+    /* segmented control styling */
+    div[data-testid="stSegmentedControl"] {
+        background-color: #efeff1 !important;
+        border-radius: 9999px !important;
+        padding: 4px !important;
+        border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    }
+    div[data-testid="stSegmentedControl"] button {
+        border-radius: 9999px !important;
+        border: none !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+        color: #6e6e73 !important;
+        transition: all 0.15s ease !important;
+        padding: 4px 14px !important;
+    }
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
+        background-color: #ffffff !important;
+        color: #1d1d1f !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        font-weight: 600 !important;
+    }
+
+    /* section headings */
     .section-header {
-        margin-top: 2rem;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 1px solid #e5e5ea;
+        margin-top: 2.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .section-eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #86868b;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
     }
     .section-title {
-        font-size: 1.25rem;
+        font-size: 1.45rem;
         font-weight: 600;
+        letter-spacing: -0.02em;
         color: #1d1d1f;
-        letter-spacing: -0.01em;
     }
     .section-subtitle {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: #6e6e73;
-        margin-top: 0.15rem;
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+
+    /* header cleanup */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+    footer {
+        visibility: hidden;
     }
     </style>
     """,
@@ -121,61 +236,98 @@ def load_drift() -> dict[str, Any] | None:
     return db.get_latest_drift()
 
 
-# sidebar controls
+# persistent sidebar inspector
 with st.sidebar:
-    st.markdown("### Grid Telemetry Engine")
-    st.markdown(
-        "<div style='font-size:0.85rem; color:#6e6e73; margin-bottom:1.2rem;'>Live Indian Power Grid Forecasting, Anomaly Scoring, and Drift Suite.</div>",
-        unsafe_allow_html=True,
-    )
-
-    region_options = {
-        "ALL": "National Grid (ALL)",
-        "NR": "Northern Region (NR)",
-        "WR": "Western Region (WR)",
-        "SR": "Southern Region (SR)",
-        "ER": "Eastern Region (ER)",
-        "NER": "North-Eastern Region (NER)",
-    }
-    selected_region = st.selectbox(
-        "Grid Control Region",
-        options=list(region_options.keys()),
-        format_func=lambda x: region_options[x],
-        index=0,
-    )
-
-    history_window = st.slider("Historical Window (Hours)", min_value=24, max_value=336, value=72, step=24)
-
-    st.markdown("---")
-    st.markdown("#### Engine Specifications")
     st.markdown(
         """
-        - **Forecast Model**: LightGBM Multi-Step Pinball ($p_{10}, p_{50}, p_{90}$)
-        - **Horizon**: 72-Hour Recursive Autoregressive
-        - **Anomaly Model**: Isolation Forest (2% Contamination)
-        - **Explainability**: SHAP TreeExplainer Local Attribution
-        - **Drift Suite**: Evidently AI Kolmogorov-Smirnov / Wasserstein
-        - **Feature SIMD**: Polars LazyFrame (< 50ms)
-        """
-    )
-
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style='font-size:0.8rem; color:#86868b;'>
-            Production Endpoint: <a href="https://grid.maheshkakde.com" target="_blank" style="color:#0071e3; text-decoration:none;">grid.maheshkakde.com</a><br>
-            REST API Swagger: <a href="http://localhost:8000/docs" target="_blank" style="color:#0071e3; text-decoration:none;">/docs</a>
+        <div style="padding-top: 0.5rem; margin-bottom: 1.25rem;">
+            <div class="metric-eyebrow">SYSTEM INSPECTOR</div>
+            <div style="font-size: 1.15rem; font-weight: 600; color: #1d1d1f; margin-top: 0.2rem;">Telemetry Core</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-# main dashboard layout
-st.markdown("## National & Regional Grid Telemetry Dashboard")
+    history_window = st.slider("Historical Lookback (Hours)", min_value=24, max_value=336, value=72, step=24)
+
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="metric-eyebrow">ENGINE ARCHITECTURE</div>
+        <div style="font-size: 0.85rem; color: #6e6e73; line-height: 1.6; margin-top: 0.5rem;">
+            <b>Forecasting</b>: LightGBM Multi-Step Pinball (p10, p50, p90)<br>
+            <b>Roll-Forward</b>: 72h Recursive Autoregressive<br>
+            <b>Anomalies</b>: Isolation Forest (2% Contamination)<br>
+            <b>Attribution</b>: SHAP TreeExplainer<br>
+            <b>Monitoring</b>: Evidently AI KS & Wasserstein<br>
+            <b>Pipeline</b>: Polars SIMD LazyFrame
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="metric-eyebrow">API ENDPOINTS</div>
+        <div style="font-size: 0.82rem; color: #6e6e73; line-height: 1.6; margin-top: 0.5rem;">
+            FastAPI OpenAPI: <a href="http://localhost:8000/docs" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/docs</a><br>
+            Health Probe: <a href="http://localhost:8000/health" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 500;">/health</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# top minimal navbar
 st.markdown(
-    f"<div style='font-size:0.95rem; color:#6e6e73; margin-top:-0.5rem; margin-bottom:1.5rem;'>Monitoring telemetry, predictive quantile uncertainty, and distribution drift for <b>{region_options[selected_region]}</b>.</div>",
+    """
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom: 1.25rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06);">
+        <div style="font-size:0.85rem; font-weight:600; letter-spacing:0.04em; color:#1d1d1f;">
+            GRID TELEMETRY ENGINE
+        </div>
+        <div style="font-size:0.82rem; color:#86868b;">
+            NTP Synchronized
+        </div>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
+
+# hero headline
+st.markdown(
+    """
+    <div>
+        <div class="metric-eyebrow">INDIAN POWER GRID TELEMETRY</div>
+        <div style="font-size: 2.75rem; font-weight: 700; letter-spacing: -0.035em; color: #1d1d1f; line-height: 1.08; margin-top: 0.4rem; margin-bottom: 0.65rem;">
+            Demand Forecasting & Predictive Uncertainty.
+        </div>
+        <div style="font-size: 1.12rem; color: #6e6e73; line-height: 1.45; max-width: 740px; margin-bottom: 1.5rem;">
+            Continuous 72-hour recursive quantile forecasts, Isolation Forest structural anomaly detection with SHAP attributions, and Evidently statistical drift monitoring.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# segmented control for direct manipulation
+region_options = {
+    "ALL": "National Grid",
+    "NR": "Northern (NR)",
+    "WR": "Western (WR)",
+    "SR": "Southern (SR)",
+    "ER": "Eastern (ER)",
+    "NER": "North-Eastern (NER)",
+}
+
+selected_region = st.segmented_control(
+    "Control Region",
+    options=list(region_options.keys()),
+    default="ALL",
+    format_func=lambda x: region_options[x],
+    label_visibility="collapsed",
+) or "ALL"
+
+st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
 
 # load data
 recent_telemetry = load_telemetry(selected_region, limit=history_window)
@@ -183,21 +335,28 @@ forecasts = load_forecasts(selected_region, limit=72)
 anomalies = load_anomalies(selected_region, limit=50)
 drift_status = load_drift()
 
-# top metrics strip
+# top bento metrics strip
 curr_demand = recent_telemetry[0]["metric_value"] if recent_telemetry else 0.0
 peak_24h = max([r["metric_value"] for r in recent_telemetry[:24]], default=0.0)
 min_24h = min([r["metric_value"] for r in recent_telemetry[:24]], default=0.0)
 proj_peak = max([f["p50"] for f in forecasts], default=0.0) if forecasts else 0.0
+flagged_count = sum(1 for a in anomalies if a.get("is_anomaly"))
+drift_share = float(drift_status.get("drift_share", 0.0)) if drift_status else 0.0
+is_drift = drift_share >= 0.5
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.markdown(
         f"""
-        <div class="metric-card">
-            <div class="metric-label">Current Grid Demand</div>
-            <div class="metric-value">{curr_demand:,.0f} <span style="font-size:1rem; font-weight:500;">MW</span></div>
-            <div class="metric-delta">Region: {selected_region}</div>
+        <div class="card" style="padding: 1.5rem 1.75rem;">
+            <div class="metric-eyebrow">CURRENT DEMAND</div>
+            <div class="metric-hero">
+                {curr_demand:,.0f} <span class="metric-unit">MW</span>
+            </div>
+            <div class="metric-footer">
+                <span class="pill-neutral">Region: {selected_region}</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -206,10 +365,14 @@ with col1:
 with col2:
     st.markdown(
         f"""
-        <div class="metric-card">
-            <div class="metric-label">24h Peak Demand</div>
-            <div class="metric-value">{peak_24h:,.0f} <span style="font-size:1rem; font-weight:500;">MW</span></div>
-            <div class="metric-delta">Trough: {min_24h:,.0f} MW</div>
+        <div class="card" style="padding: 1.5rem 1.75rem;">
+            <div class="metric-eyebrow">24H PEAK DEMAND</div>
+            <div class="metric-hero">
+                {peak_24h:,.0f} <span class="metric-unit">MW</span>
+            </div>
+            <div class="metric-footer">
+                Trough: {min_24h:,.0f} MW
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -218,26 +381,30 @@ with col2:
 with col3:
     st.markdown(
         f"""
-        <div class="metric-card">
-            <div class="metric-label">72h Projected Median Peak</div>
-            <div class="metric-value">{proj_peak:,.0f} <span style="font-size:1rem; font-weight:500;">MW</span></div>
-            <div class="metric-delta">Model: LightGBM Pinball</div>
+        <div class="card" style="padding: 1.5rem 1.75rem;">
+            <div class="metric-eyebrow">72H PROJECTED PEAK</div>
+            <div class="metric-hero">
+                {proj_peak:,.0f} <span class="metric-unit">MW</span>
+            </div>
+            <div class="metric-footer">
+                Median (p50) Pinball Horizon
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 with col4:
-    flagged_count = sum(1 for a in anomalies if a.get("is_anomaly"))
-    drift_share = float(drift_status.get("drift_share", 0.0)) if drift_status else 0.0
     st.markdown(
         f"""
-        <div class="metric-card">
-            <div class="metric-label">System Health & Drift</div>
-            <div class="metric-value" style="font-size:1.5rem; color:{'#166534' if drift_share < 0.5 else '#991b1b'};">
-                {'Nominal' if drift_share < 0.5 else 'Drift Detected'}
+        <div class="card" style="padding: 1.5rem 1.75rem;">
+            <div class="metric-eyebrow">SYSTEM STABILITY</div>
+            <div class="metric-hero" style="font-size: 1.65rem; color: {'#d70015' if is_drift else '#1b8738'}; margin-top: 0.6rem;">
+                {'Drift Detected' if is_drift else 'Nominal State'}
             </div>
-            <div class="metric-delta">Drift Share: {drift_share:.1%} | Anomalies: {flagged_count}</div>
+            <div class="metric-footer">
+                Drift: {drift_share:.1%} • Anomalies: {flagged_count}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -247,8 +414,11 @@ with col4:
 st.markdown(
     """
     <div class="section-header">
+        <div class="section-eyebrow">PREDICTIVE HORIZON</div>
         <div class="section-title">72-Hour Quantile Forecast & Confidence Ribbon</div>
-        <div class="section-subtitle">LightGBM recursive roll-forward predicting p10 (lower), p50 (median), and p90 (upper) uncertainty bounds.</div>
+        <div class="section-subtitle">
+            LightGBM recursive roll-forward predicting p10 (lower boundary), p50 (median), and p90 (upper boundary) uncertainty bounds.
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -258,14 +428,17 @@ if recent_telemetry or forecasts:
     fig = render_forecast_figure(recent_telemetry, forecasts, region=selected_region)
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 else:
-    st.info("No forecast data available for this region.")
+    st.info("No forecast records available for this control region.")
 
 # section 2: anomalies & shap attribution
 st.markdown(
     """
     <div class="section-header">
+        <div class="section-eyebrow">ANOMALY ENGINE</div>
         <div class="section-title">Structural Anomalies & SHAP Root-Cause Attribution</div>
-        <div class="section-subtitle">Isolation Forest flags structural deviations; SHAP TreeExplainer computes local driving feature importance.</div>
+        <div class="section-subtitle">
+            Isolation Forest flags structural deviations; SHAP TreeExplainer computes localized driving feature importance.
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -276,10 +449,23 @@ render_anomaly_section(anomalies)
 st.markdown(
     """
     <div class="section-header">
-        <div class="section-title">Evidently AI Continuous Drift Monitoring</div>
-        <div class="section-subtitle">Evaluating rolling 7-day live telemetry against the 30-day training reference baseline.</div>
+        <div class="section-eyebrow">CONTINUOUS MONITORING</div>
+        <div class="section-title">Evidently AI Statistical Drift Suite</div>
+        <div class="section-subtitle">
+            Evaluating rolling 7-day live telemetry against the 30-day training reference baseline via Kolmogorov-Smirnov and Wasserstein tests.
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 render_drift_section(drift_status)
+
+# footer
+st.markdown(
+    """
+    <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(0, 0, 0, 0.06); text-align: center; font-size: 0.85rem; color: #86868b;">
+        Created by <a href="https://maheshkakde.com" target="_blank" style="color: #1d1d1f; font-weight: 500; text-decoration: none;">Mahesh Kakde</a> • <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" style="color: #0071e3; text-decoration: none;">GitHub</a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)

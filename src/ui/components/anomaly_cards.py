@@ -1,72 +1,102 @@
 from typing import Any
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 
 def render_shap_bar_chart(shap_features: dict[str, float]) -> go.Figure:
+    """Renders a horizontal micro-bar chart of SHAP feature contributions."""
     if not shap_features:
         return go.Figure()
 
     sorted_features = sorted(shap_features.items(), key=lambda x: abs(x[1]))
     names = [k for k, _ in sorted_features]
     values = [v for _, v in sorted_features]
-    colors = ["#dc2626" if v > 0 else "#2563eb" for v in values]
+    colors = ["#ff3b30" if v > 0 else "#0071e3" for v in values]
 
     fig = go.Figure(
         go.Bar(
             x=values,
             y=names,
             orientation="h",
-            marker=dict(color=colors, line=dict(width=0)),
-            hovertemplate="Feature: %{y}<br>SHAP Contribution: <b>%{x:+.4f}</b><extra></extra>",
+            marker=dict(
+                color=colors,
+                line=dict(width=0),
+                cornerradius=4,
+            ),
+            hovertemplate="Feature: <b>%{y}</b><br>SHAP Impact: <b>%{x:+.4f}</b><extra></extra>",
         )
     )
 
     fig.update_layout(
+        font=dict(
+            family='-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
+            color="#1d1d1f",
+        ),
         margin=dict(l=10, r=10, t=10, b=10),
-        height=140,
+        height=130,
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
         xaxis=dict(
             showgrid=True,
-            gridcolor="#f1f5f9",
-            linecolor="#e2e8f0",
-            tickfont=dict(size=10, color="#64748b"),
-            zerolinecolor="#cbd5e1",
+            gridcolor="rgba(0, 0, 0, 0.04)",
+            linecolor="rgba(0, 0, 0, 0.06)",
+            tickfont=dict(size=10, color="#86868b"),
+            zeroline=True,
+            zerolinecolor="rgba(0, 0, 0, 0.15)",
         ),
         yaxis=dict(
-            tickfont=dict(size=10, color="#334155"),
+            tickfont=dict(size=11, color="#1d1d1f"),
             showgrid=False,
+            showline=False,
+        ),
+        hoverlabel=dict(
+            bgcolor="#ffffff",
+            font_size=11,
+            bordercolor="rgba(0, 0, 0, 0.08)",
         ),
     )
     return fig
 
 
 def render_anomaly_section(anomalies: list[dict[str, Any]]) -> None:
+    """Renders the structural anomaly detection section with bento grid cards."""
     flagged = [a for a in anomalies if a.get("is_anomaly")]
+    total_eval = len(anomalies)
+    rate = (len(flagged) / total_eval * 100) if total_eval > 0 else 0.0
 
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns(2)
     with col1:
         st.markdown(
             f"""
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Flagged Stress Events</div>
-                <div style="font-size:1.8rem; font-weight:700; color:#dc2626; margin-top:0.3rem;">{len(flagged)}</div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.2rem;">Evaluated via Isolation Forest (2% contamination)</div>
+            <div class="card" style="padding: 1.5rem 1.75rem;">
+                <div class="metric-eyebrow">ISOLATION FOREST CONTAMINATION</div>
+                <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:0.4rem;">
+                    <div style="font-size:2.4rem; font-weight:700; letter-spacing:-0.03em; color:{'#ff3b30' if flagged else '#1d1d1f'}; line-height:1;">
+                        {len(flagged)}
+                    </div>
+                    <div style="font-size:0.95rem; color:#86868b; font-weight:500;">flagged events</div>
+                </div>
+                <div style="font-size:0.85rem; color:#6e6e73; margin-top:0.5rem;">
+                    Calibrated contamination target: 2.0% threshold
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with col2:
-        total_eval = len(anomalies)
-        rate = (len(flagged) / total_eval * 100) if total_eval > 0 else 0.0
         st.markdown(
             f"""
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Total Evaluated Timestamps</div>
-                <div style="font-size:1.8rem; font-weight:700; color:#1e293b; margin-top:0.3rem;">{total_eval}</div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.2rem;">Observed Contamination Rate: {rate:.2f}%</div>
+            <div class="card" style="padding: 1.5rem 1.75rem;">
+                <div class="metric-eyebrow">OBSERVED ANOMALY RATE</div>
+                <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:0.4rem;">
+                    <div style="font-size:2.4rem; font-weight:700; letter-spacing:-0.03em; color:#1d1d1f; line-height:1;">
+                        {rate:.2f}%
+                    </div>
+                    <div style="font-size:0.95rem; color:#86868b; font-weight:500;">over {total_eval} points</div>
+                </div>
+                <div style="font-size:0.85rem; color:#6e6e73; margin-top:0.5rem;">
+                    Rolling window temporal evaluation
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -77,15 +107,26 @@ def render_anomaly_section(anomalies: list[dict[str, Any]]) -> None:
     if not flagged:
         st.markdown(
             """
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; text-align:center; color:#64748b; font-size:0.95rem;">
-                No structural anomalies detected in recent telemetry. Grid operation within nominal variance.
+            <div class="card" style="padding: 2.5rem 1.5rem; text-align: center;">
+                <div style="font-size:1rem; font-weight:600; color:#1d1d1f;">Nominal Grid State</div>
+                <div style="font-size:0.88rem; color:#86868b; margin-top:0.35rem; max-width:480px; margin-left:auto; margin-right:auto;">
+                    No structural anomalies detected in recent telemetry. Load fluctuations remain strictly within nominal 2% variance boundaries.
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         return
 
-    st.markdown("##### Recent Structural Outliers & SHAP Attribution")
+    st.markdown(
+        """
+        <div style="font-size:1rem; font-weight:600; color:#1d1d1f; margin-bottom:0.75rem; letter-spacing:-0.01em;">
+            Recent Outliers & Local SHAP Attribution
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     for anom in flagged[:6]:
         ts = anom.get("timestamp", "N/A")
         val = float(anom.get("metric_value", 0.0))
@@ -96,19 +137,17 @@ def render_anomaly_section(anomalies: list[dict[str, Any]]) -> None:
         with st.container():
             st.markdown(
                 f"""
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #dc2626; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="font-weight:600; color:#1e293b; font-size:0.95rem;">{ts}</span>
-                            <span style="color:#64748b; font-size:0.85rem; margin-left:0.5rem;">Region: {region}</span>
+                <div class="card" style="padding: 1.25rem 1.5rem; margin-bottom: 0.85rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <span class="pill-danger">Outlier Event</span>
+                            <span style="font-weight:600; color:#1d1d1f; font-size:0.95rem;">{ts}</span>
+                            <span class="pill-neutral">Region {region}</span>
                         </div>
-                        <div>
-                            <span style="background:#fee2e2; color:#991b1b; padding:0.2rem 0.6rem; border-radius:9999px; font-size:0.8rem; font-weight:600;">
-                                Load: {val:,.0f} MW
-                            </span>
-                            <span style="background:#f1f5f9; color:#475569; padding:0.2rem 0.6rem; border-radius:9999px; font-size:0.8rem; font-weight:600; margin-left:0.3rem;">
-                                Score: {score:.3f}
-                            </span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="font-size:0.85rem; color:#6e6e73;">Load:</span>
+                            <span style="font-weight:600; color:#1d1d1f; font-size:0.95rem;">{val:,.0f} MW</span>
+                            <span style="font-size:0.82rem; color:#86868b; margin-left:0.4rem;">Score: {score:.3f}</span>
                         </div>
                     </div>
                 </div>
