@@ -7,6 +7,7 @@ numpy>=1.26.0
 lightgbm>=4.3.0
 scikit-learn>=1.4.0
 shap>=0.45.0
+evidently>=0.4.0
 fastapi>=0.110.0
 uvicorn>=0.28.0
 streamlit>=1.33.0
