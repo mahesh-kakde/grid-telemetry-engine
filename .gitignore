@@ -39,3 +39,6 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+
+# streamlit secrets
+.streamlit/secrets.toml
