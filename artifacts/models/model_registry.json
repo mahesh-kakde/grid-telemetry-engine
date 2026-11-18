@@ -1,0 +1,32 @@
+{
+  "ALL_INDIA": {
+    "0.1": "lgb_quantile_10_ALL_INDIA.txt",
+    "0.5": "lgb_quantile_50_ALL_INDIA.txt",
+    "0.9": "lgb_quantile_90_ALL_INDIA.txt"
+  },
+  "NR": {
+    "0.1": "lgb_quantile_10_NR.txt",
+    "0.5": "lgb_quantile_50_NR.txt",
+    "0.9": "lgb_quantile_90_NR.txt"
+  },
+  "WR": {
+    "0.1": "lgb_quantile_10_WR.txt",
+    "0.5": "lgb_quantile_50_WR.txt",
+    "0.9": "lgb_quantile_90_WR.txt"
+  },
+  "SR": {
+    "0.1": "lgb_quantile_10_SR.txt",
+    "0.5": "lgb_quantile_50_SR.txt",
+    "0.9": "lgb_quantile_90_SR.txt"
+  },
+  "ER": {
+    "0.1": "lgb_quantile_10_ER.txt",
+    "0.5": "lgb_quantile_50_ER.txt",
+    "0.9": "lgb_quantile_90_ER.txt"
+  },
+  "NER": {
+    "0.1": "lgb_quantile_10_NER.txt",
+    "0.5": "lgb_quantile_50_NER.txt",
+    "0.9": "lgb_quantile_90_NER.txt"
+  }
+}

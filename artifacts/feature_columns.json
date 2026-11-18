@@ -1,0 +1,22 @@
+[
+  "sin_hour_k1",
+  "cos_hour_k1",
+  "sin_hour_k2",
+  "cos_hour_k2",
+  "sin_doy",
+  "cos_doy",
+  "day_of_week",
+  "is_holiday",
+  "demand_lag_1h",
+  "demand_lag_2h",
+  "demand_lag_3h",
+  "demand_lag_24h",
+  "demand_lag_48h",
+  "demand_lag_168h",
+  "demand_rolling_mean_6h",
+  "demand_rolling_mean_24h",
+  "demand_rolling_mean_168h",
+  "demand_rolling_std_6h",
+  "demand_rolling_std_24h",
+  "demand_rolling_std_168h"
+]
