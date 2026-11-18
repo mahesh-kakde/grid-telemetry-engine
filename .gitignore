@@ -1,2 +1,18 @@
 # local agent working memory
 resources/
+
+# python bytecode and runtime caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# environment and secrets
+.venv/
+venv/
+.env
+
+# build and distribution outputs
+build/
+dist/
+*.egg-info/
