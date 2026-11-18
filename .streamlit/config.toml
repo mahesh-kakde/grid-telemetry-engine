@@ -1,0 +1,16 @@
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+enableWebsocketCompression = false
+
+[browser]
+serverAddress = "grid.maheshkakde.com"
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#0052cc"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6f8"
+textColor = "#172b4d"
+font = "sans serif"
