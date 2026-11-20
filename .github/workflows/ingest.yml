@@ -51,3 +51,9 @@ jobs:
         env:
           ARTIFACTS_PATH: "artifacts"
         run: python -m src.models.precompute
+
+      - name: Prune Expired Database Records (90-Day Retention)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RETENTION_DAYS: 90
+        run: python -m src.ingestion.cleanup
