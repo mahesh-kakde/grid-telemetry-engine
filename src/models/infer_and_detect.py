@@ -116,8 +116,9 @@ def generate_72h_multi_step_forecast(
 
     for step in range(1, 73):
         target_ts = latest_ts + timedelta(hours=step)
-        # build updated features on historical window
-        features_df = compute_telemetry_features(extended_df, drop_nulls_flag=False)
+        # build updated features on recent trailing window to bound memory allocations
+        window_slice = extended_df.tail(180)
+        features_df = compute_telemetry_features(window_slice, drop_nulls_flag=False)
         last_row = features_df.tail(1).to_pandas()
 
         p10, p50, p90 = predict_quantiles(last_row, region, bundle)
@@ -146,6 +147,9 @@ def generate_72h_multi_step_forecast(
         }])
         extended_df = pl.concat([extended_df, new_row])
 
+    del extended_df
+    import gc
+    gc.collect()
     return forecasts
 
 

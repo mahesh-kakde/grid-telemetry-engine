@@ -121,6 +121,7 @@ def check_api_health() -> Tuple[bool, Dict[str, Any]]:
     return False, {}
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
     # retrieves 72-hour forecast via loopback api or local model bundle fallback
     is_live, _ = check_api_health()
@@ -178,6 +179,7 @@ def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
     ]
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
 def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) -> Dict[str, Any]:
     # evaluates anomaly detection status via api or local fallback
     is_live, _ = check_api_health()
@@ -227,6 +229,7 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
     }
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_drift_summary(region: str) -> Dict[str, Any]:
     # fetches statistical drift summary via api or local evaluation
     is_live, _ = check_api_health()

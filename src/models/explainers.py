@@ -37,18 +37,12 @@ class AnomalySHAPExplainer:
         self.explainers: Dict[str, shap.TreeExplainer] = LazyDict(self._build_tree_explainer)
 
     def _build_tree_explainer(self, region: str) -> shap.TreeExplainer:
-        # constructs treeexplainer for target region using median p50 booster and k-means centroids
+        # constructs path-dependent treeexplainer for target region using median p50 booster
         if region not in REGIONS and region not in self.bundle.model_registry:
             raise KeyError(f"region '{region}' not configured in shap explainer")
         booster = self.bundle.lgb_models[region][0.50]
-        bg_data = self.bundle.shap_backgrounds[region]
-        try:
-            # initialize with k-means background
-            explainer = shap.TreeExplainer(booster, data=bg_data)
-        except Exception:
-            # fallback to standard path-dependent tree explainer
-            explainer = shap.TreeExplainer(booster)
-        return explainer
+        # tree path-dependent explainer provides exact shapley values with minimal memory footprint
+        return shap.TreeExplainer(booster)
 
     def _initialize_tree_explainers(self) -> None:
         # eagerly warm up explainers across all regions when explicitly requested
