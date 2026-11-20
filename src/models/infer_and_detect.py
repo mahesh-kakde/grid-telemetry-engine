@@ -196,13 +196,27 @@ def persist_forecasts_to_supabase(
             actual_demand_mw = COALESCE(EXCLUDED.actual_demand_mw, model_forecasts.actual_demand_mw);
     """
 
-    conn = psycopg2.connect(db_url)
+    try:
+        conn = psycopg2.connect(db_url)
+    except Exception as exc:
+        logger.error(
+            f"failed to connect to supabase database: {exc}. "
+            "verify SUPABASE_DB_URL secret format (e.g. postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?sslmode=require)"
+        )
+        raise
+
     try:
         with conn.cursor() as cur:
             execute_values(cur, upsert_sql, rows)
         conn.commit()
         logger.info(f"successfully upserted {len(rows)} forecast rows to supabase")
         return len(rows)
+    except Exception as exc:
+        logger.error(
+            f"failed to upsert forecast records: {exc}. "
+            "if table does not exist, execute scripts/setup_database.sql in the supabase sql editor."
+        )
+        raise
     finally:
         conn.close()
 

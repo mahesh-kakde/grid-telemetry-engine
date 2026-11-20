@@ -80,7 +80,7 @@ def fetch_weather_with_retry(
         "longitude": lon,
         "past_days": past_days,
         "forecast_days": 1,
-        "hourly": "temperature_2m,relative_humidity_2m,surface_solar_radiation,wind_speed_100m",
+        "hourly": "temperature_2m,relative_humidity_2m,shortwave_radiation_instant,wind_speed_100m",
         "timezone": "UTC",
     }
     records: List[RawWeatherRecord] = []
@@ -94,7 +94,7 @@ def fetch_weather_with_retry(
                 times = data.get("time", [])
                 temps = data.get("temperature_2m", [])
                 rhs = data.get("relative_humidity_2m", [])
-                solars = data.get("surface_solar_radiation", [])
+                solars = data.get("shortwave_radiation_instant", data.get("surface_solar_radiation", []))
                 winds = data.get("wind_speed_100m", [])
 
                 for i in range(len(times)):
@@ -258,13 +258,27 @@ def persist_telemetry_to_supabase(
             wind_speed_100m = COALESCE(EXCLUDED.wind_speed_100m, regional_telemetry.wind_speed_100m);
     """
 
-    conn = psycopg2.connect(db_url)
+    try:
+        conn = psycopg2.connect(db_url)
+    except Exception as exc:
+        logger.error(
+            f"failed to connect to supabase database: {exc}. "
+            "verify SUPABASE_DB_URL secret format (e.g. postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?sslmode=require)"
+        )
+        raise
+
     try:
         with conn.cursor() as cur:
             execute_values(cur, upsert_sql, rows_to_insert)
         conn.commit()
         logger.info(f"successfully upserted {len(rows_to_insert)} records to supabase")
         return len(rows_to_insert)
+    except Exception as exc:
+        logger.error(
+            f"failed to upsert telemetry records: {exc}. "
+            "if table does not exist, execute scripts/setup_database.sql in the supabase sql editor."
+        )
+        raise
     finally:
         conn.close()
 
