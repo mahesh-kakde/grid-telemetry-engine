@@ -17,13 +17,337 @@ import streamlit as st
 import plotly.graph_objects as go
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
+REGION_NAMES = {
+    "ALL_INDIA": "ALL_INDIA — National Grid",
+    "NR": "NR — Northern Region",
+    "WR": "WR — Western Region",
+    "SR": "SR — Southern Region",
+    "ER": "ER — Eastern Region",
+    "NER": "NER — North Eastern Region",
+}
 MODEL_VERSION = "2.0.0"
 DEFAULT_REPORT_PATH = os.path.join(root_dir, "static", "reports", "drift_report.html")
+
+
+def build_html_drift_report(
+    drift_summary: Dict[str, Any],
+    region: str = "ALL_INDIA",
+    generated_at: Optional[str] = None,
+) -> str:
+    # generates standalone html report mirroring dashboard design standards and specifications
+    full_region = REGION_NAMES.get(region, region)
+    timestamp = generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    total_features = drift_summary.get("total_features", 0)
+    drifted_features = drift_summary.get("drifted_features", 0)
+    drift_ratio = drift_summary.get("drift_ratio", 0.0)
+    drift_alarm = drift_summary.get("drift_alarm", False)
+    alphas = str(drift_summary.get("recommended_quantile_alpha", [0.10, 0.50, 0.90]))
+
+    if drift_alarm:
+        notice_class = "notice-alarm"
+        notice_title = "Retraining Advisory Active"
+        notice_desc = (
+            f"Covariate feature drift exceeds the 30.0% alarm threshold "
+            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
+            f"Model recalibration is advised; quantile prediction bounds recommended widening to {alphas}."
+        )
+    else:
+        notice_class = "notice-normal"
+        notice_title = "Telemetry Distributions Nominal"
+        notice_desc = (
+            f"Continuous and cyclical feature distributions match the 30-day reference baseline. "
+            f"Covariate feature drift is within normal tolerance "
+            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
+            f"Quantile intervals operating at standard [0.10, 0.50, 0.90]."
+        )
+
+    # assemble table rows for feature-by-feature evaluation
+    table_rows = []
+    feature_metrics = drift_summary.get("feature_metrics", {})
+    for feat_name, metric_info in feature_metrics.items():
+        test_type = metric_info.get("test", "unknown")
+        test_label = "Kolmogorov-Smirnov" if test_type == "kolmogorov_smirnov" else "Wasserstein Distance"
+        stat_val = metric_info.get("statistic", metric_info.get("score", 0.0))
+        thresh_val = metric_info.get("threshold", 0.0)
+        p_val_str = f"{metric_info['p_value']:.6f}" if "p_value" in metric_info else "N/A (Wasserstein)"
+        is_drifted = metric_info.get("drift_detected", False)
+        status_badge = (
+            '<span class="badge-alarm">DRIFT DETECTED</span>'
+            if is_drifted
+            else '<span class="badge-normal">NORMAL</span>'
+        )
+
+        table_rows.append(
+            f"<tr>"
+            f"<td><code>{feat_name}</code></td>"
+            f"<td>{test_label}</td>"
+            f"<td>{stat_val:.4f}</td>"
+            f"<td>{thresh_val:.4f}</td>"
+            f"<td>{p_val_str}</td>"
+            f"<td>{status_badge}</td>"
+            f"</tr>"
+        )
+    table_rows_html = "\n".join(table_rows)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistical Drift Diagnostic Report - {full_region}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #ffffff;
+            color: #111111;
+            line-height: 1.5;
+            padding: 24px 32px;
+            max-width: 960px;
+            margin: 0 auto;
+        }}
+        h1 {{
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 4px;
+            color: #111111;
+        }}
+        .subtitle {{
+            font-size: 13px;
+            color: #555555;
+            margin-bottom: 16px;
+        }}
+        .meta-bar {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eeeeee;
+            font-size: 12px;
+            color: #555555;
+        }}
+        .mono-tag {{
+            font-family: Consolas, Monaco, monospace;
+            background-color: #f4f6f8;
+            border: 1px solid #dcdcdc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #111111;
+        }}
+        .metric-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }}
+        @media (max-width: 768px) {{
+            .metric-grid {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+        .metric-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            background-color: #ffffff;
+            margin-bottom: 8px;
+        }}
+        .metric-label {{
+            font-size: 11px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }}
+        .metric-value {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #111111;
+        }}
+        .badge-normal {{
+            background-color: #e6f4ea;
+            color: #137333;
+            border: 1px solid #ceead6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 11px;
+            display: inline-block;
+        }}
+        .badge-alarm {{
+            background-color: #fce8e6;
+            color: #c5221f;
+            border: 1px solid #fad2cf;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 11px;
+            display: inline-block;
+        }}
+        .notice-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }}
+        .notice-normal {{
+            border-left: 4px solid #137333;
+            background-color: #f7fbf8;
+        }}
+        .notice-alarm {{
+            border-left: 4px solid #c5221f;
+            background-color: #fdf7f7;
+        }}
+        h2 {{
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            color: #111111;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 24px;
+        }}
+        th {{
+            background-color: #f8f9fa;
+            border: 1px solid #dcdcdc;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #555555;
+        }}
+        td {{
+            border: 1px solid #e5e5e5;
+            padding: 8px 10px;
+            color: #222222;
+        }}
+        tr:nth-child(even) td {{
+            background-color: #fafbfc;
+        }}
+        code {{
+            font-family: Consolas, Monaco, monospace;
+            background-color: #f4f6f8;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 11px;
+        }}
+        .spec-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            background-color: #ffffff;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #222222;
+        }}
+        .footer {{
+            margin-top: 28px;
+            padding-top: 12px;
+            border-top: 1px solid #eeeeee;
+            font-size: 11px;
+            color: #777777;
+            display: flex;
+            justify-content: space-between;
+        }}
+        @media print {{
+            body {{
+                padding: 0;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <h1>National Power Grid Telemetry & Forecasting Engine</h1>
+    <div class="subtitle">Statistical Covariate & Target Drift Diagnostic Report</div>
+
+    <div class="meta-bar">
+        <div>Region: <span class="mono-tag">{full_region}</span></div>
+        <div>Model Version: <span class="mono-tag">v2.0.0</span></div>
+        <div>Baseline Window: <span class="mono-tag">30-Day Reference (720h)</span></div>
+        <div>Observation Window: <span class="mono-tag">Trailing 7-Day (168h)</span></div>
+        <div>Report Timestamp: <span class="mono-tag">{timestamp}</span></div>
+    </div>
+
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-label">Total Monitored Features</div>
+            <div class="metric-value">{total_features}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Drifted Features</div>
+            <div class="metric-value">{drifted_features} ({drift_ratio * 100:.1f}%)</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Alarm Threshold</div>
+            <div class="metric-value">> 30.0%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Recommended Quantile Alphas</div>
+            <div class="metric-value"><span class="mono-tag">{alphas}</span></div>
+        </div>
+    </div>
+
+    <div class="notice-card {notice_class}">
+        <b>{notice_title}:</b> {notice_desc}
+    </div>
+
+    <h2>Feature-by-Feature Statistical Drift Audit</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Feature Name</th>
+                <th>Statistical Test</th>
+                <th>Statistic / Score</th>
+                <th>Threshold</th>
+                <th>P-Value</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {table_rows_html}
+        </tbody>
+    </table>
+
+    <h2>System Architecture & Specifications</h2>
+    <div class="spec-card">
+        <b>1. Ingestion Cron Job:</b> GitHub Actions scheduled cron runs every 6 hours (<code>15 */6 * * *</code>),
+        ingesting POSOCO / NLDC demand telemetry and Open-Meteo meteorological observations with Pydantic v2 validation.
+    </div>
+    <div class="spec-card">
+        <b>2. Zero-Leakage Feature Pipeline:</b> Vectorized Polars LazyFrames computing autoregressive lags, rolling statistics,
+        and continuous Fourier harmonics with a mandatory <code>shift(1)</code> causality fence.
+    </div>
+    <div class="spec-card">
+        <b>3. Dual Model Engine:</b> LightGBM multi-step quantile regression (<code>p10, p50, p90</code>) with isotonic monotonicity sorting
+        coupled with Scikit-Learn Isolation Forest for structural anomaly detection.
+    </div>
+    <div class="spec-card">
+        <b>4. Explainability & Observability:</b> SHAP TreeExplainer with 150 k-means background centroids extracting top-3 physical drivers,
+        and Evidently AI performing KS and Wasserstein drift evaluation.
+    </div>
+
+    <div class="footer">
+        <div>National Power Grid Telemetry & Forecasting Engine · India National Grid (POSOCO / NLDC)</div>
+        <div>Author: mahesh-kakde · Model Version: 2.0.0</div>
+    </div>
+</body>
+</html>"""
+
 
 # page configuration
 st.set_page_config(
     page_title="grid-telemetry-engine | Mahesh Kakde",
-    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -32,26 +356,85 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    /* compact modern layout aligned with plan.html */
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: #111111;
     }
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 100% !important;
+    }
+    [data-testid="stSidebarContent"] {
+        padding-top: 1.25rem !important;
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+    }
+    [data-testid="stSidebarHeader"] {
+        display: none !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+        padding-top: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        overflow-y: hidden !important;
+    }
+    [data-testid="stSidebar"] hr {
+        margin: 0.5rem 0 !important;
+    }
+    [data-testid="stSidebar"] h4 {
+        margin-top: 0rem !important;
+        margin-bottom: 0.25rem !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+    }
+    header[data-testid="stHeader"] {
+        height: 0px !important;
+        min-height: 0px !important;
+        background: transparent !important;
+    }
+    h1 {
+        margin-top: 0rem !important;
+        padding-top: 0rem !important;
+        margin-bottom: 0.25rem !important;
+        font-size: 26px !important;
+        font-weight: 700 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 6px;
+        margin-top: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    [data-baseweb="select"] {
+        font-size: 13px !important;
+    }
+    [data-baseweb="popover"] {
+        min-width: 280px !important;
+    }
+    li[role="option"] {
+        font-size: 13px !important;
+        white-space: normal !important;
+        word-break: normal !important;
+    }
     .metric-card {
-        border: 1px solid #cccccc;
+        border: 1px solid #dcdcdc;
         border-radius: 4px;
-        padding: 12px 16px;
+        padding: 10px 14px;
         background-color: #ffffff;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
     .metric-label {
-        font-size: 12px;
-        color: #555555;
+        font-size: 11px;
+        color: #666666;
         text-transform: uppercase;
-        margin-bottom: 4px;
-        font-weight: 500;
+        letter-spacing: 0.4px;
+        margin-bottom: 2px;
+        font-weight: 600;
     }
     .metric-value {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 600;
         color: #111111;
     }
@@ -259,28 +642,20 @@ st.markdown(
 
 # sidebar controls
 with st.sidebar:
-    st.subheader("Grid Configuration")
+    st.markdown("#### Grid Configuration")
     selected_region = st.selectbox(
         "Select Regional Grid",
         options=REGIONS,
+        format_func=lambda code: REGION_NAMES.get(code, code),
         index=0,
         help="Choose one of India's 5 Regional Load Despatch Centres (RLDCs) or aggregate ALL_INDIA",
     )
 
-    api_active, api_info = check_api_health()
     st.markdown("---")
-    st.markdown("**Engine Runtime State**")
-    if api_active:
-        st.markdown('<span class="badge-normal">FastAPI Online</span>', unsafe_allow_html=True)
-        st.caption(f"Loopback Service: `127.0.0.1:8000`")
-    else:
-        st.markdown('<span class="badge-info">Direct In-Memory</span>', unsafe_allow_html=True)
-        st.caption("Native Model Preload Active")
-
-    st.markdown(f"Model Version: <span class=\"mono-tag\">{MODEL_VERSION}</span>", unsafe_allow_html=True)
-    st.markdown("Domain Ingress: <span class=\"mono-tag\">grid.maheshkakde.com</span>", unsafe_allow_html=True)
+    st.markdown(f"**Engine Version:** <span class=\"mono-tag\">v{MODEL_VERSION}</span>", unsafe_allow_html=True)
+    st.caption("LightGBM Quantile ($p_{10}, p_{50}, p_{90}$) & Dual-Trigger Isolation Forest")
     st.markdown("---")
-    st.caption("National Grid RLDCs: NR (North), WR (West), SR (South), ER (East), NER (North East)")
+    st.caption("**RLDC Coverage**: NR (North) · WR (West) · SR (South) · ER (East) · NER (North East)")
 
 # tabs for main interface
 tab_forecast, tab_anomalies, tab_drift, tab_system = st.tabs([
@@ -293,7 +668,8 @@ tab_forecast, tab_anomalies, tab_drift, tab_system = st.tabs([
 # tab 1: 72-hour forecast
 with tab_forecast:
     st.subheader(f"72-Hour Probabilistic Demand Forecast: {selected_region}")
-    forecasts = fetch_forecasts(selected_region)
+    with st.spinner(f"Computing recursive 72-hour forecast and feature lag matrices for {selected_region}..."):
+        forecasts = fetch_forecasts(selected_region)
     df_fc = pd.DataFrame(forecasts)
 
     # forecast metrics row
@@ -439,7 +815,8 @@ with tab_anomalies:
         elif anomaly_scenario == "Custom Value":
             custom_val = st.number_input("Demand (MW):", min_value=100.0, max_value=350000.0, value=75000.0)
 
-    anomaly_res = evaluate_live_anomaly(selected_region, custom_demand=custom_val)
+    with st.spinner(f"Evaluating Isolation Forest and SHAP TreeExplainer for {selected_region}..."):
+        anomaly_res = evaluate_live_anomaly(selected_region, custom_demand=custom_val)
 
     with col_status:
         st.markdown("**Live Verification Status**")
@@ -510,7 +887,8 @@ with tab_anomalies:
 # tab 3: statistical drift monitoring
 with tab_drift:
     st.subheader(f"Statistical Covariate & Target Drift Monitoring: {selected_region}")
-    drift_data = fetch_drift_summary(selected_region)
+    with st.spinner(f"Auditing covariate feature drift for {selected_region}..."):
+        drift_data = fetch_drift_summary(selected_region)
 
     d_col1, d_col2, d_col3, d_col4 = st.columns(4)
     with d_col1:
@@ -576,17 +954,16 @@ with tab_drift:
     df_metrics = pd.DataFrame(metrics_records)
     st.dataframe(df_metrics, use_container_width=True)
 
-    if os.path.exists(DEFAULT_REPORT_PATH):
-        st.markdown("---")
-        st.markdown("**Standalone Evidently AI Interactive HTML Report**")
-        with open(DEFAULT_REPORT_PATH, "r", encoding="utf-8") as f:
-            html_content = f.read()
-        st.download_button(
-            label="Download Full Evidently HTML Report",
-            data=html_content,
-            file_name="drift_report.html",
-            mime="text/html",
-        )
+    st.markdown("---")
+    st.markdown("**Statistical Drift Diagnostic Report**")
+    st.caption("Self-contained diagnostic report with full feature-level Kolmogorov-Smirnov and Wasserstein metrics.")
+    report_html = build_html_drift_report(drift_data, region=selected_region)
+    st.download_button(
+        label=f"Download Drift Diagnostic Report ({selected_region})",
+        data=report_html,
+        file_name=f"drift_report_{selected_region.lower()}.html",
+        mime="text/html",
+    )
 
 # tab 4: architecture
 with tab_system:
@@ -608,10 +985,6 @@ with tab_system:
         <div class="metric-card">
             <b>4. Explainability & Observability:</b> SHAP TreeExplainer with 150 k-means background centroids extracting top-3 physical drivers,
             and Evidently AI performing KS and Wasserstein drift evaluation.
-        </div>
-        <div class="metric-card">
-            <b>5. Deployment & Edge Ingress:</b> Single multi-stage Docker container co-locating internal FastAPI (127.0.0.1:8000)
-            and Streamlit dashboard exposed at <code>grid.maheshkakde.com</code> via Cloudflare Edge SSL.
         </div>
         """,
         unsafe_allow_html=True,

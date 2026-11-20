@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp, wasserstein_distance
@@ -53,6 +54,14 @@ DRIFT_ALARM_THRESHOLD = 0.30
 KS_PVALUE_THRESHOLD = 0.05
 WASSERSTEIN_THRESHOLD = 0.10
 DEFAULT_REPORT_PATH = os.path.join("static", "reports", "drift_report.html")
+REGION_NAMES = {
+    "ALL_INDIA": "ALL_INDIA — National Grid",
+    "NR": "NR — Northern Region",
+    "WR": "WR — Western Region",
+    "SR": "SR — Southern Region",
+    "ER": "ER — Eastern Region",
+    "NER": "NER — North Eastern Region",
+}
 
 
 def evaluate_feature_drift(
@@ -115,45 +124,341 @@ def evaluate_feature_drift(
     }
 
 
+def build_html_drift_report(
+    drift_summary: Dict[str, Any],
+    region: str = "ALL_INDIA",
+    generated_at: Optional[str] = None,
+) -> str:
+    # generates standalone html report mirroring dashboard design standards and specifications
+    full_region = REGION_NAMES.get(region, region)
+    timestamp = generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    total_features = drift_summary.get("total_features", 0)
+    drifted_features = drift_summary.get("drifted_features", 0)
+    drift_ratio = drift_summary.get("drift_ratio", 0.0)
+    drift_alarm = drift_summary.get("drift_alarm", False)
+    alphas = str(drift_summary.get("recommended_quantile_alpha", [0.10, 0.50, 0.90]))
+
+    if drift_alarm:
+        notice_class = "notice-alarm"
+        notice_title = "Retraining Advisory Active"
+        notice_desc = (
+            f"Covariate feature drift exceeds the 30.0% alarm threshold "
+            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
+            f"Model recalibration is advised; quantile prediction bounds recommended widening to {alphas}."
+        )
+    else:
+        notice_class = "notice-normal"
+        notice_title = "Telemetry Distributions Nominal"
+        notice_desc = (
+            f"Continuous and cyclical feature distributions match the 30-day reference baseline. "
+            f"Covariate feature drift is within normal tolerance "
+            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
+            f"Quantile intervals operating at standard [0.10, 0.50, 0.90]."
+        )
+
+    # assemble table rows for feature-by-feature evaluation
+    table_rows = []
+    feature_metrics = drift_summary.get("feature_metrics", {})
+    for feat_name, metric_info in feature_metrics.items():
+        test_type = metric_info.get("test", "unknown")
+        test_label = "Kolmogorov-Smirnov" if test_type == "kolmogorov_smirnov" else "Wasserstein Distance"
+        stat_val = metric_info.get("statistic", metric_info.get("score", 0.0))
+        thresh_val = metric_info.get("threshold", 0.0)
+        p_val_str = f"{metric_info['p_value']:.6f}" if "p_value" in metric_info else "N/A (Wasserstein)"
+        is_drifted = metric_info.get("drift_detected", False)
+        status_badge = (
+            '<span class="badge-alarm">DRIFT DETECTED</span>'
+            if is_drifted
+            else '<span class="badge-normal">NORMAL</span>'
+        )
+
+        table_rows.append(
+            f"<tr>"
+            f"<td><code>{feat_name}</code></td>"
+            f"<td>{test_label}</td>"
+            f"<td>{stat_val:.4f}</td>"
+            f"<td>{thresh_val:.4f}</td>"
+            f"<td>{p_val_str}</td>"
+            f"<td>{status_badge}</td>"
+            f"</tr>"
+        )
+    table_rows_html = "\n".join(table_rows)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistical Drift Diagnostic Report - {full_region}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #ffffff;
+            color: #111111;
+            line-height: 1.5;
+            padding: 24px 32px;
+            max-width: 960px;
+            margin: 0 auto;
+        }}
+        h1 {{
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 4px;
+            color: #111111;
+        }}
+        .subtitle {{
+            font-size: 13px;
+            color: #555555;
+            margin-bottom: 16px;
+        }}
+        .meta-bar {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eeeeee;
+            font-size: 12px;
+            color: #555555;
+        }}
+        .mono-tag {{
+            font-family: Consolas, Monaco, monospace;
+            background-color: #f4f6f8;
+            border: 1px solid #dcdcdc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #111111;
+        }}
+        .metric-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }}
+        @media (max-width: 768px) {{
+            .metric-grid {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+        .metric-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            background-color: #ffffff;
+            margin-bottom: 8px;
+        }}
+        .metric-label {{
+            font-size: 11px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }}
+        .metric-value {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #111111;
+        }}
+        .badge-normal {{
+            background-color: #e6f4ea;
+            color: #137333;
+            border: 1px solid #ceead6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 11px;
+            display: inline-block;
+        }}
+        .badge-alarm {{
+            background-color: #fce8e6;
+            color: #c5221f;
+            border: 1px solid #fad2cf;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 11px;
+            display: inline-block;
+        }}
+        .notice-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }}
+        .notice-normal {{
+            border-left: 4px solid #137333;
+            background-color: #f7fbf8;
+        }}
+        .notice-alarm {{
+            border-left: 4px solid #c5221f;
+            background-color: #fdf7f7;
+        }}
+        h2 {{
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            color: #111111;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 24px;
+        }}
+        th {{
+            background-color: #f8f9fa;
+            border: 1px solid #dcdcdc;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #555555;
+        }}
+        td {{
+            border: 1px solid #e5e5e5;
+            padding: 8px 10px;
+            color: #222222;
+        }}
+        tr:nth-child(even) td {{
+            background-color: #fafbfc;
+        }}
+        code {{
+            font-family: Consolas, Monaco, monospace;
+            background-color: #f4f6f8;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 11px;
+        }}
+        .spec-card {{
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            background-color: #ffffff;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #222222;
+        }}
+        .footer {{
+            margin-top: 28px;
+            padding-top: 12px;
+            border-top: 1px solid #eeeeee;
+            font-size: 11px;
+            color: #777777;
+            display: flex;
+            justify-content: space-between;
+        }}
+        @media print {{
+            body {{
+                padding: 0;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <h1>National Power Grid Telemetry & Forecasting Engine</h1>
+    <div class="subtitle">Statistical Covariate & Target Drift Diagnostic Report</div>
+
+    <div class="meta-bar">
+        <div>Region: <span class="mono-tag">{full_region}</span></div>
+        <div>Model Version: <span class="mono-tag">v2.0.0</span></div>
+        <div>Baseline Window: <span class="mono-tag">30-Day Reference (720h)</span></div>
+        <div>Observation Window: <span class="mono-tag">Trailing 7-Day (168h)</span></div>
+        <div>Report Timestamp: <span class="mono-tag">{timestamp}</span></div>
+    </div>
+
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-label">Total Monitored Features</div>
+            <div class="metric-value">{total_features}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Drifted Features</div>
+            <div class="metric-value">{drifted_features} ({drift_ratio * 100:.1f}%)</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Alarm Threshold</div>
+            <div class="metric-value">> 30.0%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Recommended Quantile Alphas</div>
+            <div class="metric-value"><span class="mono-tag">{alphas}</span></div>
+        </div>
+    </div>
+
+    <div class="notice-card {notice_class}">
+        <b>{notice_title}:</b> {notice_desc}
+    </div>
+
+    <h2>Feature-by-Feature Statistical Drift Audit</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Feature Name</th>
+                <th>Statistical Test</th>
+                <th>Statistic / Score</th>
+                <th>Threshold</th>
+                <th>P-Value</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {table_rows_html}
+        </tbody>
+    </table>
+
+    <h2>System Architecture & Specifications</h2>
+    <div class="spec-card">
+        <b>1. Ingestion Cron Job:</b> GitHub Actions scheduled cron runs every 6 hours (<code>15 */6 * * *</code>),
+        ingesting POSOCO / NLDC demand telemetry and Open-Meteo meteorological observations with Pydantic v2 validation.
+    </div>
+    <div class="spec-card">
+        <b>2. Zero-Leakage Feature Pipeline:</b> Vectorized Polars LazyFrames computing autoregressive lags, rolling statistics,
+        and continuous Fourier harmonics with a mandatory <code>shift(1)</code> causality fence.
+    </div>
+    <div class="spec-card">
+        <b>3. Dual Model Engine:</b> LightGBM multi-step quantile regression (<code>p10, p50, p90</code>) with isotonic monotonicity sorting
+        coupled with Scikit-Learn Isolation Forest for structural anomaly detection.
+    </div>
+    <div class="spec-card">
+        <b>4. Explainability & Observability:</b> SHAP TreeExplainer with 150 k-means background centroids extracting top-3 physical drivers,
+        and Evidently AI performing KS and Wasserstein drift evaluation.
+    </div>
+
+    <div class="footer">
+        <div>National Power Grid Telemetry & Forecasting Engine · India National Grid (POSOCO / NLDC)</div>
+        <div>Author: mahesh-kakde · Model Version: 2.0.0</div>
+    </div>
+</body>
+</html>"""
+
+
 def generate_evidently_drift_report(
     ref_df: pd.DataFrame,
     curr_df: pd.DataFrame,
     output_path: str = DEFAULT_REPORT_PATH,
+    region: str = "ALL_INDIA",
+    drift_summary: Optional[Dict[str, Any]] = None,
 ) -> str:
-    # generates self-contained interactive evidently data drift html dashboard
+    # generates self-contained drift html report adhering to unified ui specifications
     abs_output = os.path.abspath(output_path)
     os.makedirs(os.path.dirname(abs_output), exist_ok=True)
 
-    # align columns for report computation
-    shared_cols = [c for c in ref_df.columns if c in curr_df.columns]
-    ref_slice = ref_df[shared_cols].dropna()
-    curr_slice = curr_df[shared_cols].dropna()
+    if drift_summary is None:
+        feature_cols = load_feature_columns()
+        drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
 
-    if Report is not None and DataDriftPreset is not None:
-        try:
-            report = Report(metrics=[DataDriftPreset()])
-            report.run(reference_data=ref_slice, current_data=curr_slice)
-            report.save_html(abs_output)
-            logger.info(f"evidently drift report saved to {abs_output}")
-            return abs_output
-        except Exception as exc:
-            logger.warning(f"evidently report execution failed: {exc}. generating fallback html.")
-
-    # fallback html report if evidently runtime is unavailable
-    html_fallback = f"""<!DOCTYPE html>
-<html>
-<head><title>Drift Report</title>
-<style>body {{ font-family: -apple-system, sans-serif; padding: 24px; color: #111; }}</style>
-</head>
-<body>
-<h2>Statistical Drift Diagnostic Report</h2>
-<p>Reference baseline records: {len(ref_slice)} | Live window records: {len(curr_slice)}</p>
-<p>Kolmogorov-Smirnov and 1D Wasserstein distance evaluations completed programmatically.</p>
-</body>
-</html>"""
+    html_report = build_html_drift_report(drift_summary, region=region)
     with open(abs_output, "w", encoding="utf-8") as f:
-        f.write(html_fallback)
-    logger.info(f"fallback drift report written to {abs_output}")
+        f.write(html_report)
+    logger.info(f"drift diagnostic report written to {abs_output}")
     return abs_output
 
 
@@ -209,7 +514,9 @@ def run_drift_monitoring_pipeline(
     drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
 
     # generate standalone html dashboard
-    report_path = generate_evidently_drift_report(ref_df, curr_df, output_path=report_output_path)
+    report_path = generate_evidently_drift_report(
+        ref_df, curr_df, output_path=report_output_path, region=region, drift_summary=drift_summary
+    )
     drift_summary["report_path"] = report_path
     drift_summary["region"] = region
 

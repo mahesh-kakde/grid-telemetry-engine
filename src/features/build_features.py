@@ -3,12 +3,18 @@ import polars as pl
 import holidays
 
 
+_HOLIDAY_CACHE = {}
+
+
 def get_indian_holidays(years: list[int]) -> set:
-    # retrieves set of statutory indian national holiday dates
+    # retrieves set of statutory indian national holiday dates with in-memory caching
     if not years:
         years = [2023, 2024, 2025, 2026]
-    ind_holidays = holidays.India(years=years)
-    return set(ind_holidays.keys())
+    key = tuple(sorted(years))
+    if key not in _HOLIDAY_CACHE:
+        ind_holidays = holidays.India(years=years)
+        _HOLIDAY_CACHE[key] = set(ind_holidays.keys())
+    return _HOLIDAY_CACHE[key]
 
 
 def compute_telemetry_features(
