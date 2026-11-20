@@ -348,6 +348,7 @@ def build_html_drift_report(
 # page configuration
 st.set_page_config(
     page_title="grid-telemetry-engine | Mahesh Kakde",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -363,7 +364,7 @@ st.markdown(
     }
     .block-container {
         padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
+        padding-bottom: 3.5rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
         max-width: 100% !important;
@@ -475,7 +476,91 @@ st.markdown(
         border-radius: 3px;
         font-size: 12px;
     }
+    .fixed-footer {
+        position: fixed;
+        bottom: 0;
+        left: 300px;
+        width: calc(100% - 300px);
+        background-color: #ffffff;
+        border-top: 1px solid #dcdcdc;
+        padding: 8px 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: #555555;
+        z-index: 99999;
+        box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .fixed-footer a {
+        color: #0052cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .fixed-footer a:hover {
+        text-decoration: underline;
+    }
+    .footer-sep {
+        margin: 0 8px;
+        color: #aaaaaa;
+    }
+    @media (max-width: 768px) {
+        .fixed-footer {
+            left: 0;
+            width: 100%;
+            padding: 6px 1rem;
+            font-size: 11.5px;
+        }
+    }
+    @keyframes pulse-subtle {
+        0% { opacity: 0.55; }
+        50% { opacity: 1.0; }
+        100% { opacity: 0.55; }
+    }
+    .skeleton-placeholder {
+        border: 1px dashed #dcdcdc !important;
+        border-radius: 4px !important;
+        background-color: #fafbfc !important;
+        animation: pulse-subtle 1.6s infinite ease-in-out !important;
+    }
+    .skeleton-loading-val {
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        color: #777777 !important;
+    }
+    .skeleton-chart-box {
+        height: 380px;
+        border: 1px dashed #dcdcdc;
+        border-radius: 4px;
+        background-color: #fafbfc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-top: 10px;
+        margin-bottom: 12px;
+        color: #666666;
+        font-size: 13px;
+        animation: pulse-subtle 1.6s infinite ease-in-out;
+    }
     </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# persistent fixed footer rendered immediately on initial load
+st.markdown(
+    """
+    <div class="fixed-footer">
+        <div>
+            Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a>
+            <span class="footer-sep">·</span>
+            <a href="https://github.com/mahesh-kakde" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div>
+            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+        </div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
@@ -668,129 +753,167 @@ tab_forecast, tab_anomalies, tab_drift, tab_system = st.tabs([
 # tab 1: 72-hour forecast
 with tab_forecast:
     st.subheader(f"72-Hour Probabilistic Demand Forecast: {selected_region}")
+
+    fc_metrics_slot = st.empty()
+    fc_chart_slot = st.empty()
+
+    fc_metrics_slot.markdown(
+        """
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Peak Forecast Load (p50)</div>
+                <div class="metric-value skeleton-loading-val">Computing...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Trough Forecast Load (p50)</div>
+                <div class="metric-value skeleton-loading-val">Computing...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Mean Uncertainty Band</div>
+                <div class="metric-value skeleton-loading-val">Computing...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Quantile Monotonicity</div>
+                <div class="metric-value skeleton-loading-val">Evaluating...</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    fc_chart_slot.markdown(
+        """
+        <div class="skeleton-chart-box">
+            <div style="font-weight: 600; margin-bottom: 4px; color: #333333;">Generating Probabilistic Forecast Chart</div>
+            <div>Computing recursive 72-hour LightGBM quantile matrices (p10, p50, p90)...</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     with st.spinner(f"Computing recursive 72-hour forecast and feature lag matrices for {selected_region}..."):
         forecasts = fetch_forecasts(selected_region)
     df_fc = pd.DataFrame(forecasts)
 
-    # forecast metrics row
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Peak Forecast Load (p50)</div>
-                <div class="metric-value">{df_fc['forecast_p50'].max():,.0f} MW</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Trough Forecast Load (p50)</div>
-                <div class="metric-value">{df_fc['forecast_p50'].min():,.0f} MW</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col3:
-        avg_band = (df_fc['forecast_p90'] - df_fc['forecast_p10']).mean()
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Mean Uncertainty Band (p90 - p10)</div>
-                <div class="metric-value">{avg_band:,.0f} MW</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col4:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Quantile Monotonicity</div>
-                <div class="metric-value"><span class="badge-normal">p10 ≤ p50 ≤ p90</span></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    with fc_metrics_slot.container():
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Peak Forecast Load (p50)</div>
+                    <div class="metric-value">{df_fc['forecast_p50'].max():,.0f} MW</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col2:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Trough Forecast Load (p50)</div>
+                    <div class="metric-value">{df_fc['forecast_p50'].min():,.0f} MW</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col3:
+            avg_band = (df_fc['forecast_p90'] - df_fc['forecast_p10']).mean()
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Mean Uncertainty Band (p90 - p10)</div>
+                    <div class="metric-value">{avg_band:,.0f} MW</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col4:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Quantile Monotonicity</div>
+                    <div class="metric-value"><span class="badge-normal">p10 ≤ p50 ≤ p90</span></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     # plotly interactive load forecast curve
-    fig = go.Figure()
+    with fc_chart_slot.container():
+        fig = go.Figure()
 
-    # confidence interval ribbon (p10 to p90)
-    fig.add_trace(go.Scatter(
-        x=df_fc["target_timestamp_utc"],
-        y=df_fc["forecast_p90"],
-        mode="lines",
-        line=dict(width=0),
-        showlegend=False,
-        name="p90 Upper Bound",
-        hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=df_fc["target_timestamp_utc"],
-        y=df_fc["forecast_p10"],
-        mode="lines",
-        line=dict(width=0),
-        fill="tonexty",
-        fillcolor="rgba(0, 82, 204, 0.12)",
-        name="p10-p90 Confidence Interval",
-        hoverinfo="skip",
-    ))
+        # confidence interval ribbon (p10 to p90)
+        fig.add_trace(go.Scatter(
+            x=df_fc["target_timestamp_utc"],
+            y=df_fc["forecast_p90"],
+            mode="lines",
+            line=dict(width=0),
+            showlegend=False,
+            name="p90 Upper Bound",
+            hoverinfo="skip",
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_fc["target_timestamp_utc"],
+            y=df_fc["forecast_p10"],
+            mode="lines",
+            line=dict(width=0),
+            fill="tonexty",
+            fillcolor="rgba(0, 82, 204, 0.12)",
+            name="p10-p90 Confidence Interval",
+            hoverinfo="skip",
+        ))
 
-    # median forecast line
-    fig.add_trace(go.Scatter(
-        x=df_fc["target_timestamp_utc"],
-        y=df_fc["forecast_p50"],
-        mode="lines+markers",
-        line=dict(color="#0052cc", width=2.5),
-        marker=dict(size=4),
-        name="Median Forecast (p50)",
-        hovertemplate="<b>%{x|%d %b %H:%M UTC}</b><br>p50: %{y:,.0f} MW<extra></extra>",
-    ))
+        # median forecast line
+        fig.add_trace(go.Scatter(
+            x=df_fc["target_timestamp_utc"],
+            y=df_fc["forecast_p50"],
+            mode="lines+markers",
+            line=dict(color="#0052cc", width=2.5),
+            marker=dict(size=4),
+            name="Median Forecast (p50)",
+            hovertemplate="<b>%{x|%d %b %H:%M UTC}</b><br>p50: %{y:,.0f} MW<extra></extra>",
+        ))
 
-    # bound lines for hover clarity
-    fig.add_trace(go.Scatter(
-        x=df_fc["target_timestamp_utc"],
-        y=df_fc["forecast_p90"],
-        mode="lines",
-        line=dict(color="#172b4d", width=1, dash="dot"),
-        name="p90 (90th Percentile)",
-        hovertemplate="p90: %{y:,.0f} MW<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=df_fc["target_timestamp_utc"],
-        y=df_fc["forecast_p10"],
-        mode="lines",
-        line=dict(color="#6b778c", width=1, dash="dot"),
-        name="p10 (10th Percentile)",
-        hovertemplate="p10: %{y:,.0f} MW<extra></extra>",
-    ))
+        # bound lines for hover clarity
+        fig.add_trace(go.Scatter(
+            x=df_fc["target_timestamp_utc"],
+            y=df_fc["forecast_p90"],
+            mode="lines",
+            line=dict(color="#172b4d", width=1, dash="dot"),
+            name="p90 (90th Percentile)",
+            hovertemplate="p90: %{y:,.0f} MW<extra></extra>",
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_fc["target_timestamp_utc"],
+            y=df_fc["forecast_p10"],
+            mode="lines",
+            line=dict(color="#6b778c", width=1, dash="dot"),
+            name="p10 (10th Percentile)",
+            hovertemplate="p10: %{y:,.0f} MW<extra></extra>",
+        ))
 
-    fig.update_layout(
-        template="plotly_white",
-        margin=dict(l=40, r=40, t=20, b=40),
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        xaxis=dict(
-            title="Forecast Target Timestamp (UTC)",
-            showgrid=True,
-            gridcolor="#f0f0f0",
-        ),
-        yaxis=dict(
-            title="Active Power Demand (MW)",
-            showgrid=True,
-            gridcolor="#f0f0f0",
-            tickformat=",.0f",
-        ),
-        height=480,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            template="plotly_white",
+            margin=dict(l=40, r=40, t=20, b=40),
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis=dict(
+                title="Forecast Target Timestamp (UTC)",
+                showgrid=True,
+                gridcolor="#f0f0f0",
+            ),
+            yaxis=dict(
+                title="Active Power Demand (MW)",
+                showgrid=True,
+                gridcolor="#f0f0f0",
+                tickformat=",.0f",
+            ),
+            height=480,
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Tabular Forecast Data (72 Hours)"):
-        st.dataframe(df_fc, use_container_width=True)
+        with st.expander("Tabular Forecast Data (72 Hours)"):
+            st.dataframe(df_fc, use_container_width=True)
 
 # tab 2: anomaly detection & shap
 with tab_anomalies:
@@ -808,6 +931,7 @@ with tab_anomalies:
             "Evaluation Scenario:",
             ["Nominal Baseline Demand", "Extreme Demand Surge (+200,000 MW)", "Custom Value"],
             index=0,
+            key=f"scenario_{selected_region}",
         )
         custom_val = None
         if anomaly_scenario == "Extreme Demand Surge (+200,000 MW)":
@@ -815,10 +939,42 @@ with tab_anomalies:
         elif anomaly_scenario == "Custom Value":
             custom_val = st.number_input("Demand (MW):", min_value=100.0, max_value=350000.0, value=75000.0)
 
+    status_slot = col_status.empty()
+    status_slot.markdown(
+        """
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Actual vs Predicted</div>
+                <div class="metric-value skeleton-loading-val">Evaluating...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Trigger B (IQR Breach)</div>
+                <div class="metric-value skeleton-loading-val">Evaluating...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Verified Anomaly</div>
+                <div class="metric-value skeleton-loading-val">Evaluating...</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    shap_slot = st.empty()
+    shap_slot.markdown(
+        """
+        <div class="skeleton-chart-box" style="height: 220px;">
+            <div style="font-weight: 600; margin-bottom: 4px; color: #333333;">Computing SHAP Feature Attributions</div>
+            <div>Evaluating 150 k-means background centroids with TreeExplainer...</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     with st.spinner(f"Evaluating Isolation Forest and SHAP TreeExplainer for {selected_region}..."):
         anomaly_res = evaluate_live_anomaly(selected_region, custom_demand=custom_val)
 
-    with col_status:
+    with status_slot.container():
         st.markdown("**Live Verification Status**")
         status_col1, status_col2, status_col3 = st.columns(3)
         with status_col1:
@@ -836,134 +992,173 @@ with tab_anomalies:
                         f'<div class="metric-value">{struct_badge}</div></div>',
                         unsafe_allow_html=True)
 
-    # shap explainability section
-    st.markdown("---")
-    st.subheader("Top-3 Physical Feature Drivers (SHAP TreeExplainer)")
-    st.markdown(
-        "Feature attributions computed using pre-calculated $k=150$ background centroids and regional LightGBM median boosters:"
+    with shap_slot.container():
+        st.markdown("---")
+        st.subheader("Top-3 Physical Feature Drivers (SHAP TreeExplainer)")
+        st.markdown(
+            "Feature attributions computed using pre-calculated $k=150$ background centroids and regional LightGBM median boosters:"
+        )
+
+        top_features = anomaly_res["top_shap_features"]
+        shap_cols = st.columns(len(top_features))
+        for idx, (col_ui, feat) in enumerate(zip(shap_cols, top_features)):
+            with col_ui:
+                direction_color = "#c5221f" if feat["shap_value"] > 0 else "#0052cc"
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <div class="metric-label">Rank {idx + 1}: <code class="mono-tag">{feat['feature']}</code></div>
+                        <div class="metric-value" style="color: {direction_color};">
+                            {feat['shap_value']:+,.1f} MW
+                        </div>
+                        <div style="font-size: 13px; color: #555555; margin-top: 4px;">
+                            Observed Value: <b>{feat['actual_value']:,.2f}</b>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        # shap horizontal bar visualization
+        df_shap = pd.DataFrame(top_features)
+        fig_shap = go.Figure(go.Bar(
+            x=df_shap["shap_value"],
+            y=df_shap["feature"],
+            orientation="h",
+            marker=dict(
+                color=["#c5221f" if v > 0 else "#0052cc" for v in df_shap["shap_value"]],
+            ),
+            text=[f"{v:+,.1f} MW" for v in df_shap["shap_value"]],
+            textposition="outside",
+        ))
+        fig_shap.update_layout(
+            template="plotly_white",
+            margin=dict(l=40, r=40, t=10, b=40),
+            xaxis=dict(title="Shapley Value (MW Impact on Prediction)", showgrid=True, gridcolor="#f0f0f0"),
+            yaxis=dict(autorange="reversed"),
+            height=240,
+        )
+        st.plotly_chart(fig_shap, use_container_width=True)
+
+# tab 3: statistical drift monitoring
+with tab_drift:
+    st.subheader(f"Statistical Covariate & Target Drift Monitoring: {selected_region}")
+
+    drift_metrics_slot = st.empty()
+    drift_metrics_slot.markdown(
+        """
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">System Drift Alarm</div>
+                <div class="metric-value skeleton-loading-val">Auditing...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Drifted Feature Ratio</div>
+                <div class="metric-value skeleton-loading-val">Auditing...</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Alarm Threshold</div>
+                <div class="metric-value">> 30.0%</div>
+            </div>
+            <div class="metric-card skeleton-placeholder">
+                <div class="metric-label">Recommended Quantile Alphas</div>
+                <div class="metric-value skeleton-loading-val">Evaluating...</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    top_features = anomaly_res["top_shap_features"]
-    shap_cols = st.columns(len(top_features))
-    for idx, (col_ui, feat) in enumerate(zip(shap_cols, top_features)):
-        with col_ui:
-            direction_color = "#c5221f" if feat["shap_value"] > 0 else "#0052cc"
+    drift_body_slot = st.empty()
+    drift_body_slot.markdown(
+        """
+        <div class="skeleton-chart-box" style="height: 180px;">
+            <div style="font-weight: 600; margin-bottom: 4px; color: #333333;">Auditing Covariate Feature Distributions</div>
+            <div>Comparing trailing 7-day live telemetry vs 30-day baseline across KS and Wasserstein tests...</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.spinner(f"Auditing covariate feature drift for {selected_region}..."):
+        drift_data = fetch_drift_summary(selected_region)
+
+    with drift_metrics_slot.container():
+        d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+        with d_col1:
+            alarm_badge = '<span class="badge-alert">Retraining Advisory</span>' if drift_data["drift_alarm"] else '<span class="badge-normal">Distributions Stable</span>'
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Rank {idx + 1}: <code class="mono-tag">{feat['feature']}</code></div>
-                    <div class="metric-value" style="color: {direction_color};">
-                        {feat['shap_value']:+,.1f} MW
-                    </div>
-                    <div style="font-size: 13px; color: #555555; margin-top: 4px;">
-                        Observed Value: <b>{feat['actual_value']:,.2f}</b>
-                    </div>
+                    <div class="metric-label">System Drift Alarm</div>
+                    <div class="metric-value">{alarm_badge}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with d_col2:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Drifted Feature Ratio</div>
+                    <div class="metric-value">{drift_data['drift_ratio']:.1%} ({drift_data['drifted_features']}/{drift_data['total_features']})</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with d_col3:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Alarm Threshold</div>
+                    <div class="metric-value">> 30.0%</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with d_col4:
+            alphas = drift_data["recommended_quantile_alpha"]
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">Recommended Quantile Alphas</div>
+                    <div class="metric-value"><span class="mono-tag">{alphas}</span></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-    # shap horizontal bar visualization
-    df_shap = pd.DataFrame(top_features)
-    fig_shap = go.Figure(go.Bar(
-        x=df_shap["shap_value"],
-        y=df_shap["feature"],
-        orientation="h",
-        marker=dict(
-            color=["#c5221f" if v > 0 else "#0052cc" for v in df_shap["shap_value"]],
-        ),
-        text=[f"{v:+,.1f} MW" for v in df_shap["shap_value"]],
-        textposition="outside",
-    ))
-    fig_shap.update_layout(
-        template="plotly_white",
-        margin=dict(l=40, r=40, t=10, b=40),
-        xaxis=dict(title="Shapley Value (MW Impact on Prediction)", showgrid=True, gridcolor="#f0f0f0"),
-        yaxis=dict(autorange="reversed"),
-        height=240,
-    )
-    st.plotly_chart(fig_shap, use_container_width=True)
+    with drift_body_slot.container():
+        st.markdown("---")
+        st.markdown("**Per-Feature Statistical Test Results (7-Day Trailing vs 30-Day Baseline)**")
+        metrics_records = []
+        for f_name, m in drift_data["feature_metrics"].items():
+            test_type = "Kolmogorov-Smirnov" if m["test"] == "kolmogorov_smirnov" else "1D Wasserstein"
+            stat_val = f"{m.get('statistic', m.get('score')):.4f}"
+            p_or_thresh = f"{m.get('p_value'):.6f}" if "p_value" in m else "N/A"
+            thresh_val = f"{m['threshold']:.2f}"
+            status_txt = "DRIFTED" if m["drift_detected"] else "STABLE"
+            metrics_records.append({
+                "Feature Name": f_name,
+                "Statistical Test": test_type,
+                "Statistic / Score": stat_val,
+                "P-Value": p_or_thresh,
+                "Threshold": thresh_val,
+                "Drift Status": status_txt,
+            })
+        df_metrics = pd.DataFrame(metrics_records)
+        st.dataframe(df_metrics, use_container_width=True)
 
-# tab 3: statistical drift monitoring
-with tab_drift:
-    st.subheader(f"Statistical Covariate & Target Drift Monitoring: {selected_region}")
-    with st.spinner(f"Auditing covariate feature drift for {selected_region}..."):
-        drift_data = fetch_drift_summary(selected_region)
-
-    d_col1, d_col2, d_col3, d_col4 = st.columns(4)
-    with d_col1:
-        alarm_badge = '<span class="badge-alert">Retraining Advisory</span>' if drift_data["drift_alarm"] else '<span class="badge-normal">Distributions Stable</span>'
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">System Drift Alarm</div>
-                <div class="metric-value">{alarm_badge}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.markdown("---")
+        st.markdown("**Statistical Drift Diagnostic Report**")
+        st.caption("Self-contained diagnostic report with full feature-level Kolmogorov-Smirnov and Wasserstein metrics.")
+        report_html = build_html_drift_report(drift_data, region=selected_region)
+        st.download_button(
+            label=f"Download Drift Diagnostic Report ({selected_region})",
+            data=report_html,
+            file_name=f"drift_report_{selected_region.lower()}.html",
+            mime="text/html",
         )
-    with d_col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Drifted Feature Ratio</div>
-                <div class="metric-value">{drift_data['drift_ratio']:.1%} ({drift_data['drifted_features']}/{drift_data['total_features']})</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with d_col3:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Alarm Threshold</div>
-                <div class="metric-value">> 30.0%</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with d_col4:
-        alphas = drift_data["recommended_quantile_alpha"]
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">Recommended Quantile Alphas</div>
-                <div class="metric-value"><span class="mono-tag">{alphas}</span></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("---")
-    st.markdown("**Per-Feature Statistical Test Results (7-Day Trailing vs 30-Day Baseline)**")
-    metrics_records = []
-    for f_name, m in drift_data["feature_metrics"].items():
-        test_type = "Kolmogorov-Smirnov" if m["test"] == "kolmogorov_smirnov" else "1D Wasserstein"
-        stat_val = f"{m.get('statistic', m.get('score')):.4f}"
-        p_or_thresh = f"{m.get('p_value'):.6f}" if "p_value" in m else "N/A"
-        thresh_val = f"{m['threshold']:.2f}"
-        status_txt = "DRIFTED" if m["drift_detected"] else "STABLE"
-        metrics_records.append({
-            "Feature Name": f_name,
-            "Statistical Test": test_type,
-            "Statistic / Score": stat_val,
-            "P-Value": p_or_thresh,
-            "Threshold": thresh_val,
-            "Drift Status": status_txt,
-        })
-    df_metrics = pd.DataFrame(metrics_records)
-    st.dataframe(df_metrics, use_container_width=True)
-
-    st.markdown("---")
-    st.markdown("**Statistical Drift Diagnostic Report**")
-    st.caption("Self-contained diagnostic report with full feature-level Kolmogorov-Smirnov and Wasserstein metrics.")
-    report_html = build_html_drift_report(drift_data, region=selected_region)
-    st.download_button(
-        label=f"Download Drift Diagnostic Report ({selected_region})",
-        data=report_html,
-        file_name=f"drift_report_{selected_region.lower()}.html",
-        mime="text/html",
-    )
 
 # tab 4: architecture
 with tab_system:
