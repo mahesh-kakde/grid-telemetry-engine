@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: grid-telemetry-engine
+    runtime: docker
+    plan: starter
+    region: singapore
+    branch: main
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: API_BASE_URL
+        value: "http://127.0.0.1:8000"
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"
