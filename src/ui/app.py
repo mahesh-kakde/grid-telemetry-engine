@@ -16,24 +16,9 @@ import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 
-from src.models.load_artifacts import (
-    ModelArtifactsBundle,
-    REGIONS,
-    load_reference_baseline,
-    load_feature_columns,
-)
-from src.models.infer_and_detect import (
-    generate_72h_multi_step_forecast,
-    predict_quantiles,
-    detect_structural_anomalies,
-    MODEL_VERSION,
-)
-from src.models.explainers import AnomalySHAPExplainer
-from src.monitoring.drift_check import (
-    evaluate_feature_drift,
-    DEFAULT_REPORT_PATH,
-    fetch_trailing_telemetry_window,
-)
+REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
+MODEL_VERSION = "2.0.0"
+DEFAULT_REPORT_PATH = os.path.join(root_dir, "static", "reports", "drift_report.html")
 
 # page configuration
 st.set_page_config(
@@ -117,9 +102,10 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
 @st.cache_resource
 def get_cached_artifacts():
-    # caches in-memory bundle for zero-latency direct fallback
+    # caches in-memory bundle with on-demand lazy loading
+    from src.models.load_artifacts import ModelArtifactsBundle
+    from src.models.explainers import AnomalySHAPExplainer
     bundle = ModelArtifactsBundle()
-    bundle.preload_all()
     explainer = AnomalySHAPExplainer(bundle)
     return bundle, explainer
 
@@ -160,7 +146,9 @@ def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
         except Exception:
             pass
 
-    # direct local execution fallback
+    # direct local execution fallback with deferred imports
+    from src.models.load_artifacts import load_reference_baseline
+    from src.models.infer_and_detect import generate_72h_multi_step_forecast
     bundle, _ = get_cached_artifacts()
     ref_df = load_reference_baseline(region).tail(168).copy()
     base_ts = datetime.now(timezone.utc) - timedelta(hours=len(ref_df))
@@ -204,6 +192,8 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
         except Exception:
             pass
 
+    from src.models.load_artifacts import load_reference_baseline
+    from src.models.infer_and_detect import predict_quantiles, detect_structural_anomalies
     bundle, explainer = get_cached_artifacts()
     ref_df = load_reference_baseline(region)
     feature_row = ref_df.iloc[-1]
@@ -248,6 +238,8 @@ def fetch_drift_summary(region: str) -> Dict[str, Any]:
         except Exception:
             pass
 
+    from src.models.load_artifacts import load_reference_baseline
+    from src.monitoring.drift_check import evaluate_feature_drift, fetch_trailing_telemetry_window
     ref_df = load_reference_baseline(region)
     curr_df = fetch_trailing_telemetry_window(region=region, window_hours=168)
     summary = evaluate_feature_drift(ref_df, curr_df)

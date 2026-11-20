@@ -18,6 +18,7 @@ from src.models.load_artifacts import (
     ModelArtifactsBundle,
     REGIONS,
     get_artifacts_dir,
+    LazyDict,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -25,30 +26,38 @@ logger = logging.getLogger(__name__)
 
 
 class AnomalySHAPExplainer:
-    # wraps shap treeexplainer with pre-computed k-means background centroids
+    # wraps shap treeexplainer with on-demand lazy initialization
     def __init__(self, bundle: Optional[ModelArtifactsBundle] = None):
         if bundle is None:
             self.bundle = ModelArtifactsBundle()
-            self.bundle.preload_all()
         else:
             self.bundle = bundle
 
-        self.explainers: Dict[str, shap.TreeExplainer] = {}
         self.feature_columns = self.bundle.feature_columns
-        self._initialize_tree_explainers()
+        self.explainers: Dict[str, shap.TreeExplainer] = LazyDict(self._build_tree_explainer)
+
+    def _build_tree_explainer(self, region: str) -> shap.TreeExplainer:
+        # constructs treeexplainer for target region using median p50 booster and k-means centroids
+        if region not in REGIONS and region not in self.bundle.model_registry:
+            raise KeyError(f"region '{region}' not configured in shap explainer")
+        booster = self.bundle.lgb_models[region][0.50]
+        bg_data = self.bundle.shap_backgrounds[region]
+        try:
+            # initialize with k-means background
+            explainer = shap.TreeExplainer(booster, data=bg_data)
+        except Exception:
+            # fallback to standard path-dependent tree explainer
+            explainer = shap.TreeExplainer(booster)
+        return explainer
 
     def _initialize_tree_explainers(self) -> None:
-        # constructs treeexplainer per region using the median p50 booster and k-means centroids
+        # eagerly warm up explainers across all regions when explicitly requested
         for region in REGIONS:
-            booster = self.bundle.lgb_models[region][0.50]
-            bg_data = self.bundle.shap_backgrounds[region]
-            try:
-                # initialize with k-means background
-                explainer = shap.TreeExplainer(booster, data=bg_data)
-            except Exception:
-                # fallback to standard path-dependent tree explainer
-                explainer = shap.TreeExplainer(booster)
-            self.explainers[region] = explainer
+            _ = self.explainers[region]
+
+    def get_explainer(self, region: str) -> shap.TreeExplainer:
+        # returns or lazily creates treeexplainer for specified region
+        return self.explainers[region]
 
     def explain_anomaly_point(
         self,
@@ -57,10 +66,7 @@ class AnomalySHAPExplainer:
         top_k: int = 3,
     ) -> List[Dict[str, Any]]:
         # calculates shap feature attributions and formats top-k physical drivers
-        if region not in self.explainers:
-            raise KeyError(f"region '{region}' not configured in shap explainer")
-
-        explainer = self.explainers[region]
+        explainer = self.get_explainer(region)
         X_point = pd.DataFrame([feature_row[self.feature_columns]])
 
         shap_vals = explainer.shap_values(X_point)

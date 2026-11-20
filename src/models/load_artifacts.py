@@ -104,27 +104,67 @@ def load_shap_background(
     return joblib.load(shap_path)
 
 
+class LazyDict(dict):
+    # dictionary with on-demand lazy loader callback for missing keys
+    def __init__(self, loader_fn):
+        super().__init__()
+        self._loader_fn = loader_fn
+
+    def __getitem__(self, key):
+        if not super().__contains__(key):
+            val = self._loader_fn(key)
+            self[key] = val
+            return val
+        return super().__getitem__(key)
+
+    def __contains__(self, key):
+        if super().__contains__(key):
+            return True
+        return key in REGIONS
+
+    def get(self, key, default=None):
+        if not super().__contains__(key):
+            try:
+                val = self._loader_fn(key)
+                self[key] = val
+                return val
+            except Exception:
+                return default
+        return super().get(key, default)
+
+
 class ModelArtifactsBundle:
-    # in-memory registry bundle holding deserialized models for all regions
+    # in-memory registry bundle holding deserialized models with lazy on-demand loading
     def __init__(self, artifacts_dir: Optional[str] = None):
         self.artifacts_dir = get_artifacts_dir(artifacts_dir)
         self.feature_columns = load_feature_columns(self.artifacts_dir)
         self.model_registry = load_model_registry(self.artifacts_dir)
-        self.lgb_models: Dict[str, Dict[float, lgb.Booster]] = {}
-        self.isolation_forests: Dict[str, Any] = {}
-        self.shap_backgrounds: Dict[str, Any] = {}
-        self.reference_baselines: Dict[str, pd.DataFrame] = {}
+        self.lgb_models: Dict[str, Dict[float, lgb.Booster]] = LazyDict(self._load_region_boosters)
+        self.isolation_forests: Dict[str, Any] = LazyDict(
+            lambda r: load_isolation_forest(r, self.artifacts_dir)
+        )
+        self.shap_backgrounds: Dict[str, Any] = LazyDict(
+            lambda r: load_shap_background(r, self.artifacts_dir)
+        )
+        self.reference_baselines: Dict[str, pd.DataFrame] = LazyDict(
+            lambda r: load_reference_baseline(r, self.artifacts_dir)
+        )
+
+    def _load_region_boosters(self, region: str) -> Dict[float, lgb.Booster]:
+        # deserializes lightgbm boosters for target region
+        return {
+            q: load_lgb_booster(region, q, self.artifacts_dir)
+            for q in QUANTILES
+        }
 
     def preload_all(self) -> None:
         # loads all boosters, isolation forests, and baselines into memory
         logger.info("preloading all regional model artifacts into memory...")
         for region in REGIONS:
-            self.lgb_models[region] = {}
-            for q in QUANTILES:
-                self.lgb_models[region][q] = load_lgb_booster(region, q, self.artifacts_dir)
-            self.isolation_forests[region] = load_isolation_forest(region, self.artifacts_dir)
-            self.shap_backgrounds[region] = load_shap_background(region, self.artifacts_dir)
-            self.reference_baselines[region] = load_reference_baseline(region, self.artifacts_dir)
+            _ = self.lgb_models[region]
+            _ = self.isolation_forests[region]
+            _ = self.shap_backgrounds[region]
+            _ = self.reference_baselines[region]
         logger.info("all regional model artifacts successfully preloaded")
 
 

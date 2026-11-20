@@ -48,7 +48,6 @@ def predict_quantiles(
     # produces multi-horizon quantile demand forecasts with monotonicity enforcement
     if bundle is None:
         bundle = ModelArtifactsBundle()
-        bundle.preload_all()
 
     feature_cols = bundle.feature_columns
     features_subset = X[feature_cols]
@@ -73,7 +72,6 @@ def detect_structural_anomalies(
     # dual-trigger anomaly detection: isolation forest score and predictive iqr envelope breach
     if bundle is None:
         bundle = ModelArtifactsBundle()
-        bundle.preload_all()
 
     feature_cols = bundle.feature_columns
     features_subset = X[feature_cols]
@@ -103,7 +101,6 @@ def generate_72h_multi_step_forecast(
     # generates 72-hour direct multi-step forecast vectors from latest historical state
     if bundle is None:
         bundle = ModelArtifactsBundle()
-        bundle.preload_all()
 
     # filter and sort historical telemetry for region
     df_reg = df_history.filter(pl.col("region") == region).sort("timestamp_utc")
@@ -210,7 +207,6 @@ def run_inference_and_detection() -> Dict[str, Any]:
     # batch execution runner invoked by scheduled etl pipeline
     logger.info("initializing batch forecasting and anomaly detection engine...")
     bundle = ModelArtifactsBundle()
-    bundle.preload_all()
 
     # load latest baseline data for synthesis or querying
     results = {}

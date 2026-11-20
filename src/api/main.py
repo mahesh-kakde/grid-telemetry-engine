@@ -47,10 +47,9 @@ app_state: Dict[str, Any] = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # warm up model artifacts and shap explainers during boot
+    # warm up model artifacts and shap explainers lazily
     logger.info("initializing in-memory model artifacts bundle...")
     bundle = ModelArtifactsBundle()
-    bundle.preload_all()
     app_state["bundle"] = bundle
 
     logger.info("initializing shap anomaly explainer...")
