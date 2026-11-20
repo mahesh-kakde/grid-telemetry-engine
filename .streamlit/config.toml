@@ -6,6 +6,7 @@ enableWebsocketCompression = false
 
 [browser]
 serverAddress = "grid.maheshkakde.com"
+serverPort = 443
 gatherUsageStats = false
 
 [theme]

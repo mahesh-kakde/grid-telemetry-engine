@@ -30,4 +30,5 @@ exec streamlit run src/ui/app.py \
   --server.address="0.0.0.0" \
   --server.enableCORS=false \
   --server.enableXsrfProtection=false \
+  --browser.serverPort=443 \
   --browser.gatherUsageStats=false
