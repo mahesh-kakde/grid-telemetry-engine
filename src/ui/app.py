@@ -591,7 +591,12 @@ def check_api_health() -> Tuple[bool, Dict[str, Any]]:
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
-    # retrieves 72-hour forecast via loopback api or local model bundle fallback
+    # retrieves 72-hour forecast via precomputed cache, loopback api, or local model fallback
+    from src.models.precompute import load_precomputed_forecasts
+    precomputed = load_precomputed_forecasts(region)
+    if precomputed is not None and len(precomputed) == 72:
+        return precomputed
+
     is_live, _ = check_api_health()
     if is_live:
         try:
@@ -649,7 +654,13 @@ def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) -> Dict[str, Any]:
-    # evaluates anomaly detection status via api or local fallback
+    # evaluates anomaly detection status via precomputed nominal snapshot, api, or local fallback
+    if custom_demand is None:
+        from src.models.precompute import load_precomputed_anomaly
+        precomputed = load_precomputed_anomaly(region)
+        if precomputed is not None:
+            return precomputed
+
     is_live, _ = check_api_health()
     if is_live:
         try:
@@ -699,7 +710,12 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_drift_summary(region: str) -> Dict[str, Any]:
-    # fetches statistical drift summary via api or local evaluation
+    # fetches statistical drift summary via precomputed snapshot, api, or local evaluation
+    from src.models.precompute import load_precomputed_drift
+    precomputed = load_precomputed_drift(region)
+    if precomputed is not None:
+        return precomputed
+
     is_live, _ = check_api_health()
     if is_live:
         try:

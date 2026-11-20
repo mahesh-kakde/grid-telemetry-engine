@@ -1,0 +1,761 @@
+{
+  "region": "ALL_INDIA",
+  "model_version": "lgb-quantile-v2.0",
+  "generated_at": "2026-11-20T14:02:30.411962+00:00",
+  "forecasts": [
+    {
+      "target_timestamp_utc": "2026-11-20T14:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 120605.05,
+      "forecast_p50": 121743.01,
+      "forecast_p90": 127302.01,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T15:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 128140.52,
+      "forecast_p50": 131778.6,
+      "forecast_p90": 132560.93,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T16:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 132504.18,
+      "forecast_p50": 132865.67,
+      "forecast_p90": 136729.09,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T17:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 132475.02,
+      "forecast_p50": 134228.64,
+      "forecast_p90": 139888.82,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T18:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 129889.58,
+      "forecast_p50": 135445.6,
+      "forecast_p90": 142906.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T19:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 129361.89,
+      "forecast_p50": 136128.58,
+      "forecast_p90": 143977.84,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T20:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 130515.38,
+      "forecast_p50": 136620.22,
+      "forecast_p90": 143416.11,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T21:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 131979.67,
+      "forecast_p50": 136177.36,
+      "forecast_p90": 142792.7,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T22:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 134974.71,
+      "forecast_p50": 136577.51,
+      "forecast_p90": 142839.56,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T23:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 138631.65,
+      "forecast_p50": 140808.4,
+      "forecast_p90": 144676.19,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T00:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 141418.5,
+      "forecast_p50": 146044.96,
+      "forecast_p90": 148489.15,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T01:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 147808.27,
+      "forecast_p50": 151815.79,
+      "forecast_p90": 153883.42,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T02:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 152052.66,
+      "forecast_p50": 154651.02,
+      "forecast_p90": 158160.77,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T03:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 155329.36,
+      "forecast_p50": 157295.24,
+      "forecast_p90": 162245.6,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T04:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 155169.47,
+      "forecast_p50": 158946.71,
+      "forecast_p90": 163090.72,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T05:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 155915.57,
+      "forecast_p50": 160320.48,
+      "forecast_p90": 161293.39,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T06:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 153077.16,
+      "forecast_p50": 155587.55,
+      "forecast_p90": 158268.6,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T07:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 148912.9,
+      "forecast_p50": 151897.7,
+      "forecast_p90": 154870.35,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T08:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 139701.02,
+      "forecast_p50": 143138.54,
+      "forecast_p90": 146009.07,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T09:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 135501.14,
+      "forecast_p50": 135604.71,
+      "forecast_p90": 138911.5,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T10:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 126825.57,
+      "forecast_p50": 131987.26,
+      "forecast_p90": 132591.53,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T11:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 123535.99,
+      "forecast_p50": 125620.81,
+      "forecast_p90": 130856.87,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T12:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 122745.64,
+      "forecast_p50": 123070.3,
+      "forecast_p90": 129174.19,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T13:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 121829.55,
+      "forecast_p50": 123139.88,
+      "forecast_p90": 129389.92,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T14:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 123968.82,
+      "forecast_p50": 125582.93,
+      "forecast_p90": 129594.52,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T15:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 124795.81,
+      "forecast_p50": 126333.07,
+      "forecast_p90": 128655.64,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T16:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 129198.26,
+      "forecast_p50": 129254.87,
+      "forecast_p90": 134318.45,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T17:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 126647.24,
+      "forecast_p50": 130035.53,
+      "forecast_p90": 134072.16,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T18:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 123759.81,
+      "forecast_p50": 130756.03,
+      "forecast_p90": 136862.01,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T19:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 123964.86,
+      "forecast_p50": 131239.12,
+      "forecast_p90": 138633.25,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T20:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 125472.12,
+      "forecast_p50": 132717.93,
+      "forecast_p90": 137901.3,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T21:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 127537.26,
+      "forecast_p50": 133708.74,
+      "forecast_p90": 138656.42,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T22:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 131146.47,
+      "forecast_p50": 134432.44,
+      "forecast_p90": 138717.22,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T23:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 133944.35,
+      "forecast_p50": 138652.63,
+      "forecast_p90": 140593.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T00:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 139750.87,
+      "forecast_p50": 144341.01,
+      "forecast_p90": 145029.99,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T01:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 146160.08,
+      "forecast_p50": 149629.78,
+      "forecast_p90": 151046.49,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T02:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 150499.53,
+      "forecast_p50": 153067.6,
+      "forecast_p90": 155873.93,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T03:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 154352.17,
+      "forecast_p50": 155696.23,
+      "forecast_p90": 159376.75,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T04:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 154500.95,
+      "forecast_p50": 157155.91,
+      "forecast_p90": 160085.15,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T05:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 155308.52,
+      "forecast_p50": 158673.74,
+      "forecast_p90": 158977.48,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T06:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 153892.01,
+      "forecast_p50": 157271.35,
+      "forecast_p90": 158535.54,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T07:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 154041.59,
+      "forecast_p50": 155722.72,
+      "forecast_p90": 158520.63,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T08:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 151864.13,
+      "forecast_p50": 153227.56,
+      "forecast_p90": 157249.71,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T09:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 147706.84,
+      "forecast_p50": 150063.54,
+      "forecast_p90": 151287.0,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T10:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 142229.85,
+      "forecast_p50": 144000.46,
+      "forecast_p90": 148838.33,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T11:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 141852.89,
+      "forecast_p50": 142937.31,
+      "forecast_p90": 144784.04,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T12:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 132625.19,
+      "forecast_p50": 134950.5,
+      "forecast_p90": 141058.91,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T13:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 134184.54,
+      "forecast_p50": 135249.83,
+      "forecast_p90": 140511.15,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T14:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 126954.49,
+      "forecast_p50": 132817.23,
+      "forecast_p90": 135066.01,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T15:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 128454.33,
+      "forecast_p50": 130779.62,
+      "forecast_p90": 132848.0,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T16:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 126644.63,
+      "forecast_p50": 127805.77,
+      "forecast_p90": 130790.34,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T17:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 124644.83,
+      "forecast_p50": 129309.65,
+      "forecast_p90": 129877.95,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T18:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 121941.49,
+      "forecast_p50": 128522.57,
+      "forecast_p90": 130871.3,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T19:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 121654.88,
+      "forecast_p50": 130003.3,
+      "forecast_p90": 132096.39,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T20:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 123520.79,
+      "forecast_p50": 130514.65,
+      "forecast_p90": 131584.19,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T21:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 127025.9,
+      "forecast_p50": 133073.89,
+      "forecast_p90": 133315.61,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T22:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 130825.5,
+      "forecast_p50": 133180.83,
+      "forecast_p90": 134035.64,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T23:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 133391.1,
+      "forecast_p50": 138091.11,
+      "forecast_p90": 138654.16,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T00:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 137441.44,
+      "forecast_p50": 142830.58,
+      "forecast_p90": 143906.28,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T01:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 146801.56,
+      "forecast_p50": 151155.34,
+      "forecast_p90": 151860.82,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T02:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 150655.18,
+      "forecast_p50": 154793.59,
+      "forecast_p90": 156519.16,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T03:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 156381.44,
+      "forecast_p50": 158500.35,
+      "forecast_p90": 160074.49,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T04:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 157177.68,
+      "forecast_p50": 160281.78,
+      "forecast_p90": 160845.72,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T05:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 160227.45,
+      "forecast_p50": 160394.09,
+      "forecast_p90": 163196.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T06:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 158297.23,
+      "forecast_p50": 161853.84,
+      "forecast_p90": 162383.74,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T07:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 157110.54,
+      "forecast_p50": 160124.21,
+      "forecast_p90": 160686.98,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T08:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 157119.56,
+      "forecast_p50": 160672.82,
+      "forecast_p90": 161707.41,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T09:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 154308.36,
+      "forecast_p50": 159765.43,
+      "forecast_p90": 160332.35,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T10:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 153020.0,
+      "forecast_p50": 160700.73,
+      "forecast_p90": 162688.86,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T11:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 151656.27,
+      "forecast_p50": 157536.04,
+      "forecast_p90": 158372.89,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T12:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 152469.28,
+      "forecast_p50": 158048.38,
+      "forecast_p90": 161770.1,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T13:02:22.596200+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 150190.73,
+      "forecast_p50": 150837.1,
+      "forecast_p90": 156543.49,
+      "model_version": "lgb-quantile-v2.0"
+    }
+  ],
+  "nominal_anomaly": {
+    "region": "ALL_INDIA",
+    "timestamp_utc": "2026-11-20T14:02:30.336509+00:00",
+    "actual_demand_mw": 121657.43,
+    "predicted_p10_mw": 119962.17,
+    "predicted_p50_mw": 122278.92,
+    "predicted_p90_mw": 123312.79,
+    "anomaly_score": -0.4825,
+    "is_structural": false,
+    "residual_breach": false,
+    "top_shap_features": [
+      {
+        "feature": "demand_lag_24h",
+        "shap_value": -11189.5,
+        "actual_value": 119609.85
+      },
+      {
+        "feature": "demand_lag_1h",
+        "shap_value": -9471.24,
+        "actual_value": 113858.87
+      },
+      {
+        "feature": "sin_hour_k1",
+        "shap_value": -890.26,
+        "actual_value": -0.26
+      }
+    ]
+  },
+  "drift_summary": {
+    "region": "ALL_INDIA",
+    "drift_alarm": true,
+    "drift_ratio": 0.7143,
+    "drifted_features": 15,
+    "total_features": 21,
+    "recommended_quantile_alpha": "[0.05, 0.5, 0.95]",
+    "feature_metrics": {
+      "sin_hour_k1": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "cos_hour_k1": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "sin_hour_k2": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "cos_hour_k2": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "sin_doy": {
+        "test": "wasserstein",
+        "score": 0.1924,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "cos_doy": {
+        "test": "wasserstein",
+        "score": 0.0406,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "day_of_week": {
+        "test": "wasserstein",
+        "score": 0.1667,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "is_holiday": {
+        "test": "wasserstein",
+        "score": 0.1095,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "demand_lag_1h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2661,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_2h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2661,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_3h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2661,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2565,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_48h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2677,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.3286,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_mean_6h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2845,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_mean_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.5605,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_mean_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.7667,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_std_6h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.0867,
+        "p_value": 0.241911,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_rolling_std_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.4419,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_std_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.6847,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_mw": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.2661,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      }
+    },
+    "report_available": true
+  }
+}

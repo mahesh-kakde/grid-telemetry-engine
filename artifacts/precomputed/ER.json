@@ -1,0 +1,761 @@
+{
+  "region": "ER",
+  "model_version": "lgb-quantile-v2.0",
+  "generated_at": "2026-11-20T14:02:55.579286+00:00",
+  "forecasts": [
+    {
+      "target_timestamp_utc": "2026-11-20T14:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 12101.77,
+      "forecast_p50": 12229.09,
+      "forecast_p90": 12598.39,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T15:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 12808.44,
+      "forecast_p50": 12891.05,
+      "forecast_p90": 13126.63,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T16:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13071.87,
+      "forecast_p50": 13258.68,
+      "forecast_p90": 13375.91,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T17:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13607.14,
+      "forecast_p50": 13618.81,
+      "forecast_p90": 13893.19,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T18:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13639.61,
+      "forecast_p50": 13814.86,
+      "forecast_p90": 13968.75,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T19:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13941.66,
+      "forecast_p50": 14038.34,
+      "forecast_p90": 14457.52,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T20:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13997.07,
+      "forecast_p50": 14258.59,
+      "forecast_p90": 14483.81,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T21:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14372.64,
+      "forecast_p50": 14463.22,
+      "forecast_p90": 15034.36,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T22:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14384.94,
+      "forecast_p50": 14585.92,
+      "forecast_p90": 14908.46,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-20T23:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14932.64,
+      "forecast_p50": 15162.44,
+      "forecast_p90": 15319.89,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T00:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15272.39,
+      "forecast_p50": 15530.35,
+      "forecast_p90": 15811.93,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T01:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16149.21,
+      "forecast_p50": 16305.73,
+      "forecast_p90": 16415.65,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T02:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16479.82,
+      "forecast_p50": 16781.01,
+      "forecast_p90": 16887.31,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T03:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16784.26,
+      "forecast_p50": 17307.69,
+      "forecast_p90": 17331.23,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T04:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16779.04,
+      "forecast_p50": 17191.08,
+      "forecast_p90": 17299.46,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T05:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16838.56,
+      "forecast_p50": 16976.84,
+      "forecast_p90": 17153.79,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T06:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16305.83,
+      "forecast_p50": 16321.56,
+      "forecast_p90": 16580.71,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T07:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15224.05,
+      "forecast_p50": 15668.59,
+      "forecast_p90": 16087.43,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T08:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13984.77,
+      "forecast_p50": 14863.67,
+      "forecast_p90": 15170.66,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T09:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13452.13,
+      "forecast_p50": 14099.63,
+      "forecast_p90": 14728.35,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T10:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13321.78,
+      "forecast_p50": 13809.47,
+      "forecast_p90": 14417.63,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T11:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13260.82,
+      "forecast_p50": 13472.65,
+      "forecast_p90": 14026.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T12:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13342.4,
+      "forecast_p50": 13535.12,
+      "forecast_p90": 14009.12,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T13:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13443.46,
+      "forecast_p50": 13686.11,
+      "forecast_p90": 14091.34,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T14:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13411.63,
+      "forecast_p50": 13854.6,
+      "forecast_p90": 14131.98,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T15:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13415.18,
+      "forecast_p50": 13779.93,
+      "forecast_p90": 13919.13,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T16:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13280.88,
+      "forecast_p50": 13636.12,
+      "forecast_p90": 13975.71,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T17:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13381.36,
+      "forecast_p50": 13603.74,
+      "forecast_p90": 13772.72,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T18:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13243.22,
+      "forecast_p50": 13479.24,
+      "forecast_p90": 13689.77,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T19:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13137.53,
+      "forecast_p50": 13477.46,
+      "forecast_p90": 13698.69,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T20:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13622.35,
+      "forecast_p50": 13650.71,
+      "forecast_p90": 13899.37,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T21:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13851.45,
+      "forecast_p50": 14058.19,
+      "forecast_p90": 14238.51,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T22:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14020.63,
+      "forecast_p50": 14104.69,
+      "forecast_p90": 14383.81,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-21T23:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14499.46,
+      "forecast_p50": 14805.28,
+      "forecast_p90": 14945.35,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T00:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15149.4,
+      "forecast_p50": 15334.88,
+      "forecast_p90": 15624.16,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T01:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15979.16,
+      "forecast_p50": 16012.35,
+      "forecast_p90": 16304.39,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T02:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16507.27,
+      "forecast_p50": 16783.02,
+      "forecast_p90": 16838.01,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T03:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16702.65,
+      "forecast_p50": 17050.21,
+      "forecast_p90": 17243.7,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T04:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16895.72,
+      "forecast_p50": 17415.58,
+      "forecast_p90": 17513.1,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T05:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16879.36,
+      "forecast_p50": 17233.52,
+      "forecast_p90": 17432.03,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T06:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16704.9,
+      "forecast_p50": 17245.2,
+      "forecast_p90": 17297.67,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T07:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16120.69,
+      "forecast_p50": 16788.36,
+      "forecast_p90": 16943.83,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T08:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15788.22,
+      "forecast_p50": 16490.87,
+      "forecast_p90": 16764.43,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T09:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15311.2,
+      "forecast_p50": 16149.28,
+      "forecast_p90": 16301.68,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T10:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14653.9,
+      "forecast_p50": 15821.86,
+      "forecast_p90": 16081.89,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T11:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14760.63,
+      "forecast_p50": 15586.71,
+      "forecast_p90": 15980.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T12:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14611.0,
+      "forecast_p50": 15166.23,
+      "forecast_p90": 15610.06,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T13:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14765.63,
+      "forecast_p50": 15004.42,
+      "forecast_p90": 15745.05,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T14:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14570.61,
+      "forecast_p50": 14700.28,
+      "forecast_p90": 15407.53,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T15:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14158.27,
+      "forecast_p50": 14571.08,
+      "forecast_p90": 15017.38,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T16:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13828.17,
+      "forecast_p50": 14178.59,
+      "forecast_p90": 14557.99,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T17:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13625.47,
+      "forecast_p50": 13996.72,
+      "forecast_p90": 14158.03,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T18:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13240.46,
+      "forecast_p50": 13721.55,
+      "forecast_p90": 13841.01,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T19:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13055.43,
+      "forecast_p50": 13678.83,
+      "forecast_p90": 13887.4,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T20:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13414.78,
+      "forecast_p50": 13537.63,
+      "forecast_p90": 13860.76,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T21:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13648.55,
+      "forecast_p50": 13760.87,
+      "forecast_p90": 14041.97,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T22:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 13950.78,
+      "forecast_p50": 13974.77,
+      "forecast_p90": 14138.49,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-22T23:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14167.06,
+      "forecast_p50": 14471.67,
+      "forecast_p90": 14578.31,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T00:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 14872.95,
+      "forecast_p50": 15157.48,
+      "forecast_p90": 15369.2,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T01:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 15794.84,
+      "forecast_p50": 15997.65,
+      "forecast_p90": 16308.1,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T02:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16637.45,
+      "forecast_p50": 16704.45,
+      "forecast_p90": 16734.31,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T03:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 17075.32,
+      "forecast_p50": 17199.61,
+      "forecast_p90": 17431.93,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T04:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 17299.89,
+      "forecast_p50": 17336.11,
+      "forecast_p90": 17575.96,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T05:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 17669.83,
+      "forecast_p50": 17719.46,
+      "forecast_p90": 17774.48,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T06:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 17277.81,
+      "forecast_p50": 17324.95,
+      "forecast_p90": 17563.22,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T07:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 17292.09,
+      "forecast_p50": 17603.42,
+      "forecast_p90": 17731.95,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T08:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16901.27,
+      "forecast_p50": 17228.22,
+      "forecast_p90": 17313.99,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T09:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16961.46,
+      "forecast_p50": 17331.35,
+      "forecast_p90": 17363.18,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T10:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16633.48,
+      "forecast_p50": 16947.59,
+      "forecast_p90": 17324.49,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T11:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16725.09,
+      "forecast_p50": 16861.64,
+      "forecast_p90": 17391.36,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T12:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16536.06,
+      "forecast_p50": 16738.64,
+      "forecast_p90": 17318.85,
+      "model_version": "lgb-quantile-v2.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-23T13:02:49.160764+00:00",
+      "region": "ER",
+      "forecast_p10": 16521.23,
+      "forecast_p50": 16665.98,
+      "forecast_p90": 17350.18,
+      "model_version": "lgb-quantile-v2.0"
+    }
+  ],
+  "nominal_anomaly": {
+    "region": "ER",
+    "timestamp_utc": "2026-11-20T14:02:55.511993+00:00",
+    "actual_demand_mw": 12186.81,
+    "predicted_p10_mw": 12068.21,
+    "predicted_p50_mw": 12191.63,
+    "predicted_p90_mw": 12356.94,
+    "anomaly_score": -0.5594,
+    "is_structural": false,
+    "residual_breach": false,
+    "top_shap_features": [
+      {
+        "feature": "demand_lag_1h",
+        "shap_value": -3441.29,
+        "actual_value": 11405.61
+      },
+      {
+        "feature": "demand_lag_24h",
+        "shap_value": -2477.01,
+        "actual_value": 12140.83
+      },
+      {
+        "feature": "demand_rolling_mean_24h",
+        "shap_value": -346.01,
+        "actual_value": 14530.04
+      }
+    ]
+  },
+  "drift_summary": {
+    "region": "ER",
+    "drift_alarm": true,
+    "drift_ratio": 0.5238,
+    "drifted_features": 11,
+    "total_features": 21,
+    "recommended_quantile_alpha": "[0.05, 0.5, 0.95]",
+    "feature_metrics": {
+      "sin_hour_k1": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "cos_hour_k1": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "sin_hour_k2": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "cos_hour_k2": {
+        "test": "wasserstein",
+        "score": 0.0,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "sin_doy": {
+        "test": "wasserstein",
+        "score": 0.1924,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "cos_doy": {
+        "test": "wasserstein",
+        "score": 0.0406,
+        "threshold": 0.1,
+        "drift_detected": false
+      },
+      "day_of_week": {
+        "test": "wasserstein",
+        "score": 0.1667,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "is_holiday": {
+        "test": "wasserstein",
+        "score": 0.1095,
+        "threshold": 0.1,
+        "drift_detected": true
+      },
+      "demand_lag_1h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1292,
+        "p_value": 0.019204,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_2h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1292,
+        "p_value": 0.019204,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_3h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1292,
+        "p_value": 0.019204,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_lag_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.0821,
+        "p_value": 0.298999,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_lag_48h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.0788,
+        "p_value": 0.346873,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_lag_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.102,
+        "p_value": 0.109112,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_rolling_mean_6h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1597,
+        "p_value": 0.00167,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_mean_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.3756,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_mean_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.5347,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_rolling_std_6h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.0466,
+        "p_value": 0.913561,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_rolling_std_24h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1018,
+        "p_value": 0.110338,
+        "threshold": 0.05,
+        "drift_detected": false
+      },
+      "demand_rolling_std_168h": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.3097,
+        "p_value": 0.0,
+        "threshold": 0.05,
+        "drift_detected": true
+      },
+      "demand_mw": {
+        "test": "kolmogorov_smirnov",
+        "statistic": 0.1292,
+        "p_value": 0.019204,
+        "threshold": 0.05,
+        "drift_detected": true
+      }
+    },
+    "report_available": true
+  }
+}

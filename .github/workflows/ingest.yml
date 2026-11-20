@@ -46,3 +46,8 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           RENDER_TRIGGER_URL: ${{ secrets.RENDER_TRIGGER_URL }}
         run: python -m src.monitoring.drift_check
+
+      - name: Precompute Inference Artifacts & Drift Snapshots
+        env:
+          ARTIFACTS_PATH: "artifacts"
+        run: python -m src.models.precompute

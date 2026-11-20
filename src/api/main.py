@@ -108,12 +108,25 @@ def get_supported_regions() -> Dict[str, List[str]]:
 
 @app.post("/forecast")
 def generate_forecast(req: ForecastRequest) -> Dict[str, Any]:
-    # produces 72-hour recursive multi-step quantile predictions
+    # produces 72-hour recursive multi-step quantile predictions via snapshot cache or model bundle
     if req.region not in REGIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown region '{req.region}'. supported regions: {REGIONS}",
         )
+
+    # instant return from precomputed snapshot when standard 168h lookback requested
+    if req.lookback_hours == 168:
+        from src.models.precompute import load_precomputed_data
+        precomputed = load_precomputed_data(req.region)
+        if precomputed and "forecasts" in precomputed:
+            return {
+                "region": req.region,
+                "model_version": MODEL_VERSION,
+                "forecast_generated_at": precomputed.get("generated_at", datetime.now(timezone.utc).isoformat()),
+                "forecast_horizon_hours": len(precomputed["forecasts"]),
+                "forecasts": precomputed["forecasts"],
+            }
 
     bundle: ModelArtifactsBundle = app_state.get("bundle")
     if bundle is None:
@@ -167,6 +180,13 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
             detail=f"unknown region '{req.region}'. supported regions: {REGIONS}",
         )
 
+    # instant return from precomputed nominal snapshot when no custom demand is provided
+    if req.actual_demand_mw is None:
+        from src.models.precompute import load_precomputed_anomaly
+        precomputed = load_precomputed_anomaly(req.region)
+        if precomputed is not None:
+            return precomputed
+
     bundle: ModelArtifactsBundle = app_state.get("bundle")
     explainer: AnomalySHAPExplainer = app_state.get("explainer")
     if bundle is None or explainer is None:
@@ -214,6 +234,11 @@ def get_drift_metrics(region: str = Query("ALL_INDIA", description="Regional gri
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown region '{region}'. supported regions: {REGIONS}",
         )
+
+    from src.models.precompute import load_precomputed_drift
+    precomputed = load_precomputed_drift(region)
+    if precomputed is not None:
+        return precomputed
 
     ref_df = load_reference_baseline(region)
     curr_df = fetch_trailing_telemetry_window(region=region, window_hours=168)
