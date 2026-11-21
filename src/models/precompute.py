@@ -4,37 +4,19 @@ import json
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
-import numpy as np
 import pandas as pd
-import polars as pl
 
 # ensure project root is present in sys.path
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from src.models.load_artifacts import (
-    ModelArtifactsBundle,
-    REGIONS,
-    load_reference_baseline,
-    load_feature_columns,
-)
-from src.models.infer_and_detect import (
-    generate_72h_multi_step_forecast,
-    predict_quantiles,
-    detect_structural_anomalies,
-    MODEL_VERSION,
-)
-from src.models.explainers import AnomalySHAPExplainer
-from src.monitoring.drift_check import (
-    evaluate_feature_drift,
-    fetch_trailing_telemetry_window,
-)
+REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
+MODEL_VERSION = "2.0.0"
+DEFAULT_PRECOMPUTED_DIR = os.path.join(root_dir, "artifacts", "precomputed")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
-
-DEFAULT_PRECOMPUTED_DIR = os.path.join(root_dir, "artifacts", "precomputed")
 
 
 def get_precomputed_path(region: str, output_dir: str = DEFAULT_PRECOMPUTED_DIR) -> str:
@@ -91,11 +73,24 @@ def load_precomputed_drift(region: str, output_dir: str = DEFAULT_PRECOMPUTED_DI
 
 def precompute_region(
     region: str,
-    bundle: ModelArtifactsBundle,
-    explainer: AnomalySHAPExplainer,
+    bundle: Any,
+    explainer: Any,
     feature_cols: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     # precalculates 72h forecast, nominal anomaly, and drift metrics for single region
+    import numpy as np
+    import polars as pl
+    from src.models.load_artifacts import load_reference_baseline, load_feature_columns
+    from src.models.infer_and_detect import (
+        generate_72h_multi_step_forecast,
+        predict_quantiles,
+        detect_structural_anomalies,
+    )
+    from src.monitoring.drift_check import (
+        evaluate_feature_drift,
+        fetch_trailing_telemetry_window,
+    )
+
     logger.info(f"precomputing telemetry artifacts for region: {region}")
     ref_df = load_reference_baseline(region).copy()
     if feature_cols is None:
@@ -189,6 +184,9 @@ def precompute_all(
     regions: Optional[List[str]] = None,
 ) -> Dict[str, str]:
     # executes batch precomputations across all designated regions
+    from src.models.load_artifacts import ModelArtifactsBundle, load_feature_columns
+    from src.models.explainers import AnomalySHAPExplainer
+
     os.makedirs(output_dir, exist_ok=True)
     target_regions = regions or REGIONS
 
