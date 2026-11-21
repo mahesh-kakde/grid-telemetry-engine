@@ -249,17 +249,24 @@ def run_inference_and_detection() -> Dict[str, Any]:
     db_url = os.environ.get("SUPABASE_DB_URL")
     if db_url:
         logger.info("generating 72h multi-step forecasts and persisting to supabase...")
-        # build historical dataframe from baselines
-        combined_rows = []
-        for reg in REGIONS:
-            ref = bundle.reference_baselines[reg].copy()
-            ref["region"] = reg
-            combined_rows.append(ref)
-        history_df = pl.from_pandas(pd.concat(combined_rows, ignore_index=True))
-
         all_forecasts = []
         for reg in REGIONS:
-            forecasts = generate_72h_multi_step_forecast(history_df, reg, bundle)
+            ref_df = bundle.reference_baselines[reg].tail(168).copy()
+            base_ts = datetime.now(timezone.utc) - timedelta(hours=len(ref_df))
+            records = []
+            for idx, (_, row) in enumerate(ref_df.iterrows()):
+                records.append({
+                    "timestamp_utc": base_ts + timedelta(hours=idx),
+                    "region": reg,
+                    "demand_mw": float(row["demand_mw"]),
+                    "frequency_hz": 50.0,
+                    "temperature_2m": 30.0,
+                    "relative_humidity_2m": 50.0,
+                    "surface_solar_radiation": 350.0,
+                    "wind_speed_100m": 4.0,
+                })
+            df_history = pl.DataFrame(records)
+            forecasts = generate_72h_multi_step_forecast(df_history, reg, bundle)
             all_forecasts.extend(forecasts)
         persist_forecasts_to_supabase(all_forecasts, db_url)
     else:
