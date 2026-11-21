@@ -474,17 +474,19 @@ def fetch_trailing_telemetry_window(
             import polars as pl
 
             conn = psycopg2.connect(db_url)
-            query = f"""
-                SELECT timestamp_utc, region, demand_mw, frequency_hz,
-                       temperature_2m, relative_humidity_2m,
-                       surface_solar_radiation, wind_speed_100m
-                FROM regional_telemetry
-                WHERE region = %s
-                ORDER BY timestamp_utc DESC
-                LIMIT %s;
-            """
-            pdf = pd.read_sql(query, conn, params=(region, window_hours + 168))
-            conn.close()
+            try:
+                query = f"""
+                    SELECT timestamp_utc, region, demand_mw, frequency_hz,
+                           temperature_2m, relative_humidity_2m,
+                           surface_solar_radiation, wind_speed_100m
+                    FROM regional_telemetry
+                    WHERE region = %s
+                    ORDER BY timestamp_utc DESC
+                    LIMIT %s;
+                """
+                pdf = pd.read_sql(query, conn, params=(region, window_hours + 168))
+            finally:
+                conn.close()
 
             if len(pdf) >= 168:
                 pdf = pdf.sort_values("timestamp_utc").reset_index(drop=True)
