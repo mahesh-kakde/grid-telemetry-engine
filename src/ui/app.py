@@ -683,34 +683,67 @@ st.markdown(
             font-size: 10.5px !important;
         }
 
-        /* tooltips on mobile: fixed viewport toast - zero cutoff */
+        /* tooltips on mobile: anchored right above the ? icon with arrow pointer */
         .info-tip:hover::after,
         .info-tip:focus::after,
         .info-tip:active::after {
-            position: fixed !important;
-            left: 12px !important;
-            right: 12px !important;
-            bottom: 44px !important;
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            left: 50% !important;
+            right: auto !important;
             top: auto !important;
-            width: auto !important;
-            max-width: calc(100vw - 24px) !important;
-            transform: none !important;
-            font-size: 11.5px !important;
-            line-height: 1.45 !important;
-            padding: 10px 14px !important;
-            border-radius: 8px !important;
+            transform: translateX(-50%) !important;
+            width: min(210px, 72vw) !important;
+            max-width: 72vw !important;
+            font-size: 11px !important;
+            line-height: 1.4 !important;
+            padding: 8px 10px !important;
+            border-radius: 6px !important;
             background-color: #0f172a !important;
             color: #f8fafc !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3) !important;
             border: 1px solid #334155 !important;
             z-index: 9999999 !important;
             white-space: normal !important;
-            pointer-events: auto !important;
+            pointer-events: none !important;
         }
         .info-tip:hover::before,
         .info-tip:focus::before,
         .info-tip:active::before {
-            display: none !important;
+            display: block !important;
+            content: "" !important;
+            position: absolute !important;
+            bottom: calc(100% + 2px) !important;
+            left: 50% !important;
+            right: auto !important;
+            top: auto !important;
+            transform: translateX(-50%) !important;
+            border-width: 6px !important;
+            border-style: solid !important;
+            border-color: #0f172a transparent transparent transparent !important;
+            z-index: 9999999 !important;
+        }
+
+        /* right-anchored tooltips on mobile (e.g. second column cards or tip-right) */
+        .info-tip.tip-right:hover::after,
+        .info-tip.tip-right:focus::after,
+        .info-tip.tip-right:active::after,
+        [data-testid="column"]:nth-child(even) .info-tip:hover::after,
+        [data-testid="column"]:nth-child(even) .info-tip:focus::after,
+        [data-testid="column"]:nth-child(even) .info-tip:active::after {
+            left: auto !important;
+            right: -6px !important;
+            transform: none !important;
+        }
+        .info-tip.tip-right:hover::before,
+        .info-tip.tip-right:focus::before,
+        .info-tip.tip-right:active::before,
+        [data-testid="column"]:nth-child(even) .info-tip:hover::before,
+        [data-testid="column"]:nth-child(even) .info-tip:focus::before,
+        [data-testid="column"]:nth-child(even) .info-tip:active::before {
+            left: auto !important;
+            right: 2px !important;
+            transform: none !important;
         }
 
         /* fixed footer mobile alignment: left & right spaced */
@@ -1818,81 +1851,148 @@ with tab_drift:
         mime="text/html",
     )
 
-# tab 4: info for nerds (deep technical architecture & specifications)
+# tab 4: info for nerds
 with tab_system:
-    st.markdown("## Info for Nerds: Deep System Architecture & Technical Specifications")
+    st.markdown("## Info for Nerds")
+    st.caption("How the engine works under the hood — from raw grid telemetry to 72-hour forward dispatch and automated reliability monitoring.")
+
+    # 1. Project Overview & The Physical Problem
+    st.markdown("### The Problem: Why Power Grids Require Probabilistic ML")
     st.markdown(
         """
-        <div style="font-size: 13px; color: #444444; margin-bottom: 16px;">
-            Technical specifications detailing mathematical formulations, quantile loss functions, zero-leakage causal feature pipelines, and dual-trigger safety logic.
-        </div>
-        """,
-        unsafe_allow_html=True,
+        Unlike software systems where compute and network requests can buffer or queue, an electrical power grid has
+        virtually zero storage at utility scale. Every single Megawatt (MW) consumed across homes, railways, and factories
+        must be generated and dispatched in real time.
+        
+        - **If generation lags demand:** System frequency drops below the mandatory 50.0 Hz threshold, causing automated relays to trip generators to protect them, risking cascading regional blackouts.
+        - **If generation exceeds demand:** System frequency surges above 50.5 Hz, causing transformer over-excitation and equipment burnout.
+        - **The Dispatcher Dilemma:** Grid operators at Regional Load Despatch Centres (RLDCs) must commit thermal generators 8 to 12 hours in advance (cold startup time). They cannot rely on a single best-guess number; they need guaranteed confidence bounds (p10, p50, p90) to size spinning reserves safely.
+        
+        This engine models India's national active electrical demand (160,000+ MW) and all 5 Regional Load Despatch Centres
+        (Northern, Western, Southern, Eastern, and North Eastern regions) across an automated 6-stage production pipeline.
+        """
     )
 
-    with st.container():
-        st.markdown("### 1. Multi-Horizon Forecasting Engine & Mathematical Guarantees")
-        st.markdown(
-            "**Asymmetric Pinball Loss:** Trains 3 independent LightGBM gradient-boosted tree ensembles per region for target quantiles (alpha = 0.10, 0.50, 0.90) using the tilted loss formulation:"
-        )
-        st.latex(r"\mathcal{L}_\alpha(y, \hat{y}) = \max\Big(\alpha(y - \hat{y}),\; (1 - \alpha)(\hat{y} - y)\Big)")
-        st.markdown(
-            "**Isotonic Monotonicity Guarantee:** Raw quantile regressors can occasionally invert during sharp transitions. Post-inference isotonic sorting along axis 1 mathematically enforces monotonic ordering across all 72 forward steps, ensuring the uncertainty envelope never inverts:"
-        )
-        st.latex(r"p_{10}(t) \le p_{50}(t) \le p_{90}(t) \quad \forall t \in [1, 72]")
-        st.markdown(
-            "**Recursive Autoregressive Loop:** Generates rolling 72-hour trajectories by substituting p50 median projections as surrogates for subsequent autoregressive lags (1h, 2h, 3h, 24h, 48h, 168h) as the forecast steps forward in time."
-        )
+    st.markdown("---")
+
+    # Step 1
+    st.markdown("### Step 1: Automated Ingestion & Physical Boundary Validation")
+    st.markdown(
+        """
+        **How Data Enters the Engine:**
+        Every 6 hours, an automated GitHub Actions cron workflow (`15 */6 * * *`) connects to primary data sources:
+        - **Grid Telemetry:** Regional electrical load (MW) and system frequency (Hz) telemetry calibrated against Grid-India (formerly POSOCO / NLDC) operational dispatch records and open government registries (data.gov.in).
+        - **Collocated Weather:** Fetches hourly meteorological telemetry (2m ambient temperature, relative humidity, surface solar irradiance, and 100m wind speed) from Open-Meteo across regional grid centroids.
+        
+        **At-the-Door Data Hygiene:**
+        Raw sensor telemetry from high-voltage substations is inherently noisy due to communication dropouts and transient telemetry spikes.
+        Inbound payloads are immediately passed through strict **Pydantic v2** validation contracts:
+        - Active power is enforced to be non-negative and bounded within regional capacity thresholds.
+        - Grid frequency must reside within the strict operating envelope (49.0 - 51.0 Hz).
+        - Timestamps are normalized to UTC, and missing hourly records are repaired using monotonic linear splines before reaching any downstream models.
+        """
+    )
 
     st.markdown("---")
 
-    with st.container():
-        st.markdown("### 2. Dual-Trigger Grid Fault & Surge Sentinel (False Alarm Elimination)")
-        st.markdown(
-            "**Trigger A (Multivariate Pattern Isolation):** An unsupervised Isolation Forest (contamination = 0.01) partitions multi-dimensional feature space to isolate structural anomalies deviating from typical operational patterns."
-        )
-        st.markdown(
-            "**Trigger B (Physical Residual Boundary):** Computes active power residual $|y_{\\text{actual}} - \\hat{y}_{p50}|$ against an empirical boundary derived from 30 days of baseline operations:"
-        )
-        st.latex(r"\text{Operating Boundary} = \Big[p_{10} - 1.5 \cdot \text{IQR},\; p_{90} + 1.5 \cdot \text{IQR}\Big] \quad \text{where} \quad \text{IQR} = p_{75} - p_{25}")
-        st.markdown(
-            "**Consensus Boolean Gate:** An actionable alarm trips only when both triggers agree:"
-        )
-        st.latex(r"\text{Alert} = \text{Trigger}_A \land \text{Trigger}_B")
-        st.markdown(
-            "Extreme but benign weather shifts (such as heatwave cooling surges) satisfy only one trigger, preventing operator alarm fatigue while reliably catching equipment trips."
-        )
+    # Step 2
+    st.markdown("### Step 2: Causal Feature Engineering (Zero-Leakage Polars Pipeline)")
+    st.markdown(
+        """
+        **The #1 Trap in Time-Series ML: Future Lookahead Leakage:**
+        In standard tabular ML, shuffling rows is normal. In time-series forecasting, calculating rolling statistics on unshifted data accidentally leaks future information into the past, causing models to appear 99% accurate in offline tests while failing catastrophically in production.
+        
+        **How the Pipeline Guarantees Strict Causality:**
+        The feature pipeline is built using vectorized **Polars LazyFrames** for query optimization and high-throughput execution:
+        - **Mandatory `.shift(1)` Temporal Fence:** Before computing any rolling moving averages (6h, 24h, 168h) or rolling standard deviation volatility, a strict 1-step lag is applied. When predicting hour `t`, the feature pipeline is strictly blinded to anything at or beyond hour `t`.
+        - **Continuous Fourier Harmonics (Diurnal & Annual):** Electricity demand follows strong 24-hour daily rhythms and 365.25-day annual seasonality. Using plain integer hours (1 to 24) introduces an artificial step discontinuity between 23:59 and 00:00. We transform time into continuous Fourier sine and cosine wave harmonics:
+        """
+    )
+    st.latex(r"\sin\left(\frac{2\pi \cdot t}{24}\right),\quad \cos\left(\frac{2\pi \cdot t}{24}\right),\quad \sin\left(\frac{2\pi \cdot t}{8766}\right),\quad \cos\left(\frac{2\pi \cdot t}{8766}\right)")
+    st.markdown(
+        """
+        - **Regional Isolation:** Rolling aggregations and feature calculations partition strictly by regional code (`ALL_INDIA`, `NR`, `WR`, `SR`, `ER`, `NER`), mathematically preventing cross-regional telemetry contamination.
+        """
+    )
 
     st.markdown("---")
 
-    with st.container():
-        st.markdown("### 3. Zero-Leakage Causal Feature Store (Polars LazyFrames)")
-        st.markdown(
-            "**Strict Causality Fence:** A mandatory `.shift(1)` fence is applied before computing any rolling statistics (6h, 24h, 168h moving averages and standard deviation volatility), mathematically guaranteeing zero future lookahead leakage."
-        )
-        st.markdown(
-            "**Continuous Fourier Harmonics:** Encodes diurnal and annual seasonality using continuous sine and cosine transformations (T = 24h and T = 365.25d) to avoid artificial step discontinuities:"
-        )
-        st.latex(r"\sin\left(\frac{2\pi \cdot t}{24}\right),\quad \cos\left(\frac{2\pi \cdot t}{24}\right),\quad \sin\left(\frac{2\pi \cdot t}{8766}\right),\quad \cos\left(\frac{2\pi \cdot t}{8766}\right)")
-        st.markdown(
-            "**Regional Isolation:** Window aggregations partition strictly by region code (`NR`, `WR`, `SR`, `ER`, `NER`, `ALL_INDIA`), preventing cross-regional telemetry contamination."
-        )
+    # Step 3
+    st.markdown("### Step 3: Multi-Horizon Probabilistic Forecasting (LightGBM Quantiles)")
+    st.markdown(
+        """
+        **Why Single Point Forecasts Are Dangerous:**
+        Standard regression models predict a single mean value. However, grid dispatchers manage operational risk: they need to know the worst-case peak demand for reserve margin planning, the expected baseload for economic dispatch, and the conservative minimum for overnight thermal backing-down.
+        
+        **Tilted Pinball Loss Ensembles:**
+        We train 3 independent LightGBM gradient-boosted decision tree ensembles per region, using asymmetric pinball loss for quantiles:
+        - **p10 (Lower Bound):** 90% probability that demand will exceed this value (conservative baseload).
+        - **p50 (Median Forecast):** Expected dispatch trajectory with minimum absolute error.
+        - **p90 (Upper Bound):** 90% probability that demand will stay below this value (peak reserve ceiling).
+        
+        **The Isotonic Monotonicity Guarantee:**
+        Because quantile regressors are trained independently, rapid weather transitions can occasionally produce "quantile crossing" where `p10 > p50` or `p50 > p90`. We apply post-inference isotonic sorting along axis 1, mathematically guaranteeing:
+        """
+    )
+    st.latex(r"p_{10}(t) \le p_{50}(t) \le p_{90}(t) \quad \forall t \in [1, 72]")
+    st.markdown(
+        """
+        **Recursive 72-Hour Forward Trajectory:**
+        To forecast 72 hours ahead without future telemetry, the model predicts hour `t+1`, feeds the `p50` projection back as the surrogate for subsequent autoregressive lags (1h, 2h, 3h, 24h), and recursively iterates forward across 72 steps.
+        """
+    )
 
     st.markdown("---")
 
-    with st.container():
-        st.markdown("### 4. Explainability & Continuous Reliability Watchdog (SHAP & Evidently AI)")
-        st.markdown(
-            "**TreeExplainer Root-Cause Attribution:** Evaluated against 150 k-means background centroids to attribute exact additive Megawatt contributions per physical feature:"
-        )
-        st.latex(r"f(x) = \phi_0 + \sum_{i=1}^{M} \phi_i")
-        st.markdown(
-            "**Two-Sample Kolmogorov-Smirnov Test:** Continuous telemetry variables (demand, frequency, temperature, solar radiation, wind speed) are tested against 30-day baseline distributions with significance threshold p < 0.05:"
-        )
-        st.latex(r"D = \sup_x \Big|F_{\text{live}}(x) - F_{\text{baseline}}(x)\Big|")
-        st.markdown(
-            "**1D Wasserstein Distance:** Cyclical harmonic features are evaluated via Earth Mover's Distance with drift threshold W1 >= 0.10."
-        )
-        st.markdown(
-            "**Dynamic Quantile Adaptation:** If drifted features exceed the 30% tolerance threshold, the watchdog triggers a recalibration recommendation and dynamically expands the forecast interval to [p05, p50, p95] for conservative reserve safety."
-        )
+    # Step 4
+    st.markdown("### Step 4: Real-Time Dual-Trigger Fault Sentinel (Zero False Alarms)")
+    st.markdown(
+        """
+        **The False Alarm Dilemma in Mission-Critical Infrastructure:**
+        Grid control rooms suffer from alert fatigue. If a threshold detector screams every time afternoon air-conditioning surges during a heatwave, operators mute the alarm. But a genuine substation busbar trip or transmission line outage requires immediate response.
+        
+        **Dual-Trigger Consensus Architecture:**
+        We eliminate false alarms by requiring consensus between two fundamentally different detection algorithms:
+        - **Trigger A (Unsupervised Pattern Isolation):** An Isolation Forest (contamination = 0.01) evaluates multi-dimensional feature space (load, frequency, temperature, rate of change) to detect structural correlation anomalies.
+        - **Trigger B (Physical Residual Boundary):** Calculates the actual active power residual `|y_actual - y_pred_p50|` and compares it against an empirical 1.5x IQR boundary derived from 30 days of baseline operations:
+        """
+    )
+    st.latex(r"\text{Operating Boundary} = \Big[p_{10} - 1.5 \cdot \text{IQR},\; p_{90} + 1.5 \cdot \text{IQR}\Big] \quad \text{where} \quad \text{IQR} = p_{75} - p_{25}")
+    st.markdown(
+        """
+        - **Consensus Boolean Gate (`Alert = Trigger_A AND Trigger_B`):** An actionable alarm triggers only when both algorithms agree. When an extreme heatwave strikes, Trigger B sees high demand, but Trigger A recognizes that weather features explain the shift, so no alarm sounds. Only true physical anomalies breach both gates.
+        """
+    )
+
+    st.markdown("---")
+
+    # Step 5
+    st.markdown("### Step 5: Explainability & Continuous Drift Watchdog (Production MLOps)")
+    st.markdown(
+        """
+        **Explainability with SHAP TreeExplainer:**
+        Black-box AI is unacceptable during power emergencies. When an alert fires or demand spikes, SHAP TreeExplainer evaluates 150 k-means background centroids to compute exact additive Megawatt contributions per physical feature. Dispatchers immediately see whether a spike was driven by temperature, recent hourly momentum, or seasonal harmonics.
+        
+        **Automated Statistical Drift Monitoring (Evidently AI):**
+        Machine learning models degrade over time as weather patterns shift across seasons or consumer habits change. The engine continuously runs two-sample distribution tests comparing trailing 7-day telemetry against a 30-day baseline reference:
+        - **Two-Sample Kolmogorov-Smirnov Test (p < 0.05):** Evaluates continuous variables (demand, frequency, temperature, solar radiation, wind speed).
+        - **1D Wasserstein Distance (W1 >= 0.10):** Measures Earth Mover's Distance for cyclical harmonic features.
+        
+        **Dynamic Uncertainty Adaptation:**
+        If the percentage of drifted features breaches the 30% tolerance threshold, the watchdog alerts operators and dynamically expands the forecast confidence interval from `[p10, p50, p90]` to `[p05, p50, p95]` for conservative reserve safety until automated retraining completes.
+        """
+    )
+
+    st.markdown("---")
+
+    # Step 6
+    st.markdown("### Step 6: Production Deployment & Architecture")
+    st.markdown(
+        """
+        **Containerized Co-Located Architecture:**
+        The engine is packaged into a multi-stage Docker container deployed at `grid.maheshkakde.com`:
+        - **Internal FastAPI REST Service (`127.0.0.1:8000`):** Handles high-throughput vectorized model inference, artifact loading, and telemetry endpoints.
+        - **Interactive Streamlit Dashboard:** Delivers the real-time operational interface, interactive 24h / 48h / 72h horizon toggles, and mobile-responsive dispatch controls.
+        - **Deep Dive Technical Architecture:** For system design blueprints, quantile Pinball loss formulation, and container runtime details, explore the repository's [README.md](https://github.com/mahesh-kakde/grid-telemetry-engine#readme).
+        """
+    )
