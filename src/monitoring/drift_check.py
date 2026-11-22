@@ -513,6 +513,32 @@ def build_html_drift_report(
             flex-wrap: wrap;
             gap: 12px;
         }}
+        .table-wrap {{
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 24px;
+        }}
+        @media (max-width: 640px) {{
+            body {{
+                padding: 12px 8px;
+            }}
+            .container {{
+                padding: 16px 12px;
+                border-radius: 8px;
+            }}
+            .header h1 {{
+                font-size: 18px;
+            }}
+            .grid {{
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }}
+            th, td {{
+                padding: 8px 10px;
+                font-size: 12px;
+            }}
+        }}
         @media print {{
             body {{
                 background-color: #ffffff;
@@ -590,21 +616,23 @@ def build_html_drift_report(
             <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous variables use the two-sample Kolmogorov-Smirnov test (significance threshold p &lt; 0.05); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.10).</div>
         </div>
         
-        <table>
-            <thead>
-                <tr>
-                    <th>Parameter</th>
-                    <th>Audit Test</th>
-                    <th>Observed Metric</th>
-                    <th>Safe Threshold</th>
-                    <th>P-Value / Score</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {table_rows_html}
-            </tbody>
-        </table>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Audit Test</th>
+                        <th>Observed Metric</th>
+                        <th>Safe Threshold</th>
+                        <th>P-Value / Score</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+        </div>
 
         <div class="footer">
             <div>Created by <a href="https://maheshkakde.com" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">Mahesh Kakde</a></div>

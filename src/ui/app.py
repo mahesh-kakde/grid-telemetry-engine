@@ -39,7 +39,7 @@ st.set_page_config(
     page_title="grid-telemetry-engine | Mahesh Kakde",
     page_icon=FAVICON_PATH if os.path.exists(FAVICON_PATH) else "⚡",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 # 404 error page routing check
@@ -172,6 +172,38 @@ if is_404:
         .fixed-footer-404 a:hover {
             text-decoration: underline;
         }
+        @media (max-width: 640px) {
+            .error-container {
+                padding: 36px 18px !important;
+                margin-top: 1rem !important;
+            }
+            .error-code {
+                font-size: 64px !important;
+            }
+            .error-title {
+                font-size: 18px !important;
+            }
+            .error-description {
+                font-size: 13.5px !important;
+                margin-bottom: 24px !important;
+            }
+            .error-actions {
+                flex-direction: column !important;
+                width: 100% !important;
+                gap: 10px !important;
+            }
+            .btn-home, .btn-portfolio {
+                width: 100% !important;
+                text-align: center !important;
+            }
+            .fixed-footer-404 {
+                flex-direction: column !important;
+                gap: 4px !important;
+                padding: 8px 12px !important;
+                font-size: 11px !important;
+                text-align: center !important;
+            }
+        }
         </style>
         <div class="error-container">
             <div class="error-code">404</div>
@@ -217,23 +249,45 @@ st.markdown(
         max-width: 100% !important;
     }
     header[data-testid="stHeader"] {
-        height: 0px !important;
-        min-height: 0px !important;
         background: transparent !important;
+        z-index: 100 !important;
+    }
+    /* sidebar mobile collapsed control */
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px !important;
+        color: #0f172a !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+        margin-left: 0.5rem !important;
+        margin-top: 0.25rem !important;
+    }
+    [data-testid="stSidebarCollapsedControl"]:hover {
+        background-color: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
     }
     /* sidebar refined styling */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
     }
+    [data-testid="stSidebarHeader"] {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
+        background-color: #ffffff !important;
+    }
+    [data-testid="stSidebarCollapseButton"] {
+        color: #64748b !important;
+    }
+    [data-testid="stSidebarCollapseButton"]:hover {
+        color: #0f172a !important;
+        background-color: #f1f5f9 !important;
+    }
     [data-testid="stSidebarContent"] {
-        padding-top: 1.25rem !important;
+        padding-top: 0.5rem !important;
         padding-left: 1.25rem !important;
         padding-right: 1.25rem !important;
         padding-bottom: 1rem !important;
-    }
-    [data-testid="stSidebarHeader"] {
-        display: none !important;
     }
     [data-testid="stSidebar"] hr {
         margin: 0.75rem 0 !important;
@@ -480,12 +534,157 @@ st.markdown(
         margin: 0 8px;
         color: #cbd5e1;
     }
+    /* =====================================================================
+       MOBILE & TABLET RESPONSIVE STYLES
+       ===================================================================== */
     @media (max-width: 768px) {
+        /* lock mobile viewport: zero horizontal blowup */
+        html, body, [data-testid="stAppViewContainer"], .stApp {
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+            width: 100vw !important;
+        }
+
+        /* mobile main content full viewport */
+        [data-testid="stMain"],
+        [data-testid="stMainBlockContainer"],
+        .main,
+        section[data-testid="stMain"] {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            left: 0 !important;
+            margin-left: 0 !important;
+        }
+
+        /* container padding */
+        .block-container {
+            padding-top: 0.5rem !important;
+            padding-bottom: 4.5rem !important;
+            padding-left: 0.85rem !important;
+            padding-right: 0.85rem !important;
+            max-width: 100vw !important;
+        }
+
+        /* mobile sidebar slide-over overlay drawer */
+        [data-testid="stSidebar"] {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            z-index: 999999 !important;
+            width: min(300px, 82vw) !important;
+            max-width: 82vw !important;
+            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.16) !important;
+        }
+
+        /* typography scaling */
+        h1 {
+            font-size: 19px !important;
+            line-height: 1.25 !important;
+            margin-top: 0.25rem !important;
+            margin-bottom: 0.25rem !important;
+        }
+        h2, h3 {
+            font-size: 15px !important;
+            line-height: 1.3 !important;
+        }
+
+        /* tabs touch-friendly horizontal scrolling */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 12px !important;
+            overflow-x: auto !important;
+            scrollbar-width: none !important;
+            -webkit-overflow-scrolling: touch !important;
+            flex-wrap: nowrap !important;
+            margin-top: 0.5rem !important;
+            margin-bottom: 0.85rem !important;
+        }
+        .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+            display: none !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            font-size: 12.5px !important;
+            white-space: nowrap !important;
+            padding: 6px 2px !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* column layout: responsive wrapping */
+        [data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+        }
+        [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+            flex: 1 1 calc(50% - 8px) !important;
+            min-width: calc(50% - 8px) !important;
+        }
+
+        /* card scaling */
+        .kpi-card, .metric-card {
+            padding: 10px 12px !important;
+            margin-bottom: 6px !important;
+        }
+        .kpi-title, .metric-label {
+            font-size: 10px !important;
+        }
+        .kpi-value, .metric-value {
+            font-size: 18px !important;
+            margin-bottom: 2px !important;
+        }
+        .kpi-caption, .metric-caption {
+            font-size: 10.5px !important;
+        }
+
+        /* tooltips constrained to viewport */
+        .info-tip:hover::after,
+        .info-tip:focus::after {
+            width: min(260px, 80vw) !important;
+            left: auto !important;
+            right: -8px !important;
+            transform: none !important;
+            font-size: 11px !important;
+            padding: 6px 10px !important;
+        }
+        .info-tip:hover::before,
+        .info-tip:focus::before {
+            left: auto !important;
+            right: 2px !important;
+            transform: none !important;
+        }
+
+        /* fixed footer mobile alignment */
         .fixed-footer {
-            left: 0;
-            width: 100%;
-            padding: 6px 1rem;
-            font-size: 11.5px;
+            left: 0 !important;
+            width: 100% !important;
+            padding: 6px 1rem !important;
+            font-size: 11px !important;
+        }
+
+        /* download button full-width touch friendly */
+        div[data-testid="stDownloadButton"] button {
+            width: 100% !important;
+            padding: 12px 16px !important;
+            text-align: center !important;
+        }
+    }
+
+    @media (max-width: 480px) {
+        /* full width single column on compact phones */
+        [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+        }
+
+        .fixed-footer {
+            flex-direction: column !important;
+            gap: 2px !important;
+            text-align: center !important;
+            padding: 5px 8px !important;
+            font-size: 10px !important;
+        }
+        .footer-sep {
+            margin: 0 4px !important;
         }
     }
     /* select and controls */
@@ -753,7 +952,7 @@ def get_forecast_figure(region: str) -> go.Figure:
         line=dict(width=0),
         fill="tonexty",
         fillcolor="rgba(37, 99, 235, 0.08)",
-        name="80% Confidence Operating Envelope (p10 to p90)",
+        name="80% CI Envelope",
         hoverinfo="skip",
     ))
 
@@ -764,7 +963,7 @@ def get_forecast_figure(region: str) -> go.Figure:
         mode="lines+markers",
         line=dict(color="#2563eb", width=2.5),
         marker=dict(size=4, color="#2563eb"),
-        name="Expected Demand (Median p50 Projection)",
+        name="Expected Demand (p50)",
         hovertemplate="<b>%{x|%d %b %H:%M UTC}</b><br>Expected Demand: <b>%{y:,.0f} MW</b><extra></extra>",
     ))
 
@@ -774,7 +973,7 @@ def get_forecast_figure(region: str) -> go.Figure:
         y=df_fc["forecast_p90"],
         mode="lines",
         line=dict(color="#334155", width=1, dash="dot"),
-        name="Stress-Test Upper Limit (90th Percentile / p90)",
+        name="Upper Stress (p90)",
         hovertemplate="Upper Limit (p90): %{y:,.0f} MW<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
@@ -782,7 +981,7 @@ def get_forecast_figure(region: str) -> go.Figure:
         y=df_fc["forecast_p10"],
         mode="lines",
         line=dict(color="#64748b", width=1, dash="dot"),
-        name="Conservative Lower Limit (10th Percentile / p10)",
+        name="Lower Bound (p10)",
         hovertemplate="Lower Limit (p10): %{y:,.0f} MW<extra></extra>",
     ))
 
@@ -834,15 +1033,15 @@ def get_forecast_figure(region: str) -> go.Figure:
         template="plotly_white",
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        margin=dict(l=40, r=40, t=20, b=40),
+        margin=dict(l=25, r=20, t=25, b=35),
         hovermode="x unified",
         legend=dict(
             orientation="h",
             yanchor="bottom",
             y=1.02,
-            xanchor="right",
-            x=1,
-            font=dict(size=11, color="#475569"),
+            xanchor="center",
+            x=0.5,
+            font=dict(size=10, color="#475569"),
         ),
         xaxis=dict(
             title="Forecast Horizon Target (UTC Timestamp)",

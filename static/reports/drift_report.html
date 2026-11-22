@@ -206,6 +206,32 @@
             flex-wrap: wrap;
             gap: 12px;
         }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 640px) {
+            body {
+                padding: 12px 8px;
+            }
+            .container {
+                padding: 16px 12px;
+                border-radius: 8px;
+            }
+            .header h1 {
+                font-size: 18px;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            th, td {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
         @media print {
             body {
                 background-color: #ffffff;
@@ -245,7 +271,7 @@
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Audit Generated</span>
-                    <span class="meta-val">2026-11-22 09:17:41 UTC</span>
+                    <span class="meta-val">2026-11-22 10:02:06 UTC</span>
                 </div>
             </div>
         </div>
@@ -283,19 +309,20 @@
             <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous variables use the two-sample Kolmogorov-Smirnov test (significance threshold p &lt; 0.05); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.10).</div>
         </div>
         
-        <table>
-            <thead>
-                <tr>
-                    <th>Parameter</th>
-                    <th>Audit Test</th>
-                    <th>Observed Metric</th>
-                    <th>Safe Threshold</th>
-                    <th>P-Value / Score</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td><code>sin_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Audit Test</th>
+                        <th>Observed Metric</th>
+                        <th>Safe Threshold</th>
+                        <th>P-Value / Score</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>sin_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
 <tr><td><code>cos_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
 <tr><td><code>sin_hour_k2</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>12h Semi-Diurnal Peak (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
 <tr><td><code>cos_hour_k2</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>12h Semi-Diurnal Peak (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
@@ -316,8 +343,9 @@
 <tr><td><code>demand_rolling_std_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Demand Volatility (Std Dev)</span></td><td>Kolmogorov-Smirnov</td><td>0.4419</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
 <tr><td><code>demand_rolling_std_168h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>7-Day Demand Volatility (Std Dev)</span></td><td>Kolmogorov-Smirnov</td><td>0.6847</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
 <tr><td><code>demand_mw</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Active Electrical Demand</span></td><td>Kolmogorov-Smirnov</td><td>0.2661</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
 
         <div class="footer">
             <div>Created by <a href="https://maheshkakde.com" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">Mahesh Kakde</a></div>
