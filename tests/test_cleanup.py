@@ -1,12 +1,10 @@
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
-import pytest
 
 from src.ingestion.cleanup import (
     calculate_cutoff_timestamp,
     prune_expired_records,
-    DEFAULT_RETENTION_DAYS,
 )
 
 

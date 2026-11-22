@@ -1,10 +1,8 @@
-import os
 import logging
 from typing import Dict, List, Any, Optional
 import numpy as np
 import pandas as pd
 import shap
-import lightgbm as lgb
 
 try:
     import psycopg2
@@ -17,7 +15,6 @@ except ImportError:
 from src.models.load_artifacts import (
     ModelArtifactsBundle,
     REGIONS,
-    get_artifacts_dir,
     LazyDict,
 )
 

@@ -1,5 +1,5 @@
 import os
-import sys
+import gc
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple, Optional, Any
@@ -18,15 +18,13 @@ except ImportError:
 from src.models.load_artifacts import (
     ModelArtifactsBundle,
     REGIONS,
-    QUANTILES,
-    get_artifacts_dir,
 )
 from src.features.build_features import compute_telemetry_features
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-MODEL_VERSION = "lgb-quantile-v2.0"
+MODEL_VERSION = "1.0.0"
 
 
 def enforce_quantile_monotonicity(
@@ -148,7 +146,6 @@ def generate_72h_multi_step_forecast(
         extended_df = pl.concat([extended_df, new_row])
 
     del extended_df
-    import gc
     gc.collect()
     return forecasts
 

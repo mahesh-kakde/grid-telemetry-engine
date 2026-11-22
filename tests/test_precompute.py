@@ -1,8 +1,6 @@
 import os
 import json
-import pytest
 import pandas as pd
-from typing import Dict, Any
 
 from src.models.load_artifacts import ModelArtifactsBundle, REGIONS
 from src.models.explainers import AnomalySHAPExplainer

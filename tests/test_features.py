@@ -3,7 +3,7 @@ import numpy as np
 import polars as pl
 from datetime import datetime, timezone, timedelta
 
-from src.features.build_features import compute_telemetry_features, get_indian_holidays
+from src.features.build_features import compute_telemetry_features
 
 
 def generate_mock_telemetry(hours: int = 200, region: str = "NR") -> pl.DataFrame:

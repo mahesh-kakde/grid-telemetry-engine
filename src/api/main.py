@@ -16,7 +16,7 @@ import polars as pl
 
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from src.models.load_artifacts import (
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Grid Telemetry Engine API",
     description="Internal loopback REST service for probabilistic grid forecasting and anomaly detection",
-    version="2.0.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -75,6 +75,68 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(
+        content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found | grid-telemetry-engine</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .error-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 56px 36px;
+            text-align: center;
+            max-width: 520px;
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+        }
+        .error-code { font-size: 88px; font-weight: 800; line-height: 1; margin-bottom: 8px; letter-spacing: -0.04em; }
+        .error-title { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+        .error-desc { font-size: 14.5px; color: #64748b; line-height: 1.6; margin-bottom: 32px; }
+        .actions { display: flex; gap: 16px; justify-content: center; }
+        .btn-home {
+            background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 28px; border-radius: 6px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+        }
+        .btn-home:hover { background-color: #1d4ed8; }
+        .btn-portfolio {
+            background-color: #ffffff; color: #0f172a; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 28px; border-radius: 6px; border: 1px solid #cbd5e1;
+        }
+        .btn-portfolio:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-code">404</div>
+        <div class="error-title">Page Not Found</div>
+        <div class="error-desc">The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.</div>
+        <div class="actions">
+            <a href="https://grid.maheshkakde.com" class="btn-home">Home</a>
+            <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
+        </div>
+    </div>
+</body>
+</html>""",
+        status_code=404,
+    )
 
 
 class ForecastRequest(BaseModel):

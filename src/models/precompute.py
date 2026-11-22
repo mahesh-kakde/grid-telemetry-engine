@@ -12,7 +12,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
-MODEL_VERSION = "2.0.0"
+MODEL_VERSION = "1.0.0"
 DEFAULT_PRECOMPUTED_DIR = os.path.join(root_dir, "artifacts", "precomputed")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
