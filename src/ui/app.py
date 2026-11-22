@@ -59,7 +59,7 @@ st.set_page_config(
     page_title=app_page_title,
     page_icon=FAVICON_PATH if os.path.exists(FAVICON_PATH) else None,
     layout="wide",
-    initial_sidebar_state="collapsed" if is_404 else "auto",
+    initial_sidebar_state="collapsed" if is_404 else "expanded",
 )
 
 if is_404:
@@ -249,6 +249,17 @@ if is_404:
 # custom css aligned with modern enterprise light-mode design system
 st.markdown(
     """
+    <script>
+    (function() {
+        var m = document.querySelector('meta[name="description"]');
+        if (!m) {
+            m = document.createElement('meta');
+            m.name = "description";
+            document.head.appendChild(m);
+        }
+        m.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
+    })();
+    </script>
     <style>
     /* modern enterprise light mode design system (Stripe / Linear / Vercel style) */
     html, body, [data-testid="stAppViewContainer"] {
@@ -420,7 +431,7 @@ st.markdown(
     .badge-normal {
         display: inline;
         font-weight: 700;
-        color: #059669;
+        color: #047857;
         background: transparent !important;
         border: none !important;
         padding: 0 !important;
@@ -558,6 +569,11 @@ st.markdown(
     /* mobile chart hint badge (hidden on desktop) */
     .chart-mobile-hint {
         display: none;
+    }
+    /* prevent cumulative layout shift (CLS) by reserving minimum height for charts */
+    [data-testid="stPlotlyChart"],
+    .stPlotlyChart {
+        min-height: 440px;
     }
     /* =====================================================================
        MOBILE & TABLET RESPONSIVE STYLES
@@ -722,6 +738,10 @@ st.markdown(
         }
         .js-plotly-plot {
             max-height: 400px !important;
+        }
+        [data-testid="stPlotlyChart"],
+        .stPlotlyChart {
+            min-height: 360px !important;
         }
         div[data-testid="stRadio"] > div[role="radiogroup"] {
             gap: 4px !important;
@@ -1280,7 +1300,14 @@ def get_cached_drift_report(region: str) -> str:
 
 # sidebar controls initialized first to establish layout and dispatch state
 with st.sidebar:
-    st.markdown("#### Grid Dispatch Controls")
+    st.markdown(
+        """
+        <div style="font-weight: 700; font-size: 14.5px; color: #0f172a; margin-bottom: 8px;">
+            Grid Dispatch Controls
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     selected_region = st.selectbox(
         "Select Regional Grid",
         options=REGIONS,
@@ -1290,7 +1317,14 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown("#### System Operations")
+    st.markdown(
+        """
+        <div style="font-weight: 700; font-size: 14.5px; color: #0f172a; margin-bottom: 8px;">
+            System Operations
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown(
         """
         <div style="font-size: 12.5px; line-height: 1.6; color: #334155;">
@@ -1300,7 +1334,20 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown("---")
-    st.caption("**RLDC Coverage**:<br>• <b>NR</b>: Northern Region (Delhi, Punjab, UP)<br>• <b>WR</b>: Western Region (Maharashtra, Gujarat)<br>• <b>SR</b>: Southern Region (Karnataka, TN, AP)<br>• <b>ER</b>: Eastern Region (WB, Odisha, Bihar)<br>• <b>NER</b>: North Eastern Region (Assam, Meghalaya)<br>• <b>ALL_INDIA</b>: National Grid Aggregate", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="font-size: 12px; line-height: 1.6; color: #475569;">
+            <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">RLDC Coverage</div>
+            <div>• <b>NR</b>: Northern Region (Delhi, Punjab, UP)</div>
+            <div>• <b>WR</b>: Western Region (Maharashtra, Gujarat)</div>
+            <div>• <b>SR</b>: Southern Region (Karnataka, TN, AP)</div>
+            <div>• <b>ER</b>: Eastern Region (WB, Odisha, Bihar)</div>
+            <div>• <b>NER</b>: North Eastern Region (Assam, Meghalaya)</div>
+            <div>• <b>ALL_INDIA</b>: National Grid Aggregate</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # header and executive navigation
@@ -1341,7 +1388,7 @@ with kpi_c3:
         """
         <div class="kpi-card">
             <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" tabindex="0" data-tip="Dual-algorithm safety filter combining an Isolation Forest and an empirical IQR envelope to distinguish physical faults from benign weather surges.">?</span></div>
-            <div class="kpi-value" style="color: #059669;">Nominal</div>
+            <div class="kpi-value" style="color: #047857;">Nominal</div>
             <div class="kpi-caption">Dual-Trigger Safety Guard Active</div>
         </div>
         """,
@@ -1352,7 +1399,7 @@ with kpi_c4:
         """
         <div class="kpi-card">
             <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" tabindex="0" data-tip="Automated MLOps watchdog checking whether live telemetry distributions match baseline distributions, alerting if model needs retraining.">?</span></div>
-            <div class="kpi-value" style="color: #059669;">Optimal</div>
+            <div class="kpi-value" style="color: #047857;">Optimal</div>
             <div class="kpi-caption">Telemetry Distributions Verified</div>
         </div>
         """,
@@ -1370,7 +1417,7 @@ tab_forecast, tab_anomalies, tab_drift, tab_system = st.tabs([
 
 # tab 1: 72-hour forecast
 with tab_forecast:
-    st.subheader(f"72-Hour Forward Demand Forecast: {REGION_NAMES.get(selected_region, selected_region)}")
+    st.markdown(f"## 72-Hour Forward Demand Forecast: {REGION_NAMES.get(selected_region, selected_region)}")
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
@@ -1422,7 +1469,7 @@ with tab_forecast:
             f"""
             <div class="metric-card">
                 <div class="metric-label">Confidence Reliability <span class="info-tip tip-right" tabindex="0" data-tip="Mathematical validation confirming p10 <= p50 <= p90 across all 72 time steps, guaranteeing the uncertainty envelope never inverts.">?</span></div>
-                <div class="metric-value" style="color: #059669;">100% Monotonic</div>
+                <div class="metric-value" style="color: #047857;">100% Monotonic</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Guaranteed: p10 (Low) ≤ p50 ≤ p90 (Peak)</div>
             </div>
             """,
@@ -1482,7 +1529,7 @@ with tab_forecast:
 
 # tab 2: grid fault & surge sentinel
 with tab_anomalies:
-    st.subheader(f"Real-Time Grid Fault & Surge Sentinel: {REGION_NAMES.get(selected_region, selected_region)}")
+    st.markdown(f"## Real-Time Grid Fault & Surge Sentinel: {REGION_NAMES.get(selected_region, selected_region)}")
     st.markdown(
         """
         <div style="font-size: 13px; color: #444444; margin-bottom: 12px;">
@@ -1544,7 +1591,7 @@ with tab_anomalies:
             )
         with status_col2:
             trig_b_text = "Envelope Breached" if anomaly_res["residual_breach"] else "Within Safe Envelope"
-            trig_b_color = "#dc2626" if anomaly_res["residual_breach"] else "#059669"
+            trig_b_color = "#dc2626" if anomaly_res["residual_breach"] else "#047857"
             trig_b_desc = "Exceeds physical 1.5×IQR boundary" if anomaly_res["residual_breach"] else "Operating within normal variance"
             st.markdown(
                 f"""
@@ -1558,7 +1605,7 @@ with tab_anomalies:
             )
         with status_col3:
             struct_text = "CRITICAL GRID FAULT" if anomaly_res["is_structural"] else "Normal Operation"
-            struct_color = "#dc2626" if anomaly_res["is_structural"] else "#059669"
+            struct_color = "#dc2626" if anomaly_res["is_structural"] else "#047857"
             struct_desc = "Dual-Trigger Confirmed: Alert Dispatched" if anomaly_res["is_structural"] else "No Action Required (Nominal)"
             st.markdown(
                 f"""
@@ -1572,7 +1619,7 @@ with tab_anomalies:
             )
 
     st.markdown("---")
-    st.subheader("Root-Cause Diagnostic: Why Did the AI Make This Assessment? (SHAP Explainability)")
+    st.markdown("### Root-Cause Diagnostic: Why Did the AI Make This Assessment? (SHAP Explainability)")
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
@@ -1651,7 +1698,7 @@ with tab_anomalies:
 
 # tab 3: model health & reliability watchdog
 with tab_drift:
-    st.subheader(f"Continuous Model Health & Reliability Watchdog: {REGION_NAMES.get(selected_region, selected_region)}")
+    st.markdown(f"## Continuous Model Health & Reliability Watchdog: {REGION_NAMES.get(selected_region, selected_region)}")
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
@@ -1665,7 +1712,7 @@ with tab_drift:
     d_col1, d_col2, d_col3, d_col4 = st.columns(4)
     with d_col1:
         alarm_text = "Recalibration Recommended" if drift_data["drift_alarm"] else "Healthy & Reliable"
-        alarm_color = "#dc2626" if drift_data["drift_alarm"] else "#059669"
+        alarm_color = "#dc2626" if drift_data["drift_alarm"] else "#047857"
         alarm_caption = "Data pattern shift exceeds safe threshold" if drift_data["drift_alarm"] else "Telemetry matches baseline distributions"
         st.markdown(
             f"""
@@ -1747,7 +1794,7 @@ with tab_drift:
 
 # tab 4: info for nerds (deep technical architecture & specifications)
 with tab_system:
-    st.subheader("Info for Nerds: Deep System Architecture & Technical Specifications")
+    st.markdown("## Info for Nerds: Deep System Architecture & Technical Specifications")
     st.markdown(
         """
         <div style="font-size: 13px; color: #444444; margin-bottom: 16px;">
@@ -1758,7 +1805,7 @@ with tab_system:
     )
 
     with st.container():
-        st.markdown("#### 1. Multi-Horizon Forecasting Engine & Mathematical Guarantees")
+        st.markdown("### 1. Multi-Horizon Forecasting Engine & Mathematical Guarantees")
         st.markdown(
             "**Asymmetric Pinball Loss:** Trains 3 independent LightGBM gradient-boosted tree ensembles per region for target quantiles (alpha = 0.10, 0.50, 0.90) using the tilted loss formulation:"
         )
@@ -1774,7 +1821,7 @@ with tab_system:
     st.markdown("---")
 
     with st.container():
-        st.markdown("#### 2. Dual-Trigger Grid Fault & Surge Sentinel (False Alarm Elimination)")
+        st.markdown("### 2. Dual-Trigger Grid Fault & Surge Sentinel (False Alarm Elimination)")
         st.markdown(
             "**Trigger A (Multivariate Pattern Isolation):** An unsupervised Isolation Forest (contamination = 0.01) partitions multi-dimensional feature space to isolate structural anomalies deviating from typical operational patterns."
         )
@@ -1793,7 +1840,7 @@ with tab_system:
     st.markdown("---")
 
     with st.container():
-        st.markdown("#### 3. Zero-Leakage Causal Feature Store (Polars LazyFrames)")
+        st.markdown("### 3. Zero-Leakage Causal Feature Store (Polars LazyFrames)")
         st.markdown(
             "**Strict Causality Fence:** A mandatory `.shift(1)` fence is applied before computing any rolling statistics (6h, 24h, 168h moving averages and standard deviation volatility), mathematically guaranteeing zero future lookahead leakage."
         )
@@ -1808,7 +1855,7 @@ with tab_system:
     st.markdown("---")
 
     with st.container():
-        st.markdown("#### 4. Explainability & Continuous Reliability Watchdog (SHAP & Evidently AI)")
+        st.markdown("### 4. Explainability & Continuous Reliability Watchdog (SHAP & Evidently AI)")
         st.markdown(
             "**TreeExplainer Root-Cause Attribution:** Evaluated against 150 k-means background centroids to attribute exact additive Megawatt contributions per physical feature:"
         )
