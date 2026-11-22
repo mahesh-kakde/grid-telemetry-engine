@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
@@ -249,19 +250,17 @@ if is_404:
 # custom css aligned with modern enterprise light-mode design system
 st.markdown(
     """
-    <script>
-    (function() {
-        var m = document.querySelector('meta[name="description"]');
-        if (!m) {
-            m = document.createElement('meta');
-            m.name = "description";
-            document.head.appendChild(m);
-        }
-        m.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
-    })();
-    </script>
     <style>
     /* modern enterprise light mode design system (Stripe / Linear / Vercel style) */
+    /* zero-height container for iframe meta injectors to prevent layout shift */
+    iframe[title="streamlit_components.v1.html"],
+    div[data-testid="stCustomComponentV1"] {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
     html, body, [data-testid="stAppViewContainer"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
         color: #0f172a;
@@ -296,6 +295,25 @@ st.markdown(
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
+    }
+    @media (min-width: 769px) {
+        [data-testid="stSidebar"]:not([aria-expanded="false"]) {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            width: 300px !important;
+            min-width: 300px !important;
+            height: 100vh !important;
+            z-index: 100 !important;
+            transition: none !important;
+        }
+        [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"]:not([aria-expanded="false"])) > div:not([data-testid="stSidebar"]) {
+            margin-left: 300px !important;
+            width: calc(100% - 300px) !important;
+            max-width: calc(100% - 300px) !important;
+            transition: none !important;
+        }
     }
     [data-testid="stSidebarHeader"] {
         padding-top: 0.5rem !important;
@@ -586,7 +604,10 @@ st.markdown(
             width: 100vw !important;
         }
 
-        /* mobile main content full viewport */
+        /* mobile main content full viewport - zero layout shift */
+        [data-testid="stAppViewContainer"] > div,
+        .stAppViewContainer > div,
+        .stAppViewContainer > div:not([data-testid="stSidebar"]),
         [data-testid="stMain"],
         [data-testid="stMainBlockContainer"],
         .main,
@@ -595,6 +616,8 @@ st.markdown(
             max-width: 100vw !important;
             left: 0 !important;
             margin-left: 0 !important;
+            transform: none !important;
+            transition: none !important;
         }
 
         /* container padding */
@@ -617,6 +640,8 @@ st.markdown(
             width: min(300px, 82vw) !important;
             max-width: 82vw !important;
             box-shadow: 4px 0 24px rgba(15, 23, 42, 0.16) !important;
+            transition: none !important;
+            animation: none !important;
         }
 
         /* typography scaling */
@@ -1870,3 +1895,23 @@ with tab_system:
         st.markdown(
             "**Dynamic Quantile Adaptation:** If drifted features exceed the 30% tolerance threshold, the watchdog triggers a recalibration recommendation and dynamically expands the forecast interval to [p05, p50, p95] for conservative reserve safety."
         )
+
+# SEO meta description head injection (rendered at end of document to guarantee zero layout shift)
+components.html(
+    """
+    <script>
+    try {
+        var doc = window.parent.document;
+        var meta = doc.querySelector('meta[name="description"]');
+        if (!meta) {
+            meta = doc.createElement('meta');
+            meta.name = 'description';
+            doc.head.appendChild(meta);
+        }
+        meta.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
+    } catch(e) {}
+    </script>
+    """,
+    height=0,
+    width=0,
+)

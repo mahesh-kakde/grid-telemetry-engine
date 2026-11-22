@@ -3,6 +3,7 @@ headless = true
 enableCORS = false
 enableXsrfProtection = false
 enableWebsocketCompression = false
+enableStaticServing = true
 
 [browser]
 serverAddress = "grid.maheshkakde.com"
