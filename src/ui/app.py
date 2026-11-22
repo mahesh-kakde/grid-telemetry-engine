@@ -296,25 +296,6 @@ st.markdown(
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
     }
-    @media (min-width: 769px) {
-        [data-testid="stSidebar"]:not([aria-expanded="false"]) {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            bottom: 0 !important;
-            width: 300px !important;
-            min-width: 300px !important;
-            height: 100vh !important;
-            z-index: 100 !important;
-            transition: none !important;
-        }
-        [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"]:not([aria-expanded="false"])) > div:not([data-testid="stSidebar"]) {
-            margin-left: 300px !important;
-            width: calc(100% - 300px) !important;
-            max-width: calc(100% - 300px) !important;
-            transition: none !important;
-        }
-    }
     [data-testid="stSidebarHeader"] {
         padding-top: 0.5rem !important;
         padding-bottom: 0rem !important;
@@ -869,6 +850,26 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True,
+)
+
+# SEO meta description head injection
+components.html(
+    """
+    <script>
+    try {
+        var doc = window.parent.document;
+        var meta = doc.querySelector('meta[name="description"]');
+        if (!meta) {
+            meta = doc.createElement('meta');
+            meta.name = 'description';
+            doc.head.appendChild(meta);
+        }
+        meta.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
+    } catch(e) {}
+    </script>
+    """,
+    height=0,
+    width=0,
 )
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
@@ -1895,23 +1896,3 @@ with tab_system:
         st.markdown(
             "**Dynamic Quantile Adaptation:** If drifted features exceed the 30% tolerance threshold, the watchdog triggers a recalibration recommendation and dynamically expands the forecast interval to [p05, p50, p95] for conservative reserve safety."
         )
-
-# SEO meta description head injection (rendered at end of document to guarantee zero layout shift)
-components.html(
-    """
-    <script>
-    try {
-        var doc = window.parent.document;
-        var meta = doc.querySelector('meta[name="description"]');
-        if (!meta) {
-            meta = doc.createElement('meta');
-            meta.name = 'description';
-            doc.head.appendChild(meta);
-        }
-        meta.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
-    } catch(e) {}
-    </script>
-    """,
-    height=0,
-    width=0,
-)

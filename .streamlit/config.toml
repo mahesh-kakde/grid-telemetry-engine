@@ -2,7 +2,7 @@
 headless = true
 enableCORS = false
 enableXsrfProtection = false
-enableWebsocketCompression = false
+enableWebsocketCompression = true
 enableStaticServing = true
 
 [browser]
