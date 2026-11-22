@@ -33,15 +33,6 @@ from src.monitoring.drift_check import (
 )
 
 
-# page configuration
-FAVICON_PATH = os.path.join(root_dir, "static", "favicon.png")
-st.set_page_config(
-    page_title="grid-telemetry-engine | Mahesh Kakde",
-    page_icon=FAVICON_PATH if os.path.exists(FAVICON_PATH) else "⚡",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
 # 404 error page routing check
 query_page = str(st.query_params.get("page", "")).lower()
 query_error = str(st.query_params.get("error", "")).lower()
@@ -55,6 +46,21 @@ if hasattr(st, "context") and getattr(st.context, "url", None):
             is_404 = True
     except Exception:
         pass
+
+# page configuration
+FAVICON_PATH = os.path.join(root_dir, "static", "favicon.png")
+app_page_title = (
+    "404 - Page Not Found | grid-telemetry-engine"
+    if is_404
+    else "grid-telemetry-engine | Mahesh Kakde"
+)
+
+st.set_page_config(
+    page_title=app_page_title,
+    page_icon=FAVICON_PATH if os.path.exists(FAVICON_PATH) else None,
+    layout="wide",
+    initial_sidebar_state="collapsed" if is_404 else "auto",
+)
 
 if is_404:
     st.markdown(
@@ -156,13 +162,15 @@ if is_404:
             background-color: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(8px);
             border-top: 1px solid #e2e8f0;
-            padding: 10px 2rem;
+            padding: 8px 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12.5px;
+            font-size: 12px;
             color: #64748b;
             z-index: 99999;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
         .fixed-footer-404 a {
             color: #2563eb;
@@ -197,11 +205,15 @@ if is_404:
                 text-align: center !important;
             }
             .fixed-footer-404 {
-                flex-direction: column !important;
-                gap: 4px !important;
-                padding: 8px 12px !important;
-                font-size: 11px !important;
-                text-align: center !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                white-space: nowrap !important;
+                gap: 0 !important;
+                padding: 4px 10px !important;
+                font-size: 10px !important;
+                height: 30px !important;
+                box-sizing: border-box !important;
             }
         }
         </style>
@@ -219,13 +231,16 @@ if is_404:
         <div class="fixed-footer-404">
             <div>
                 Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a>
-                <span style="margin: 0 8px; color: #cbd5e1;">·</span>
+                <span style="margin: 0 4px; color: #cbd5e1;">·</span>
                 <a href="https://github.com/mahesh-kakde" target="_blank" rel="noopener noreferrer">GitHub</a>
             </div>
             <div>
-                <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+                <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">Repository</a>
             </div>
         </div>
+        <script>
+            document.title = "404 - Page Not Found | grid-telemetry-engine";
+        </script>
         """,
         unsafe_allow_html=True,
     )
@@ -443,13 +458,17 @@ st.markdown(
         font-size: 10px;
         font-weight: 600;
         margin-left: 6px;
-        cursor: help;
+        cursor: pointer;
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
         position: relative;
         vertical-align: middle;
         line-height: 1;
         transition: all 0.15s ease-in-out;
     }
-    .info-tip:hover {
+    .info-tip:hover,
+    .info-tip:focus,
+    .info-tip:active {
         background-color: #2563eb;
         border-color: #2563eb;
         color: #ffffff;
@@ -512,14 +531,16 @@ st.markdown(
         background-color: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(8px);
         border-top: 1px solid #e2e8f0;
-        padding: 8px 2rem;
+        padding: 6px 1.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 12.5px;
+        font-size: 12px;
         color: #64748b;
         z-index: 99999;
         box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.02);
+        white-space: nowrap;
+        box-sizing: border-box;
     }
     .fixed-footer a {
         color: #2563eb;
@@ -533,6 +554,10 @@ st.markdown(
     .footer-sep {
         margin: 0 8px;
         color: #cbd5e1;
+    }
+    /* mobile chart hint badge (hidden on desktop) */
+    .chart-mobile-hint {
+        display: none;
     }
     /* =====================================================================
        MOBILE & TABLET RESPONSIVE STYLES
@@ -636,28 +661,72 @@ st.markdown(
             font-size: 10.5px !important;
         }
 
-        /* tooltips constrained to viewport */
+        /* tooltips on mobile: fixed viewport toast - zero cutoff */
         .info-tip:hover::after,
-        .info-tip:focus::after {
-            width: min(260px, 80vw) !important;
-            left: auto !important;
-            right: -8px !important;
+        .info-tip:focus::after,
+        .info-tip:active::after {
+            position: fixed !important;
+            left: 12px !important;
+            right: 12px !important;
+            bottom: 44px !important;
+            top: auto !important;
+            width: auto !important;
+            max-width: calc(100vw - 24px) !important;
             transform: none !important;
-            font-size: 11px !important;
-            padding: 6px 10px !important;
+            font-size: 11.5px !important;
+            line-height: 1.45 !important;
+            padding: 10px 14px !important;
+            border-radius: 8px !important;
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid #334155 !important;
+            z-index: 9999999 !important;
+            white-space: normal !important;
+            pointer-events: auto !important;
         }
         .info-tip:hover::before,
-        .info-tip:focus::before {
-            left: auto !important;
-            right: 2px !important;
-            transform: none !important;
+        .info-tip:focus::before,
+        .info-tip:active::before {
+            display: none !important;
         }
 
-        /* fixed footer mobile alignment */
+        /* fixed footer mobile alignment: left & right spaced */
         .fixed-footer {
             left: 0 !important;
             width: 100% !important;
-            padding: 6px 1rem !important;
+            padding: 5px 12px !important;
+            font-size: 11px !important;
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            height: 32px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+        }
+
+        /* mobile chart hint badge */
+        .chart-mobile-hint {
+            display: block !important;
+            font-size: 11px !important;
+            color: #475569 !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 6px !important;
+            padding: 6px 10px !important;
+            margin-bottom: 8px !important;
+            margin-top: 2px !important;
+            line-height: 1.4 !important;
+        }
+        .js-plotly-plot {
+            max-height: 400px !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] {
+            gap: 4px !important;
+        }
+        div[data-testid="stRadio"] label {
             font-size: 11px !important;
         }
 
@@ -677,11 +746,17 @@ st.markdown(
         }
 
         .fixed-footer {
-            flex-direction: column !important;
-            gap: 2px !important;
-            text-align: center !important;
-            padding: 5px 8px !important;
+            left: 0 !important;
+            width: 100% !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            padding: 4px 10px !important;
             font-size: 10px !important;
+            height: 30px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
         }
         .footer-sep {
             margin: 0 4px !important;
@@ -744,7 +819,7 @@ st.markdown(
             <a href="https://github.com/mahesh-kakde" target="_blank" rel="noopener noreferrer">GitHub</a>
         </div>
         <div>
-            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">Repository</a>
         </div>
     </div>
     """,
@@ -929,9 +1004,11 @@ def get_forecast_dataframe(region: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def get_forecast_figure(region: str) -> go.Figure:
-    # generates and caches 72-hour forecast plotly figure for responsive rendering
+def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
+    # generates and caches forecast plotly figure with responsive horizon slice
     df_fc = get_forecast_dataframe(region)
+    if horizon_hours and horizon_hours < len(df_fc):
+        df_fc = df_fc.head(horizon_hours).copy()
 
     fig = go.Figure()
 
@@ -952,18 +1029,19 @@ def get_forecast_figure(region: str) -> go.Figure:
         line=dict(width=0),
         fill="tonexty",
         fillcolor="rgba(37, 99, 235, 0.08)",
-        name="80% CI Envelope",
+        name="80% CI",
         hoverinfo="skip",
     ))
 
     # median forecast line
+    dot_size = 5 if horizon_hours <= 24 else (4 if horizon_hours <= 48 else 3)
     fig.add_trace(go.Scatter(
         x=df_fc["target_timestamp_utc"],
         y=df_fc["forecast_p50"],
         mode="lines+markers",
         line=dict(color="#2563eb", width=2.5),
-        marker=dict(size=4, color="#2563eb"),
-        name="Expected Demand (p50)",
+        marker=dict(size=dot_size, color="#2563eb"),
+        name="p50 Demand",
         hovertemplate="<b>%{x|%d %b %H:%M UTC}</b><br>Expected Demand: <b>%{y:,.0f} MW</b><extra></extra>",
     ))
 
@@ -973,7 +1051,7 @@ def get_forecast_figure(region: str) -> go.Figure:
         y=df_fc["forecast_p90"],
         mode="lines",
         line=dict(color="#334155", width=1, dash="dot"),
-        name="Upper Stress (p90)",
+        name="p90 Upper",
         hovertemplate="Upper Limit (p90): %{y:,.0f} MW<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
@@ -981,11 +1059,11 @@ def get_forecast_figure(region: str) -> go.Figure:
         y=df_fc["forecast_p10"],
         mode="lines",
         line=dict(color="#64748b", width=1, dash="dot"),
-        name="Lower Bound (p10)",
+        name="p10 Lower",
         hovertemplate="Lower Limit (p10): %{y:,.0f} MW<extra></extra>",
     ))
 
-    # peak and baseload callouts
+    # peak and baseload callouts for active horizon
     peak_idx = df_fc["forecast_p50"].idxmax()
     peak_val = df_fc.loc[peak_idx, "forecast_p50"]
     peak_time = df_fc.loc[peak_idx, "target_timestamp_utc"]
@@ -1004,11 +1082,11 @@ def get_forecast_figure(region: str) -> go.Figure:
         arrowwidth=1.5,
         arrowcolor="#ef4444",
         ax=0,
-        ay=-32,
-        font=dict(size=11, color="#991b1b", family="sans-serif"),
-        bgcolor="rgba(255, 255, 255, 0.9)",
-        bordercolor="rgba(0, 0, 0, 0)",
-        borderwidth=0,
+        ay=-28,
+        font=dict(size=10.5, color="#991b1b", family="sans-serif"),
+        bgcolor="rgba(255, 255, 255, 0.92)",
+        bordercolor="#fecaca",
+        borderwidth=1,
         borderpad=2,
     )
     fig.add_annotation(
@@ -1019,84 +1097,147 @@ def get_forecast_figure(region: str) -> go.Figure:
         arrowhead=2,
         arrowsize=1,
         arrowwidth=1.5,
-        arrowcolor="#3b82f6",
+        arrowcolor="#2563eb",
         ax=0,
-        ay=32,
-        font=dict(size=11, color="#1e40af", family="sans-serif"),
-        bgcolor="rgba(255, 255, 255, 0.9)",
-        bordercolor="rgba(0, 0, 0, 0)",
-        borderwidth=0,
+        ay=28,
+        font=dict(size=10.5, color="#1e40af", family="sans-serif"),
+        bgcolor="rgba(255, 255, 255, 0.92)",
+        bordercolor="#bfdbfe",
+        borderwidth=1,
         borderpad=2,
     )
+
+    if horizon_hours <= 24:
+        dtick_val = 4 * 3600 * 1000
+        tick_format = "%H:%M<br>%d %b"
+    elif horizon_hours <= 48:
+        dtick_val = 8 * 3600 * 1000
+        tick_format = "%H:%M<br>%d %b"
+    else:
+        dtick_val = 12 * 3600 * 1000
+        tick_format = "%d %b<br>%H:%M"
 
     fig.update_layout(
         template="plotly_white",
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        margin=dict(l=25, r=20, t=25, b=35),
+        margin=dict(l=28, r=18, t=25, b=35),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="rgba(15, 23, 42, 0.95)",
+            font_size=11,
+            font_color="#ffffff",
+            font_family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            bordercolor="#334155",
+        ),
         legend=dict(
             orientation="h",
             yanchor="bottom",
             y=1.02,
             xanchor="center",
             x=0.5,
-            font=dict(size=10, color="#475569"),
+            font=dict(size=9.5, color="#475569"),
         ),
         xaxis=dict(
-            title="Forecast Horizon Target (UTC Timestamp)",
-            title_font=dict(size=11, color="#475569"),
-            tickfont=dict(size=10, color="#64748b"),
+            title="Forecast Target Horizon (UTC)",
+            title_font=dict(size=10.5, color="#475569"),
+            tickfont=dict(size=9.5, color="#64748b"),
+            dtick=dtick_val,
+            tickformat=tick_format,
             showgrid=True,
             gridcolor="#f1f5f9",
             linecolor="#e2e8f0",
         ),
         yaxis=dict(
-            title="Active Power Demand (MW)",
-            title_font=dict(size=11, color="#475569"),
-            tickfont=dict(size=10, color="#64748b"),
+            title="Active Load (MW)",
+            title_font=dict(size=10.5, color="#475569"),
+            tickfont=dict(size=9.5, color="#64748b"),
             showgrid=True,
             gridcolor="#f1f5f9",
             linecolor="#e2e8f0",
             tickformat=",.0f",
         ),
-        height=460,
+        height=400,
     )
     return fig
+
+
+SHAP_SHORT_LABELS = {
+    "demand_mw": "Active Demand",
+    "demand_lag_24h": "Demand (24h Lag)",
+    "demand_lag_48h": "Demand (48h Lag)",
+    "demand_lag_168h": "Demand (168h Lag)",
+    "demand_rolling_mean_6h": "Mean Demand (6h)",
+    "demand_rolling_mean_24h": "Mean Demand (24h)",
+    "demand_rolling_mean_168h": "Mean Baseline (7d)",
+    "demand_rolling_std_6h": "Volatility (6h)",
+    "demand_rolling_std_24h": "Volatility (24h)",
+    "demand_rolling_std_168h": "Volatility (7d)",
+    "temperature_2m": "Temperature (2m)",
+    "relative_humidity_2m": "Relative Humidity",
+    "surface_solar_radiation": "Solar Radiation",
+    "wind_speed_100m": "Wind Speed (100m)",
+    "hour": "Hour of Day",
+    "day_of_week": "Day of Week",
+    "day_of_year": "Day of Year",
+    "is_holiday": "Holiday",
+    "sin_hour_k1": "Diurnal Harmonic",
+    "cos_hour_k1": "Diurnal Harmonic",
+    "sin_day_k1": "Weekly Harmonic",
+    "cos_day_k1": "Weekly Harmonic",
+}
 
 
 @st.cache_data(show_spinner=False)
 def build_shap_figure(top_features: List[Dict[str, Any]]) -> go.Figure:
     # constructs horizontal shap attribution bar chart with color-coded drivers
     df_shap = pd.DataFrame(top_features)
+    feature_names = [
+        SHAP_SHORT_LABELS.get(f, FEATURE_METADATA.get(f, {}).get("name", f))
+        for f in df_shap["feature"]
+    ]
     fig_shap = go.Figure(go.Bar(
         x=df_shap["shap_value"],
-        y=[FEATURE_METADATA.get(f, {}).get("name", f) for f in df_shap["feature"]],
+        y=feature_names,
         orientation="h",
         marker=dict(
             color=["#dc2626" if v > 0 else "#2563eb" for v in df_shap["shap_value"]],
             line=dict(width=0),
         ),
         text=[f"{v:+,.1f} MW" for v in df_shap["shap_value"]],
-        textposition="outside",
-        textfont=dict(size=11, color="#0f172a"),
+        textposition="auto",
+        insidetextanchor="middle",
+        textfont=dict(size=10, color="#ffffff"),
+        hovertemplate="<b>%{y}</b><br>AI Load Impact: <b>%{x:+,.1f} MW</b><extra></extra>",
+        cliponaxis=False,
     ))
     fig_shap.update_layout(
         template="plotly_white",
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        margin=dict(l=40, r=40, t=10, b=40),
+        margin=dict(l=120, r=25, t=10, b=35),
+        hovermode="closest",
+        hoverlabel=dict(
+            bgcolor="rgba(15, 23, 42, 0.95)",
+            font_size=11,
+            font_color="#ffffff",
+            font_family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            bordercolor="#334155",
+        ),
         xaxis=dict(
-            title="Shapley Value (MW Impact on AI Prediction)",
-            title_font=dict(size=11, color="#475569"),
-            tickfont=dict(size=10, color="#64748b"),
+            title="Shapley Value (MW Impact)",
+            title_font=dict(size=10.5, color="#475569"),
+            tickfont=dict(size=9.5, color="#64748b"),
             showgrid=True,
             gridcolor="#f1f5f9",
             linecolor="#e2e8f0",
+            zeroline=True,
+            zerolinecolor="#cbd5e1",
+            zerolinewidth=1.5,
         ),
         yaxis=dict(
             autorange="reversed",
-            tickfont=dict(size=11, color="#334155"),
+            tickfont=dict(size=10, color="#334155"),
             linecolor="#e2e8f0",
         ),
         height=240,
@@ -1199,7 +1340,7 @@ with kpi_c3:
     st.markdown(
         """
         <div class="kpi-card">
-            <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" data-tip="Dual-algorithm safety filter combining an Isolation Forest and an empirical IQR envelope to distinguish physical faults from benign weather surges.">?</span></div>
+            <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" tabindex="0" data-tip="Dual-algorithm safety filter combining an Isolation Forest and an empirical IQR envelope to distinguish physical faults from benign weather surges.">?</span></div>
             <div class="kpi-value" style="color: #059669;">Nominal</div>
             <div class="kpi-caption">Dual-Trigger Safety Guard Active</div>
         </div>
@@ -1210,7 +1351,7 @@ with kpi_c4:
     st.markdown(
         """
         <div class="kpi-card">
-            <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" data-tip="Automated MLOps watchdog checking whether live telemetry distributions match baseline distributions, alerting if model needs retraining.">?</span></div>
+            <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" tabindex="0" data-tip="Automated MLOps watchdog checking whether live telemetry distributions match baseline distributions, alerting if model needs retraining.">?</span></div>
             <div class="kpi-value" style="color: #059669;">Optimal</div>
             <div class="kpi-caption">Telemetry Distributions Verified</div>
         </div>
@@ -1269,7 +1410,7 @@ with tab_forecast:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Reserve Margin (p90 - p10) <span class="info-tip tip-right" data-tip="Difference between 90th percentile stress limit and 10th percentile conservative estimate. Dictates required standby spinning reserve.">?</span></div>
+                <div class="metric-label">Reserve Margin (p90 - p10) <span class="info-tip tip-right" tabindex="0" data-tip="Difference between 90th percentile stress limit and 10th percentile conservative estimate. Dictates required standby spinning reserve.">?</span></div>
                 <div class="metric-value">{avg_band:,.0f} MW</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Mean uncertainty spread for spinning reserve</div>
             </div>
@@ -1280,7 +1421,7 @@ with tab_forecast:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Confidence Reliability <span class="info-tip tip-right" data-tip="Mathematical validation confirming p10 <= p50 <= p90 across all 72 time steps, guaranteeing the uncertainty envelope never inverts.">?</span></div>
+                <div class="metric-label">Confidence Reliability <span class="info-tip tip-right" tabindex="0" data-tip="Mathematical validation confirming p10 <= p50 <= p90 across all 72 time steps, guaranteeing the uncertainty envelope never inverts.">?</span></div>
                 <div class="metric-value" style="color: #059669;">100% Monotonic</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Guaranteed: p10 (Low) ≤ p50 ≤ p90 (Peak)</div>
             </div>
@@ -1288,11 +1429,56 @@ with tab_forecast:
             unsafe_allow_html=True,
         )
 
-    fig = get_forecast_figure(selected_region)
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False, "responsive": True})
+    # interactive horizon selector and mobile ergonomics
+    st.markdown(
+        """
+        <div style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-top: 6px; margin-bottom: 2px;">
+            Forecast Resolution Window
+            <span class="info-tip" tabindex="0" data-tip="Switch between Next 24h, 48h, or Full 72h views. The 24h view provides 3x higher hourly resolution on mobile screens.">?</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    horizon_label = st.radio(
+        "Forecast Window Selection",
+        options=["Next 24h (Detail)", "Next 48h", "Full 72h"],
+        index=0,
+        horizontal=True,
+        key=f"horizon_window_{selected_region}",
+        label_visibility="collapsed",
+    )
 
-    with st.expander("Tabular Forecast Data (72 Hourly Steps)"):
-        st.dataframe(df_fc, use_container_width=True)
+    horizon_map = {
+        "Next 24h (Detail)": 24,
+        "Next 48h": 48,
+        "Full 72h": 72,
+    }
+    selected_horizon = horizon_map.get(horizon_label, 72)
+
+    st.markdown(
+        """
+        <div class="chart-mobile-hint">
+            <span style="font-weight: 600;">Mobile Tip:</span> 24h view gives high-resolution hourly clarity. Rotate phone to landscape for widescreen inspection.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    fig = get_forecast_figure(selected_region, horizon_hours=selected_horizon)
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={
+            "displayModeBar": True,
+            "displaylogo": False,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            "responsive": True,
+            "scrollZoom": False,
+        },
+    )
+
+    with st.expander(f"Tabular Forecast Data ({selected_horizon} Hourly Steps)"):
+        st.dataframe(df_fc.head(selected_horizon), use_container_width=True)
 
 # tab 2: grid fault & surge sentinel
 with tab_anomalies:
@@ -1363,7 +1549,7 @@ with tab_anomalies:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Operating Envelope Check <span class="info-tip" data-tip="Evaluates whether the observed residual breaches the empirical 1.5xIQR safety margin calculated from 30 days of baseline operations.">?</span></div>
+                    <div class="metric-label">Operating Envelope Check <span class="info-tip" tabindex="0" data-tip="Evaluates whether the observed residual breaches the empirical 1.5xIQR safety margin calculated from 30 days of baseline operations.">?</span></div>
                     <div class="metric-value" style="color: {trig_b_color};">{trig_b_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{trig_b_desc}</div>
                 </div>
@@ -1377,7 +1563,7 @@ with tab_anomalies:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Actionable Sentinel Alert <span class="info-tip tip-right" data-tip="Dual-trigger consensus: Emergency alert triggers ONLY if the Isolation Forest flags structural anomaly AND the load breaches the physical operating envelope.">?</span></div>
+                    <div class="metric-label">Actionable Sentinel Alert <span class="info-tip tip-right" tabindex="0" data-tip="Dual-trigger consensus: Emergency alert triggers ONLY if the Isolation Forest flags structural anomaly AND the load breaches the physical operating envelope.">?</span></div>
                     <div class="metric-value" style="color: {struct_color};">{struct_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{struct_desc}</div>
                 </div>
@@ -1391,7 +1577,7 @@ with tab_anomalies:
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
             TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
-            <span class="info-tip tip-right" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Using SHAP (Shapley Additive Explanations) evaluated against 150 background centroids, the engine calculates the exact Megawatt impact of each physical variable. Red values push demand projections higher; blue values pull projections lower.">?</span>
+            <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Using SHAP (Shapley Additive Explanations) evaluated against 150 background centroids, the engine calculates the exact Megawatt impact of each physical variable. Red values push demand projections higher; blue values pull projections lower.">?</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1427,8 +1613,41 @@ with tab_anomalies:
                 unsafe_allow_html=True,
             )
 
+    st.markdown(
+        """
+        <div class="chart-mobile-hint">
+            <span style="font-weight: 600;">Mobile Tip:</span> Tap any bar for exact Megawatt impact. Rotate device to landscape for widescreen inspection.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     fig_shap = build_shap_figure(top_features)
-    st.plotly_chart(fig_shap, use_container_width=True, config={"displayModeBar": False, "responsive": True})
+    st.plotly_chart(
+        fig_shap,
+        use_container_width=True,
+        config={
+            "displayModeBar": True,
+            "displaylogo": False,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            "responsive": True,
+            "scrollZoom": False,
+        },
+    )
+
+    with st.expander("Tabular Feature Attribution Breakdown"):
+        df_display = pd.DataFrame([
+            {
+                "Driver Rank": f"#{i+1}",
+                "Parameter": FEATURE_METADATA.get(f["feature"], {}).get("name", f["feature"]),
+                "Variable Code": f["feature"],
+                "AI Impact (MW)": f"{f['shap_value']:+,.1f} MW",
+                "Observed Value": f"{f['actual_value']:,.2f}",
+                "Influence": "Pushes load higher" if f["shap_value"] > 0 else "Pulls load lower",
+            }
+            for i, f in enumerate(top_features)
+        ])
+        st.dataframe(df_display, use_container_width=True)
 
 # tab 3: model health & reliability watchdog
 with tab_drift:
@@ -1474,7 +1693,7 @@ with tab_drift:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Watchdog Tolerance <span class="info-tip tip-right" data-tip="Operational alarm threshold: if more than 30% of features show statistical drift, the watchdog flags a data shift and recommends retraining or widened quantile uncertainty.">?</span></div>
+                <div class="metric-label">Watchdog Tolerance <span class="info-tip tip-right" tabindex="0" data-tip="Operational alarm threshold: if more than 30% of features show statistical drift, the watchdog flags a data shift and recommends retraining or widened quantile uncertainty.">?</span></div>
                 <div class="metric-value">30.0% Max Shift</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Alert triggers if &gt; 30% of features shift</div>
             </div>
@@ -1487,7 +1706,7 @@ with tab_drift:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Recommended Model Action <span class="info-tip tip-right" data-tip="Dynamic uncertainty adaptation: Under normal conditions, uses standard [p10, p50, p90] bounds. Under high drift, automatically expands to [p05, p50, p95] to provide safer reserve margins.">?</span></div>
+                <div class="metric-label">Recommended Model Action <span class="info-tip tip-right" tabindex="0" data-tip="Dynamic uncertainty adaptation: Under normal conditions, uses standard [p10, p50, p90] bounds. Under high drift, automatically expands to [p05, p50, p95] to provide safer reserve margins.">?</span></div>
                 <div class="metric-value">{alphas}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{model_action_desc}</div>
             </div>
@@ -1499,7 +1718,7 @@ with tab_drift:
     st.markdown(
         """
         <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-            Feature-by-Feature Distribution Audit (Trailing 7-Day Live Telemetry vs 30-Day Baseline) <span class="info-tip" data-tip="Continuous two-sample distribution tests: Kolmogorov-Smirnov test for continuous physical metrics (p < 0.05 indicates drift) and 1D Wasserstein distance for cyclical harmonics (distance >= 0.10 indicates drift).">?</span>
+            Feature-by-Feature Distribution Audit (Trailing 7-Day Live Telemetry vs 30-Day Baseline) <span class="info-tip" tabindex="0" data-tip="Continuous two-sample distribution tests: Kolmogorov-Smirnov test for continuous physical metrics (p < 0.05 indicates drift) and 1D Wasserstein distance for cyclical harmonics (distance >= 0.10 indicates drift).">?</span>
         </div>
         """,
         unsafe_allow_html=True,
