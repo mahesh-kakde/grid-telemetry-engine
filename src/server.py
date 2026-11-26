@@ -1,3 +1,4 @@
+import gzip
 import os
 import sys
 
@@ -157,9 +158,14 @@ class RouteAndSecurityMiddleware:
         return headers
 
     @staticmethod
+    def _drop_header(headers: list[tuple[bytes, bytes]], name: bytes) -> list[tuple[bytes, bytes]]:
+        target = name.lower()
+        return [(k, v) for k, v in headers if k.lower() != target]
+
+    @staticmethod
     def _set_header(headers: list[tuple[bytes, bytes]], name: bytes, value: bytes) -> list[tuple[bytes, bytes]]:
         target = name.lower()
-        filtered = [(k, v) for k, v in headers if k.lower() != target]
+        filtered = RouteAndSecurityMiddleware._drop_header(headers, target)
         filtered.append((target, value))
         return filtered
 
@@ -197,6 +203,13 @@ class RouteAndSecurityMiddleware:
         if path in {"/", "/app"} and method == "GET":
             start_message: Message | None = None
             body_chunks: list[bytes] = []
+            # request uncompressed html from upstream before rewriting head and asset paths
+            upstream_headers = self._set_header(
+                list(forward_scope.get("headers", [])),
+                b"accept-encoding",
+                b"identity",
+            )
+            html_scope = {**forward_scope, "headers": upstream_headers}
 
             async def buffer_and_inject(message: Message) -> None:
                 nonlocal start_message
@@ -212,14 +225,24 @@ class RouteAndSecurityMiddleware:
                             (v.decode("latin-1").lower() for k, v in headers if k.lower() == b"content-type"),
                             "",
                         )
+                        content_encoding = next(
+                            (v.decode("latin-1").strip().lower() for k, v in headers if k.lower() == b"content-encoding"),
+                            "",
+                        )
                         raw_body = b"".join(body_chunks)
                         if "text/html" in content_type:
-                            raw_body = _inject_seo_head(raw_body)
-                            headers = self._set_header(headers, b"content-length", str(len(raw_body)).encode("ascii"))
+                            if content_encoding == "gzip":
+                                raw_body = gzip.decompress(raw_body)
+                                headers = self._drop_header(headers, b"content-encoding")
+                                content_encoding = ""
+                            if content_encoding in ("", "identity"):
+                                raw_body = _inject_seo_head(raw_body)
+                                headers = self._drop_header(headers, b"etag")
+                                headers = self._set_header(headers, b"content-length", str(len(raw_body)).encode("ascii"))
                         await send({**start_message, "headers": headers})
                         await send({"type": "http.response.body", "body": raw_body, "more_body": False})
 
-            await self.app(forward_scope, receive, buffer_and_inject)
+            await self.app(html_scope, receive, buffer_and_inject)
             return
 
         async def send_with_security_headers(message: Message) -> None:

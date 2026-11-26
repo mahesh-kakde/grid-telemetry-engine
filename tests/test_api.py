@@ -50,15 +50,19 @@ def test_asgi_server_security_headers_routes_and_404():
     from src.server import app
 
     with TestClient(app) as client:
+        for html_path in ("/", "/app"):
+            for accept_encoding in ("identity", "gzip, deflate"):
+                res_html = client.get(html_path, headers={"Accept-Encoding": accept_encoding})
+                assert res_html.status_code == 200
+                assert res_html.headers.get("x-content-type-options") == "nosniff"
+                assert res_html.headers.get("x-frame-options") == "SAMEORIGIN"
+                assert "max-age=" in res_html.headers.get("strict-transport-security", "")
+                assert "frame-ancestors 'self'" in res_html.headers.get("content-security-policy", "")
+                assert '<meta name="description"' in res_html.text
+                assert "./assets-v2/static/js/" in res_html.text
+                assert "no-store" in res_html.headers.get("cache-control", "")
+
         res_root = client.get("/")
-        assert res_root.status_code == 200
-        assert res_root.headers.get("x-content-type-options") == "nosniff"
-        assert res_root.headers.get("x-frame-options") == "SAMEORIGIN"
-        assert "max-age=" in res_root.headers.get("strict-transport-security", "")
-        assert "frame-ancestors 'self'" in res_root.headers.get("content-security-policy", "")
-        assert '<meta name="description"' in res_root.text
-        assert "./assets-v2/static/js/" in res_root.text
-        assert "no-store" in res_root.headers.get("cache-control", "")
 
         import re
         js_match = re.search(r"(\./assets-v2/static/js/[^\"]+)", res_root.text)
@@ -87,3 +91,33 @@ def test_asgi_server_security_headers_routes_and_404():
         res_404 = client.get("/nonexistent-route-audit-check")
         assert res_404.status_code == 404
         assert "Page Not Found" in res_404.text
+
+
+def test_security_middleware_handles_upstream_gzip_html():
+    import gzip
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.responses import Response
+    from starlette.routing import Route
+    from src.server import RouteAndSecurityMiddleware, SEO_TITLE
+
+    async def gzipped_html_endpoint(request):
+        body = gzip.compress(
+            b'<html><head><title>Streamlit</title></head><body><script src="./static/js/app.js"></script></body></html>'
+        )
+        return Response(
+            content=body,
+            media_type="text/html; charset=utf-8",
+            headers={"Content-Encoding": "gzip"},
+        )
+
+    wrapped = Starlette(
+        routes=[Route("/app", gzipped_html_endpoint)],
+        middleware=[Middleware(RouteAndSecurityMiddleware)],
+    )
+    with TestClient(wrapped) as client:
+        res = client.get("/app", headers={"Accept-Encoding": "gzip, deflate"})
+        assert res.status_code == 200
+        assert res.headers.get("content-encoding") is None
+        assert f"<title>{SEO_TITLE}</title>" in res.text
+        assert "./assets-v2/static/js/app.js" in res.text
