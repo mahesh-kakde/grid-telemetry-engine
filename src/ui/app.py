@@ -7,6 +7,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from datetime import datetime, timezone
+import html
 from typing import Dict, List, Optional, Any
 import numpy as np
 import pandas as pd
@@ -953,15 +954,6 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
     p10, p50, p90 = predict_quantiles(features_df, region, bundle, widened=widened)
     actual = float(custom_demand)
 
-    feature_row["demand_mw"] = actual
-    if "demand_lag_1h" in feature_row:
-        feature_row["demand_delta_1h"] = actual - float(feature_row["demand_lag_1h"])
-    if "demand_lag_24h" in feature_row:
-        feature_row["demand_delta_24h"] = actual - float(feature_row["demand_lag_24h"])
-    if "demand_rolling_mean_24h" in feature_row and "demand_rolling_std_24h" in feature_row:
-        denom = max(float(feature_row["demand_rolling_std_24h"]), 1.0)
-        feature_row["demand_zscore_24h"] = (actual - float(feature_row["demand_rolling_mean_24h"])) / denom
-
     scores, is_structural, trigger_b = detect_structural_anomalies(
         X=features_df,
         y_actual=np.array([actual]),
@@ -972,6 +964,9 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
         bundle=bundle,
     )
     top_shap = explainer.explain_anomaly_point(feature_row, region, top_k=3)
+    anomaly_shap = explainer.explain_anomaly_score(
+        feature_row, region, actual_demand_mw=actual, top_k=3
+    )
 
     return {
         "region": region,
@@ -984,6 +979,7 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
         "is_structural": bool(is_structural[0]),
         "residual_breach": bool(trigger_b[0]),
         "top_shap_features": top_shap,
+        "anomaly_shap_features": anomaly_shap,
     }
 
 
@@ -1162,6 +1158,9 @@ def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
 
 SHAP_SHORT_LABELS = {
     "demand_mw": "Active Demand",
+    "demand_delta_1h": "Load Ramp (1h)",
+    "demand_delta_24h": "Load Shift (24h)",
+    "demand_zscore_24h": "Load Z-Score (24h)",
     "demand_lag_1h": "Demand (1h Lag)",
     "demand_lag_2h": "Demand (2h Lag)",
     "demand_lag_3h": "Demand (3h Lag)",
@@ -1194,13 +1193,28 @@ SHAP_SHORT_LABELS = {
 
 
 @st.cache_data(show_spinner=False)
-def build_shap_figure(top_features: List[Dict[str, Any]]) -> go.Figure:
-    # constructs horizontal shap attribution bar chart with color-coded drivers
+def build_shap_figure(top_features: List[Dict[str, Any]], mode: str = "forecast") -> go.Figure:
+    # constructs horizontal shap attribution bar chart for either anomaly risk or p50 load impact
     df_shap = pd.DataFrame(top_features)
     feature_names = [
         SHAP_SHORT_LABELS.get(f, FEATURE_METADATA.get(f, {}).get("name", f))
         for f in df_shap["feature"]
     ]
+    is_anomaly_mode = mode == "anomaly"
+    bar_text = [
+        f"{v:+.3f} risk" if is_anomaly_mode else f"{v:+,.1f} MW"
+        for v in df_shap["shap_value"]
+    ]
+    hover_tpl = (
+        "<b>%{y}</b><br>Anomaly Risk Shift: <b>%{x:+.3f}</b><extra></extra>"
+        if is_anomaly_mode
+        else "<b>%{y}</b><br>AI Load Impact: <b>%{x:+,.1f} MW</b><extra></extra>"
+    )
+    x_title = (
+        "Isolation Depth Risk Shift (+ = Anomaly Surprise)"
+        if is_anomaly_mode
+        else "Shapley Value (MW Impact)"
+    )
     fig_shap = go.Figure(go.Bar(
         x=df_shap["shap_value"],
         y=feature_names,
@@ -1209,11 +1223,11 @@ def build_shap_figure(top_features: List[Dict[str, Any]]) -> go.Figure:
             color=["#dc2626" if v > 0 else "#2563eb" for v in df_shap["shap_value"]],
             line=dict(width=0),
         ),
-        text=[f"{v:+,.1f} MW" for v in df_shap["shap_value"]],
+        text=bar_text,
         textposition="auto",
         insidetextanchor="middle",
         textfont=dict(size=10, color="#ffffff"),
-        hovertemplate="<b>%{y}</b><br>AI Load Impact: <b>%{x:+,.1f} MW</b><extra></extra>",
+        hovertemplate=hover_tpl,
         cliponaxis=False,
     ))
     fig_shap.update_layout(
@@ -1230,7 +1244,7 @@ def build_shap_figure(top_features: List[Dict[str, Any]]) -> go.Figure:
             bordercolor="#334155",
         ),
         xaxis=dict(
-            title="Shapley Value (MW Impact)",
+            title=x_title,
             title_font=dict(size=10.5, color="#475569"),
             tickfont=dict(size=9.5, color="#64748b"),
             showgrid=True,
@@ -1646,36 +1660,61 @@ with tab_anomalies:
 
     st.markdown("---")
     st.markdown("### Root-Cause Diagnostic: Why Did the AI Make This Assessment? (SHAP Explainability)")
-    st.markdown(
-        """
-        <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
-            Path-dependent TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
-            <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Exact TreeExplainer Shapley values decompose each forecast into per-feature MW impacts. Red values push demand projections higher; blue values pull projections lower.">?</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    top_features = anomaly_res["top_shap_features"]
-    shap_cols = st.columns(len(top_features))
-    for idx, (col_ui, feat) in enumerate(zip(shap_cols, top_features)):
-        f_meta = FEATURE_METADATA.get(feat["feature"], {"name": feat["feature"], "desc": "Telemetry variable"})
-        friendly_title = f_meta["name"]
-        friendly_desc = f_meta["desc"]
+    anomaly_drivers = anomaly_res.get("anomaly_shap_features")
+    baseline_drivers = anomaly_res["top_shap_features"]
+    primary_drivers = anomaly_drivers if anomaly_drivers else baseline_drivers
+    primary_mode = "anomaly" if anomaly_drivers else "forecast"
+
+    if primary_mode == "anomaly":
+        st.markdown(
+            """
+            <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
+                Observation-aware Isolation Forest TreeSHAP values explain which live load or weather signals drive the sentinel's anomaly verdict.
+                <span class="info-tip tip-right" tabindex="0" data-tip="Positive risk shift values (+) shorten isolation tree depth and push the sentinel toward flagging a structural fault. Negative values (-) indicate normal behavior.">?</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
+                Path-dependent TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
+                <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Exact TreeExplainer Shapley values decompose each forecast into per-feature MW impacts. Red values push demand projections higher; blue values pull projections lower.">?</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    shap_cols = st.columns(len(primary_drivers))
+    for idx, (col_ui, feat) in enumerate(zip(shap_cols, primary_drivers)):
+        raw_code = str(feat["feature"])
+        safe_code = html.escape(raw_code)
+        f_meta = FEATURE_METADATA.get(raw_code, {"name": raw_code, "desc": "Telemetry variable"})
+        friendly_title = html.escape(str(f_meta["name"]))
+        friendly_desc = html.escape(str(f_meta["desc"]))
         direction_color = "#dc2626" if feat["shap_value"] > 0 else "#2563eb"
-        direction_label = "Pushes projection by" if feat["shap_value"] > 0 else "Lowers projection by"
+        if primary_mode == "anomaly":
+            val_str = f"{feat['shap_value']:+.3f} risk"
+            direction_label = "Increases fault surprise by" if feat["shap_value"] > 0 else "Normalizes operation by"
+            mag_str = f"{abs(feat['shap_value']):.3f} depth"
+        else:
+            val_str = f"{feat['shap_value']:+,.1f} MW"
+            direction_label = "Pushes projection by" if feat["shap_value"] > 0 else "Lowers projection by"
+            mag_str = f"{abs(feat['shap_value']):,.1f} MW"
 
         with col_ui:
             st.markdown(
                 f"""
                 <div class="metric-card" style="min-height: 155px;">
                     <div class="metric-label">Driver #{idx + 1}: {friendly_title}</div>
-                    <div style="font-family: monospace; font-size: 11px; color: #64748b; margin-bottom: 4px;"><code>{feat['feature']}</code></div>
+                    <div style="font-family: monospace; font-size: 11px; color: #64748b; margin-bottom: 4px;"><code>{safe_code}</code></div>
                     <div class="metric-value" style="color: {direction_color};">
-                        {feat['shap_value']:+,.1f} MW
+                        {val_str}
                     </div>
                     <div style="font-size: 11.5px; color: #334155; margin-top: 4px;">
-                        {direction_label} <b>{abs(feat['shap_value']):,.1f} MW</b>
+                        {direction_label} <b>{mag_str}</b>
                     </div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 6px; border-top: 1px solid #f1f5f9; padding-top: 4px;">
                         Observed Value: <b>{feat['actual_value']:,.2f}</b><br>
@@ -1689,13 +1728,13 @@ with tab_anomalies:
     st.markdown(
         """
         <div class="chart-mobile-hint">
-            <span style="font-weight: 600;">Mobile Tip:</span> Tap any bar for exact Megawatt impact. Rotate device to landscape for widescreen inspection.
+            <span style="font-weight: 600;">Mobile Tip:</span> Tap any bar for exact attribution magnitude. Rotate device to landscape for widescreen inspection.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    fig_shap = build_shap_figure(top_features)
+    fig_shap = build_shap_figure(primary_drivers, mode=primary_mode)
     st.plotly_chart(
         fig_shap,
         width="stretch",
@@ -1709,18 +1748,58 @@ with tab_anomalies:
     )
 
     with st.expander("Tabular Feature Attribution Breakdown"):
-        df_display = pd.DataFrame([
-            {
-                "Driver Rank": f"#{i+1}",
-                "Parameter": FEATURE_METADATA.get(f["feature"], {}).get("name", f["feature"]),
-                "Variable Code": f["feature"],
-                "AI Impact (MW)": f"{f['shap_value']:+,.1f} MW",
-                "Observed Value": f"{f['actual_value']:,.2f}",
-                "Influence": "Pushes load higher" if f["shap_value"] > 0 else "Pulls load lower",
-            }
-            for i, f in enumerate(top_features)
-        ])
+        if primary_mode == "anomaly":
+            df_display = pd.DataFrame([
+                {
+                    "Driver Rank": f"#{i+1}",
+                    "Parameter": FEATURE_METADATA.get(f["feature"], {}).get("name", f["feature"]),
+                    "Variable Code": f["feature"],
+                    "Anomaly Risk Shift": f"{f['shap_value']:+.3f}",
+                    "Observed Value": f"{f['actual_value']:,.2f}",
+                    "Influence": "Pushes toward anomaly" if f["shap_value"] > 0 else "Consistent with normal",
+                }
+                for i, f in enumerate(primary_drivers)
+            ])
+        else:
+            df_display = pd.DataFrame([
+                {
+                    "Driver Rank": f"#{i+1}",
+                    "Parameter": FEATURE_METADATA.get(f["feature"], {}).get("name", f["feature"]),
+                    "Variable Code": f["feature"],
+                    "AI Impact (MW)": f"{f['shap_value']:+,.1f} MW",
+                    "Observed Value": f"{f['actual_value']:,.2f}",
+                    "Influence": "Pushes load higher" if f["shap_value"] > 0 else "Pulls load lower",
+                }
+                for i, f in enumerate(primary_drivers)
+            ])
         st.dataframe(df_display, width="stretch")
+
+    if primary_mode == "anomaly":
+        with st.expander("Expected Load Baseline Attribution (LightGBM p50 SHAP, MW)"):
+            fig_base_shap = build_shap_figure(baseline_drivers, mode="forecast")
+            st.plotly_chart(
+                fig_base_shap,
+                width="stretch",
+                config={
+                    "displayModeBar": True,
+                    "displaylogo": False,
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                    "responsive": True,
+                    "scrollZoom": False,
+                },
+            )
+            df_base_display = pd.DataFrame([
+                {
+                    "Driver Rank": f"#{i+1}",
+                    "Parameter": FEATURE_METADATA.get(f["feature"], {}).get("name", f["feature"]),
+                    "Variable Code": f["feature"],
+                    "AI Impact (MW)": f"{f['shap_value']:+,.1f} MW",
+                    "Observed Value": f"{f['actual_value']:,.2f}",
+                    "Influence": "Pushes load higher" if f["shap_value"] > 0 else "Pulls load lower",
+                }
+                for i, f in enumerate(baseline_drivers)
+            ])
+            st.dataframe(df_base_display, width="stretch")
 
 # tab 3: model health & reliability watchdog
 with tab_drift:

@@ -173,6 +173,18 @@ FEATURE_METADATA: Dict[str, Dict[str, str]] = {
         "name": "24-Hour Relative Humidity Shift",
         "desc": "Day-over-day humidity differential affecting perceived discomfort index and cooling",
     },
+    "demand_delta_1h": {
+        "name": "1-Hour Load Ramp (Δ1h)",
+        "desc": "Instantaneous demand change compared to 1 hour earlier (MW)",
+    },
+    "demand_delta_24h": {
+        "name": "24-Hour Load Shift (Δ24h)",
+        "desc": "Diurnal demand deviation compared to the same hour yesterday (MW)",
+    },
+    "demand_zscore_24h": {
+        "name": "24-Hour Rolling Load Z-Score",
+        "desc": "Standardized load surprise relative to trailing 24-hour mean and volatility",
+    },
 }
 
 

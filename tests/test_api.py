@@ -23,6 +23,13 @@ def test_rest_api_endpoints_and_cors():
         res_bad = client.post("/forecast", json={"region": "INVALID_REGION", "lookback_hours": 168})
         assert res_bad.status_code == 400
 
+        res_norm = client.post(
+            "/anomalies",
+            json={"region": "ALL_INDIA", "actual_demand_mw": 145000.0},
+        )
+        assert res_norm.status_code == 200
+        norm_body = res_norm.json()
+
         res_shock = client.post(
             "/anomalies",
             json={"region": "ALL_INDIA", "actual_demand_mw": 310000.0},
@@ -32,6 +39,14 @@ def test_rest_api_endpoints_and_cors():
         assert shock_body["residual_breach"] is True
         assert shock_body["is_structural"] is True
         assert len(shock_body["top_shap_features"]) == 3
+        assert len(shock_body["anomaly_shap_features"]) == 3
+        assert shock_body["anomaly_shap_features"] != norm_body["anomaly_shap_features"]
+        assert {d["feature"] for d in shock_body["anomaly_shap_features"]} & {
+            "demand_mw",
+            "demand_delta_1h",
+            "demand_delta_24h",
+            "demand_zscore_24h",
+        }
 
         res_drift = client.get("/drift?region=ALL_INDIA")
         assert res_drift.status_code == 200

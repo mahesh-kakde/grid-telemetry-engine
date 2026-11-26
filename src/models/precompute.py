@@ -252,6 +252,9 @@ def precompute_region(
         bundle=bundle,
     )
     top_shap = explainer.explain_anomaly_point(feature_row, region, top_k=3)
+    anomaly_shap = explainer.explain_anomaly_score(
+        feature_row, region, actual_demand_mw=actual_demand, top_k=3
+    )
     obs_ts = feature_row.get("timestamp_utc")
     obs_iso = obs_ts.isoformat() if hasattr(obs_ts, "isoformat") else generated_at
     nominal_anomaly = {
@@ -265,6 +268,7 @@ def precompute_region(
         "is_structural": bool(is_structural[0]),
         "residual_breach": bool(trigger_b[0]),
         "top_shap_features": top_shap,
+        "anomaly_shap_features": anomaly_shap,
     }
 
     return {

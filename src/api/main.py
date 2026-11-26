@@ -258,16 +258,6 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
     p10, p50, p90 = predict_quantiles(features_df, req.region, bundle)
     actual_demand = float(req.actual_demand_mw) if req.actual_demand_mw is not None else float(feature_row["demand_mw"])
 
-    # update instantaneous shock indicators before scoring
-    feature_row["demand_mw"] = actual_demand
-    if "demand_lag_1h" in feature_row:
-        feature_row["demand_delta_1h"] = actual_demand - float(feature_row["demand_lag_1h"])
-    if "demand_lag_24h" in feature_row:
-        feature_row["demand_delta_24h"] = actual_demand - float(feature_row["demand_lag_24h"])
-    if "demand_rolling_mean_24h" in feature_row and "demand_rolling_std_24h" in feature_row:
-        denom = max(float(feature_row["demand_rolling_std_24h"]), 1.0)
-        feature_row["demand_zscore_24h"] = (actual_demand - float(feature_row["demand_rolling_mean_24h"])) / denom
-
     scores, is_structural, trigger_b = detect_structural_anomalies(
         X=features_df,
         y_actual=np.array([actual_demand]),
@@ -278,8 +268,11 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
         bundle=bundle,
     )
 
-    # compute top-3 shap drivers
+    # compute top-3 baseline forecast drivers (mw) and observation-aware anomaly drivers
     top_shap = explainer.explain_anomaly_point(feature_row, req.region, top_k=3)
+    anomaly_shap = explainer.explain_anomaly_score(
+        feature_row, req.region, actual_demand_mw=actual_demand, top_k=3
+    )
 
     return {
         "region": req.region,
@@ -292,6 +285,7 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
         "is_structural": bool(is_structural[0]),
         "residual_breach": bool(trigger_b[0]),
         "top_shap_features": top_shap,
+        "anomaly_shap_features": anomaly_shap,
     }
 
 

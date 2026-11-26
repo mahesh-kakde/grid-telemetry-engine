@@ -27,3 +27,4 @@ def test_streamlit_app_renders_and_handles_region_and_shock():
     shock_markdown = "\n".join(el.value for el in at.markdown)
     assert "CRITICAL GRID FAULT" in shock_markdown
     assert "Envelope Breached" in shock_markdown
+    assert "Increases fault surprise by" in shock_markdown

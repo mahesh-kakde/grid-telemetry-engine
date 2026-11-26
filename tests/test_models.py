@@ -250,3 +250,19 @@ def test_cqr_calibration_widening_increases_band(artifacts_bundle):
     assert np.all(p10_std <= p50_std) and np.all(p50_std <= p90_std)
     assert np.all(p10_wide <= p50_wide) and np.all(p50_wide <= p90_wide)
     assert np.all((p90_wide - p10_wide) > (p90_std - p10_std))
+
+
+def test_anomaly_shap_responds_to_demand_shock(artifacts_bundle):
+    explainer = AnomalySHAPExplainer(artifacts_bundle)
+    row = artifacts_bundle.reference_baselines["ALL_INDIA"].iloc[-1]
+
+    norm_drivers = explainer.explain_anomaly_score(row, "ALL_INDIA", actual_demand_mw=float(row["demand_mw"]), top_k=3)
+    shock_drivers = explainer.explain_anomaly_score(row, "ALL_INDIA", actual_demand_mw=310000.0, top_k=3)
+
+    assert len(norm_drivers) == 3
+    assert len(shock_drivers) == 3
+    assert shock_drivers != norm_drivers
+
+    shock_features = {item["feature"] for item in shock_drivers}
+    assert shock_features & {"demand_mw", "demand_delta_1h", "demand_delta_24h", "demand_zscore_24h"}
+    assert all(item["shap_value"] > 0 for item in shock_drivers)
