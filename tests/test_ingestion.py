@@ -236,3 +236,66 @@ def test_run_ingestion_pipeline_requests_14_day_backfill(monkeypatch):
     assert captured_past_days == [14] * len(GridRegion)
     # 337 hours per region * 6 regions = 2022 records (168h warmup + 169h post-warmup)
     assert len(payload.grid_records) == 337 * len(GridRegion)
+
+
+def test_gap_mitigation_deduplicates_timestamps_and_isolates_regions():
+    t0 = datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc)
+    r_nr_1 = RawGridRecord(timestamp_utc=t0, region=GridRegion.NR, demand_mw=40000.0)
+    r_nr_dup = RawGridRecord(timestamp_utc=t0, region=GridRegion.NR, demand_mw=40500.0)
+    r_wr_1 = RawGridRecord(timestamp_utc=t0 + timedelta(hours=5), region=GridRegion.WR, demand_mw=45000.0)
+
+    mitigated = apply_gap_mitigation([r_nr_1, r_nr_dup, r_wr_1])
+    assert len(mitigated) == 2
+    assert mitigated[0].region == GridRegion.NR
+    assert mitigated[0].demand_mw == 40500.0
+    assert mitigated[1].region == GridRegion.WR
+
+
+def test_partial_weather_failure_skips_corrupt_overwrite_and_conserves_sum(monkeypatch):
+    from src.ingestion import fetch_telemetry as ft
+
+    def build_wx(region: GridRegion, base_temp: float):
+        now_utc = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        return [
+            RawWeatherRecord(
+                timestamp_utc=now_utc - timedelta(hours=h),
+                region=region,
+                temperature_2m=base_temp,
+                relative_humidity_2m=55.0,
+                surface_solar_radiation=200.0,
+                wind_speed_100m=4.0,
+            )
+            for h in range(340)
+        ]
+
+    # case 1: all regions succeed -> ALL_INDIA equals exact sum of 5 sub-regions
+    persisted_all = {}
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://mock:mock@localhost:5432/mock")
+    monkeypatch.setattr(ft, "fetch_weather_with_retry", lambda lat, lon, reg, **kw: build_wx(reg, 32.0))
+    monkeypatch.setattr(
+        ft,
+        "persist_telemetry_to_supabase",
+        lambda grids, wxs, db_url: persisted_all.setdefault("grids", grids) and len(grids),
+    )
+    ft.run_ingestion_pipeline()
+    by_reg_ts = {}
+    for g in persisted_all["grids"]:
+        by_reg_ts.setdefault(g.timestamp_utc, {})[g.region.value] = g.demand_mw
+    sample_ts = next(iter(by_reg_ts))
+    sub_sum = sum(by_reg_ts[sample_ts][r] for r in ["NR", "WR", "SR", "ER", "NER"])
+    assert abs(by_reg_ts[sample_ts]["ALL_INDIA"] - sub_sum) <= 0.05
+
+    # case 2: NR weather fails -> NR and ALL_INDIA excluded from DB persistence
+    persisted_partial = {}
+    monkeypatch.setattr(
+        ft,
+        "fetch_weather_with_retry",
+        lambda lat, lon, reg, **kw: [] if reg == GridRegion.NR else build_wx(reg, 30.0),
+    )
+    monkeypatch.setattr(
+        ft,
+        "persist_telemetry_to_supabase",
+        lambda grids, wxs, db_url: persisted_partial.setdefault("regions", {g.region.value for g in grids}) and len(grids),
+    )
+    ft.run_ingestion_pipeline()
+    assert persisted_partial["regions"] == {"WR", "SR", "ER", "NER"}

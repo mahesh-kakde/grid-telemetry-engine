@@ -1,5 +1,6 @@
 import os
 import math
+import random
 import time
 import uuid
 import logging
@@ -127,7 +128,7 @@ def fetch_weather_with_retry(
             logger.warning(f"weather request attempt {attempt + 1} failed for {region.value}: {exc}")
 
         if attempt < max_retries - 1:
-            backoff_sec = (2 ** attempt) * 2.0
+            backoff_sec = (2 ** attempt) * 2.0 + random.uniform(0.0, 1.0)
             time.sleep(backoff_sec)
 
     send_alert_webhook(f"exhausted retries fetching weather for {region.value}", region.value)
@@ -206,17 +207,26 @@ def fetch_live_grid_records(
 def apply_gap_mitigation(
     records: List[RawGridRecord],
 ) -> List[RawGridRecord]:
-    # repairs temporal discontinuities using linear interpolation or diurnal forward-fill
+    # repairs temporal discontinuities per region using linear interpolation or diurnal forward-fill
     if not records:
         return records
 
-    sorted_records = sorted(records, key=lambda r: r.timestamp_utc)
+    sorted_records = sorted(records, key=lambda r: (r.region.value, r.timestamp_utc))
     repaired: List[RawGridRecord] = [sorted_records[0]]
 
     for i in range(1, len(sorted_records)):
         prev = repaired[-1]
         curr = sorted_records[i]
-        diff_hours = int((curr.timestamp_utc - prev.timestamp_utc).total_seconds() // 3600)
+        if curr.region != prev.region:
+            repaired.append(curr)
+            continue
+
+        elapsed_sec = (curr.timestamp_utc - prev.timestamp_utc).total_seconds()
+        if elapsed_sec == 0:
+            repaired[-1] = curr
+            continue
+
+        diff_hours = int(elapsed_sec // 3600)
 
         if diff_hours > 1:
             gap = diff_hours - 1
@@ -339,6 +349,41 @@ def persist_telemetry_to_supabase(
         conn.close()
 
 
+def _aggregate_all_india_records(
+    regional_records: Dict[str, List[RawGridRecord]],
+) -> List[RawGridRecord]:
+    # sums the 5 regional rldc grids so ALL_INDIA strictly conserves regional totals
+    sub_regions = [
+        GridRegion.NR.value,
+        GridRegion.WR.value,
+        GridRegion.SR.value,
+        GridRegion.ER.value,
+        GridRegion.NER.value,
+    ]
+    by_region_ts = {
+        reg: {r.timestamp_utc: r for r in regional_records.get(reg, [])}
+        for reg in sub_regions
+    }
+    common_timestamps = sorted(set.intersection(*(set(m.keys()) for m in by_region_ts.values())))
+    aggregated: List[RawGridRecord] = []
+    for ts in common_timestamps:
+        total_mw = sum(by_region_ts[reg][ts].demand_mw for reg in sub_regions)
+        weighted_freq_num = sum(
+            by_region_ts[reg][ts].demand_mw * (by_region_ts[reg][ts].frequency_hz or 50.0)
+            for reg in sub_regions
+        )
+        avg_freq = round(weighted_freq_num / max(total_mw, 1e-6), 3)
+        aggregated.append(
+            RawGridRecord(
+                timestamp_utc=ts,
+                region=GridRegion.ALL_INDIA,
+                demand_mw=round(total_mw, 2),
+                frequency_hz=max(47.5, min(52.5, avg_freq)),
+            )
+        )
+    return aggregated
+
+
 def run_ingestion_pipeline() -> TelemetryPayload:
     # coordinates collection, mitigation, and storage across all 6 regions
     batch_id = str(uuid.uuid4())
@@ -348,37 +393,72 @@ def run_ingestion_pipeline() -> TelemetryPayload:
     # fetch 14 days (336h) so 168h feature warmup leaves a full 168h post-warmup window
     start_utc = now_utc - timedelta(hours=336)
 
+    db_url = os.environ.get("SUPABASE_DB_URL")
+    regional_grid_map: Dict[str, List[RawGridRecord]] = {}
     all_grid_records: List[RawGridRecord] = []
     all_weather_records: List[RawWeatherRecord] = []
+    failed_weather_regions: set[str] = set()
 
-    for region in GridRegion:
+    sub_regions = [
+        GridRegion.NR,
+        GridRegion.WR,
+        GridRegion.SR,
+        GridRegion.ER,
+        GridRegion.NER,
+    ]
+    for region in sub_regions + [GridRegion.ALL_INDIA]:
         logger.info(f"harvesting telemetry for region: {region.value}")
         lat, lon = REGIONAL_COORDINATES[region.value]
 
         # 1. pull live weather across 14 days lookback for 168h warmup + 168h drift window
         weather = fetch_weather_with_retry(lat, lon, region, past_days=14, forecast_days=1)
+        if not weather:
+            failed_weather_regions.add(region.value)
         all_weather_records.extend(weather)
 
         # 2. generate ist-aligned, weather-elastic simulated grid records
-        raw_grid = fetch_live_grid_records(region, start_utc, now_utc, weather_records=weather)
+        if region == GridRegion.ALL_INDIA and all(
+            r.value not in failed_weather_regions for r in sub_regions
+        ) and all(len(regional_grid_map.get(r.value, [])) > 0 for r in sub_regions):
+            raw_grid = _aggregate_all_india_records(regional_grid_map)
+        else:
+            raw_grid = fetch_live_grid_records(region, start_utc, now_utc, weather_records=weather)
 
         # 3. apply gap mitigation
         mitigated_grid = apply_gap_mitigation(raw_grid)
+        regional_grid_map[region.value] = mitigated_grid
         all_grid_records.extend(mitigated_grid)
 
-    db_url = os.environ.get("SUPABASE_DB_URL")
     if not all_weather_records and db_url:
         raise RuntimeError("weather ingestion failed for all regions; aborting database persistence")
 
+    # skip persistence for any region lacking live weather (and ALL_INDIA if a sub-region failed)
+    skip_persist_regions = set(failed_weather_regions)
+    if any(r.value in failed_weather_regions for r in sub_regions):
+        skip_persist_regions.add(GridRegion.ALL_INDIA.value)
+
+    persist_grid_records = [
+        r for r in all_grid_records if r.region.value not in skip_persist_regions
+    ]
+    persist_weather_records = [
+        w for w in all_weather_records if w.region.value not in skip_persist_regions
+    ]
+
     payload = TelemetryPayload(
         ingestion_batch_id=batch_id,
-        grid_records=all_grid_records,
-        weather_records=all_weather_records,
+        grid_records=persist_grid_records if db_url else all_grid_records,
+        weather_records=persist_weather_records if db_url else all_weather_records,
     )
 
     if db_url:
+        if skip_persist_regions:
+            logger.warning(
+                f"excluding regions from database upsert due to weather failure: {sorted(skip_persist_regions)}"
+            )
+        if not persist_grid_records:
+            raise RuntimeError("no valid regional telemetry records available for persistence")
         logger.info("persisting records to supabase database...")
-        persist_telemetry_to_supabase(all_grid_records, all_weather_records, db_url)
+        persist_telemetry_to_supabase(persist_grid_records, persist_weather_records, db_url)
     else:
         logger.info("SUPABASE_DB_URL not configured. dry run completed successfully.")
 
