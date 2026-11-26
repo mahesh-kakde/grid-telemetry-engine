@@ -581,11 +581,11 @@ st.markdown(
        MOBILE & TABLET RESPONSIVE STYLES
        ===================================================================== */
     @media (max-width: 768px) {
-        /* lock mobile viewport: zero horizontal blowup */
+        /* lock mobile viewport: zero horizontal overflow */
         html, body, [data-testid="stAppViewContainer"], .stApp {
             overflow-x: hidden !important;
-            max-width: 100vw !important;
-            width: 100vw !important;
+            max-width: 100% !important;
+            width: 100% !important;
         }
 
         /* mobile main content full viewport - zero layout shift */
@@ -596,8 +596,8 @@ st.markdown(
         [data-testid="stMainBlockContainer"],
         .main,
         section[data-testid="stMain"] {
-            width: 100vw !important;
-            max-width: 100vw !important;
+            width: 100% !important;
+            max-width: 100% !important;
             left: 0 !important;
             margin-left: 0 !important;
             transform: none !important;
@@ -610,7 +610,7 @@ st.markdown(
             padding-bottom: 4.5rem !important;
             padding-left: 0.85rem !important;
             padding-right: 0.85rem !important;
-            max-width: 100vw !important;
+            max-width: 100% !important;
         }
 
         /* mobile sidebar slide-over overlay drawer */

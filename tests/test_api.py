@@ -57,6 +57,17 @@ def test_asgi_server_security_headers_routes_and_404():
         assert "max-age=" in res_root.headers.get("strict-transport-security", "")
         assert "frame-ancestors 'self'" in res_root.headers.get("content-security-policy", "")
         assert '<meta name="description"' in res_root.text
+        assert "./assets-v2/static/js/" in res_root.text
+        assert "no-store" in res_root.headers.get("cache-control", "")
+
+        import re
+        js_match = re.search(r"(\./assets-v2/static/js/[^\"]+)", res_root.text)
+        assert js_match is not None
+        asset_path = js_match.group(1).lstrip(".")
+        res_asset = client.get(asset_path)
+        assert res_asset.status_code == 200
+        assert len(res_asset.content) > 100
+        assert "immutable" not in res_asset.headers.get("cache-control", "").lower()
 
         res_health = client.get("/health")
         assert res_health.status_code == 200

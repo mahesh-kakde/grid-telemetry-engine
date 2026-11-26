@@ -38,10 +38,12 @@ ALLOWED_EXACT_PATHS = {
 ALLOWED_PREFIXES = (
     "/_stcore/",
     "/static/",
+    "/assets-v2/static/",
     "/media/",
     "/component/",
     "/app/static/",
 )
+STATIC_ALIAS_PREFIX = "/assets-v2/static/"
 
 SECURITY_HEADERS: Sequence[tuple[bytes, bytes]] = (
     (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
@@ -128,11 +130,14 @@ def _inject_seo_head(html_bytes: bytes) -> bytes:
             f'    <meta name="description" content="{SEO_DESCRIPTION}" />'
         )
         html_text = html_text.replace("<title>Streamlit</title>", replacement, 1)
+    # route bundled static assets through a fresh versioned namespace so old immutable cdn edges cannot poison js imports
+    html_text = html_text.replace('"./static/', '"./assets-v2/static/')
+    html_text = html_text.replace("'./static/", "'./assets-v2/static/")
     return html_text.encode("utf-8")
 
 
 class RouteAndSecurityMiddleware:
-    # enforces http security headers, injects server-side seo meta on /, and returns http 404 for unknown routes
+    # enforces http security headers, injects server-side seo meta & asset cache namespace, and returns http 404 for unknown routes
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -150,6 +155,13 @@ class RouteAndSecurityMiddleware:
             if key not in existing_keys:
                 headers.append((key, val))
         return headers
+
+    @staticmethod
+    def _set_header(headers: list[tuple[bytes, bytes]], name: bytes, value: bytes) -> list[tuple[bytes, bytes]]:
+        target = name.lower()
+        filtered = [(k, v) for k, v in headers if k.lower() != target]
+        filtered.append((target, value))
+        return filtered
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -170,6 +182,18 @@ class RouteAndSecurityMiddleware:
             await response(scope, receive, send_404)
             return
 
+        is_static_asset = path.startswith(("/static/", STATIC_ALIAS_PREFIX))
+        forward_scope = scope
+        if path.startswith(STATIC_ALIAS_PREFIX):
+            rewritten_path = "/static/" + path[len(STATIC_ALIAS_PREFIX):]
+            raw_path = scope.get("raw_path", b"")
+            rewritten_raw = (
+                b"/static/" + raw_path[len(STATIC_ALIAS_PREFIX.encode("ascii")):]
+                if raw_path.startswith(STATIC_ALIAS_PREFIX.encode("ascii"))
+                else rewritten_path.encode("utf-8")
+            )
+            forward_scope = {**scope, "path": rewritten_path, "raw_path": rewritten_raw}
+
         if path in {"/", "/app"} and method == "GET":
             start_message: Message | None = None
             body_chunks: list[bytes] = []
@@ -183,6 +207,7 @@ class RouteAndSecurityMiddleware:
                     if not message.get("more_body", False):
                         assert start_message is not None
                         headers = self._apply_security_headers(list(start_message.get("headers", [])))
+                        headers = self._set_header(headers, b"cache-control", b"no-cache, no-store, must-revalidate")
                         content_type = next(
                             (v.decode("latin-1").lower() for k, v in headers if k.lower() == b"content-type"),
                             "",
@@ -190,23 +215,22 @@ class RouteAndSecurityMiddleware:
                         raw_body = b"".join(body_chunks)
                         if "text/html" in content_type:
                             raw_body = _inject_seo_head(raw_body)
-                            headers = [
-                                (k, v) for k, v in headers if k.lower() != b"content-length"
-                            ]
-                            headers.append((b"content-length", str(len(raw_body)).encode("ascii")))
+                            headers = self._set_header(headers, b"content-length", str(len(raw_body)).encode("ascii"))
                         await send({**start_message, "headers": headers})
                         await send({"type": "http.response.body", "body": raw_body, "more_body": False})
 
-            await self.app(scope, receive, buffer_and_inject)
+            await self.app(forward_scope, receive, buffer_and_inject)
             return
 
         async def send_with_security_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = self._apply_security_headers(list(message.get("headers", [])))
+                if is_static_asset:
+                    headers = self._set_header(headers, b"cache-control", b"public, max-age=86400")
                 message = {**message, "headers": headers}
             await send(message)
 
-        await self.app(scope, receive, send_with_security_headers)
+        await self.app(forward_scope, receive, send_with_security_headers)
 
 
 async def robots_txt(request: Request):
