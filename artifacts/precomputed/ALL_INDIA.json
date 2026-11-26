@@ -1,617 +1,636 @@
 {
   "region": "ALL_INDIA",
   "model_version": "2.0.0",
-  "generated_at": "2026-11-26T05:43:55.964310+00:00",
+  "generated_at": "2026-11-26T14:13:02.005381+00:00",
   "data_source": "baseline_fallback",
   "widened": false,
   "forecasts": [
     {
-      "target_timestamp_utc": "2026-11-26T06:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 122786.73,
-      "forecast_p50": 126780.24,
-      "forecast_p90": 129416.05,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T07:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 135632.86,
-      "forecast_p50": 138460.24,
-      "forecast_p90": 141410.27,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T08:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 141291.78,
-      "forecast_p50": 143671.2,
-      "forecast_p90": 150551.2,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T09:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 147598.74,
-      "forecast_p50": 149336.6,
-      "forecast_p90": 156259.14,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T10:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 156019.62,
-      "forecast_p50": 157445.13,
-      "forecast_p90": 161880.85,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T11:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 162915.47,
-      "forecast_p50": 164401.83,
-      "forecast_p90": 164982.6,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T12:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 168719.28,
-      "forecast_p50": 170103.42,
-      "forecast_p90": 170848.19,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T13:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 170249.91,
-      "forecast_p50": 171390.16,
-      "forecast_p90": 172089.82,
-      "model_version": "2.0.0"
-    },
-    {
-      "target_timestamp_utc": "2026-11-26T14:00:00+00:00",
-      "region": "ALL_INDIA",
-      "forecast_p10": 165961.97,
-      "forecast_p50": 166387.3,
-      "forecast_p90": 169451.59,
-      "model_version": "2.0.0"
-    },
-    {
       "target_timestamp_utc": "2026-11-26T15:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 159982.31,
-      "forecast_p50": 161212.89,
-      "forecast_p90": 163582.87,
+      "forecast_p10": 122923.04,
+      "forecast_p50": 123813.56,
+      "forecast_p90": 128182.74,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T16:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 156413.64,
-      "forecast_p50": 157100.32,
-      "forecast_p90": 157667.95,
+      "forecast_p10": 127294.87,
+      "forecast_p50": 134534.02,
+      "forecast_p90": 138368.47,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T17:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 150227.34,
-      "forecast_p50": 154815.82,
-      "forecast_p90": 157825.1,
+      "forecast_p10": 134510.62,
+      "forecast_p50": 143278.19,
+      "forecast_p90": 145179.29,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T18:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 147233.69,
-      "forecast_p50": 154936.13,
-      "forecast_p90": 162039.8,
+      "forecast_p10": 138522.27,
+      "forecast_p50": 147964.53,
+      "forecast_p90": 150595.26,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T19:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 148982.56,
-      "forecast_p50": 155394.53,
-      "forecast_p90": 161806.39,
+      "forecast_p10": 138915.93,
+      "forecast_p50": 149640.46,
+      "forecast_p90": 154637.15,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T20:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 150471.34,
-      "forecast_p50": 155429.17,
-      "forecast_p90": 160443.65,
+      "forecast_p10": 139250.43,
+      "forecast_p50": 150991.12,
+      "forecast_p90": 155887.9,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T21:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 149904.98,
-      "forecast_p50": 152078.22,
-      "forecast_p90": 155032.21,
+      "forecast_p10": 141773.59,
+      "forecast_p50": 151842.61,
+      "forecast_p90": 155121.01,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T22:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 149393.55,
-      "forecast_p50": 149415.41,
-      "forecast_p90": 149733.99,
+      "forecast_p10": 145975.38,
+      "forecast_p50": 152352.6,
+      "forecast_p90": 156946.79,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-26T23:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 140979.88,
-      "forecast_p50": 143105.27,
-      "forecast_p90": 145401.18,
+      "forecast_p10": 148188.41,
+      "forecast_p50": 154282.34,
+      "forecast_p90": 157761.77,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T00:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 131495.52,
-      "forecast_p50": 132503.57,
-      "forecast_p90": 138000.44,
+      "forecast_p10": 153990.38,
+      "forecast_p50": 156848.45,
+      "forecast_p90": 162021.01,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T01:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 126256.37,
-      "forecast_p50": 127363.51,
-      "forecast_p90": 130815.96,
+      "forecast_p10": 159002.03,
+      "forecast_p50": 162557.47,
+      "forecast_p90": 166254.23,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T02:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 120771.35,
-      "forecast_p50": 122647.5,
-      "forecast_p90": 123350.89,
+      "forecast_p10": 164240.16,
+      "forecast_p50": 167553.41,
+      "forecast_p90": 171520.38,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T03:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 116658.63,
-      "forecast_p50": 117405.04,
-      "forecast_p90": 117873.25,
+      "forecast_p10": 166755.66,
+      "forecast_p50": 171039.37,
+      "forecast_p90": 175957.27,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T04:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 114043.36,
-      "forecast_p50": 115269.82,
-      "forecast_p90": 116410.4,
+      "forecast_p10": 167320.35,
+      "forecast_p50": 172262.52,
+      "forecast_p90": 175087.98,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T05:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 116449.52,
-      "forecast_p50": 117937.99,
-      "forecast_p90": 118691.33,
+      "forecast_p10": 165578.8,
+      "forecast_p50": 170115.07,
+      "forecast_p90": 175476.03,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T06:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 120957.96,
-      "forecast_p50": 123421.99,
-      "forecast_p90": 126008.96,
+      "forecast_p10": 160821.23,
+      "forecast_p50": 164753.86,
+      "forecast_p90": 170816.47,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T07:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 129587.47,
-      "forecast_p50": 130378.35,
-      "forecast_p90": 136036.36,
+      "forecast_p10": 153697.01,
+      "forecast_p50": 156616.76,
+      "forecast_p90": 164173.45,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T08:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 134513.69,
-      "forecast_p50": 136342.38,
-      "forecast_p90": 145722.98,
+      "forecast_p10": 142614.56,
+      "forecast_p50": 145389.61,
+      "forecast_p90": 153858.4,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T09:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 139942.65,
-      "forecast_p50": 140632.26,
-      "forecast_p90": 149035.55,
+      "forecast_p10": 130854.95,
+      "forecast_p50": 131742.65,
+      "forecast_p90": 140902.19,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T10:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 147070.83,
-      "forecast_p50": 147649.26,
-      "forecast_p90": 154000.08,
+      "forecast_p10": 122836.46,
+      "forecast_p50": 124020.36,
+      "forecast_p90": 131999.47,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T11:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 151496.56,
-      "forecast_p50": 152705.47,
-      "forecast_p90": 156315.75,
+      "forecast_p10": 117997.31,
+      "forecast_p50": 119218.12,
+      "forecast_p90": 126916.32,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T12:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 158467.84,
-      "forecast_p50": 159574.43,
-      "forecast_p90": 163511.57,
+      "forecast_p10": 116914.3,
+      "forecast_p50": 118421.24,
+      "forecast_p90": 126797.08,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T13:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 159533.37,
-      "forecast_p50": 162123.5,
-      "forecast_p90": 164518.58,
+      "forecast_p10": 115619.87,
+      "forecast_p50": 117473.0,
+      "forecast_p90": 125659.45,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T14:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 155046.57,
-      "forecast_p50": 156227.3,
-      "forecast_p90": 160508.85,
+      "forecast_p10": 117056.58,
+      "forecast_p50": 118883.22,
+      "forecast_p90": 128409.19,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T15:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 147033.6,
-      "forecast_p50": 149348.46,
-      "forecast_p90": 154036.54,
+      "forecast_p10": 117774.46,
+      "forecast_p50": 121486.83,
+      "forecast_p90": 129678.4,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T16:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 139818.29,
-      "forecast_p50": 142896.56,
-      "forecast_p90": 147450.65,
+      "forecast_p10": 121222.94,
+      "forecast_p50": 130596.8,
+      "forecast_p90": 137332.02,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T17:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 131534.18,
-      "forecast_p50": 139144.14,
-      "forecast_p90": 144953.85,
+      "forecast_p10": 127820.02,
+      "forecast_p50": 138487.21,
+      "forecast_p90": 141673.04,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T18:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 130244.87,
-      "forecast_p50": 137039.93,
-      "forecast_p90": 145425.63,
+      "forecast_p10": 131677.72,
+      "forecast_p50": 141900.29,
+      "forecast_p90": 146262.42,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T19:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 128328.78,
-      "forecast_p50": 135941.81,
-      "forecast_p90": 145206.48,
+      "forecast_p10": 132769.57,
+      "forecast_p50": 143332.21,
+      "forecast_p90": 148122.34,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T20:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 129830.76,
-      "forecast_p50": 135680.6,
-      "forecast_p90": 144446.32,
+      "forecast_p10": 133788.89,
+      "forecast_p50": 145405.95,
+      "forecast_p90": 150446.96,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T21:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 130352.27,
-      "forecast_p50": 135248.4,
-      "forecast_p90": 142537.51,
+      "forecast_p10": 135450.54,
+      "forecast_p50": 147439.66,
+      "forecast_p90": 150356.13,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T22:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 132576.79,
-      "forecast_p50": 136125.78,
-      "forecast_p90": 140910.02,
+      "forecast_p10": 139440.58,
+      "forecast_p50": 149367.16,
+      "forecast_p90": 153605.38,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-27T23:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 133134.31,
-      "forecast_p50": 136625.22,
-      "forecast_p90": 138172.49,
+      "forecast_p10": 141474.74,
+      "forecast_p50": 151041.39,
+      "forecast_p90": 156713.29,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T00:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 128584.69,
-      "forecast_p50": 129316.16,
-      "forecast_p90": 129325.07,
+      "forecast_p10": 147453.06,
+      "forecast_p50": 153987.91,
+      "forecast_p90": 161658.9,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T01:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 123992.07,
-      "forecast_p50": 124257.64,
-      "forecast_p90": 124869.09,
+      "forecast_p10": 153442.06,
+      "forecast_p50": 160480.13,
+      "forecast_p90": 167445.81,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T02:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 119271.97,
-      "forecast_p50": 120441.22,
-      "forecast_p90": 121282.07,
+      "forecast_p10": 157172.28,
+      "forecast_p50": 161571.64,
+      "forecast_p90": 172119.54,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T03:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 115196.39,
-      "forecast_p50": 115461.46,
-      "forecast_p90": 115645.95,
+      "forecast_p10": 155323.66,
+      "forecast_p50": 160188.02,
+      "forecast_p90": 174245.63,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T04:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 112299.88,
-      "forecast_p50": 112638.4,
-      "forecast_p90": 113068.9,
+      "forecast_p10": 150601.5,
+      "forecast_p50": 157082.3,
+      "forecast_p90": 169978.46,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T05:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 111961.96,
-      "forecast_p50": 113208.31,
-      "forecast_p90": 114376.83,
+      "forecast_p10": 145573.14,
+      "forecast_p50": 153373.0,
+      "forecast_p90": 167013.84,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T06:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 113592.76,
-      "forecast_p50": 116096.7,
-      "forecast_p90": 117480.07,
+      "forecast_p10": 138046.34,
+      "forecast_p50": 148271.98,
+      "forecast_p90": 160961.84,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T07:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 116541.38,
-      "forecast_p50": 120058.73,
-      "forecast_p90": 125107.18,
+      "forecast_p10": 134019.8,
+      "forecast_p50": 144189.71,
+      "forecast_p90": 153554.04,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T08:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 121742.59,
-      "forecast_p50": 124447.5,
-      "forecast_p90": 132314.02,
+      "forecast_p10": 130277.58,
+      "forecast_p50": 138623.78,
+      "forecast_p90": 147681.36,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T09:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 127799.09,
-      "forecast_p50": 129523.22,
-      "forecast_p90": 136555.67,
+      "forecast_p10": 121488.47,
+      "forecast_p50": 127932.6,
+      "forecast_p90": 136623.29,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T10:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 132948.91,
-      "forecast_p50": 136772.41,
-      "forecast_p90": 143031.48,
+      "forecast_p10": 114865.93,
+      "forecast_p50": 120897.92,
+      "forecast_p90": 130784.52,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T11:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 136238.99,
-      "forecast_p50": 141677.57,
-      "forecast_p90": 145759.27,
+      "forecast_p10": 111770.33,
+      "forecast_p50": 115752.69,
+      "forecast_p90": 125883.6,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T12:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 142932.95,
-      "forecast_p50": 146220.86,
-      "forecast_p90": 150664.88,
+      "forecast_p10": 110910.66,
+      "forecast_p50": 117141.41,
+      "forecast_p90": 125236.15,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T13:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 145158.94,
-      "forecast_p50": 149084.1,
-      "forecast_p90": 153248.54,
+      "forecast_p10": 111675.68,
+      "forecast_p50": 116169.53,
+      "forecast_p90": 125438.5,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T14:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 141331.61,
-      "forecast_p50": 145042.2,
-      "forecast_p90": 150015.57,
+      "forecast_p10": 110981.76,
+      "forecast_p50": 115590.66,
+      "forecast_p90": 126913.78,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T15:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 135433.14,
-      "forecast_p50": 139764.16,
-      "forecast_p90": 144626.86,
+      "forecast_p10": 109019.71,
+      "forecast_p50": 114661.36,
+      "forecast_p90": 124968.03,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T16:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 129771.62,
-      "forecast_p50": 133352.66,
-      "forecast_p90": 140746.87,
+      "forecast_p10": 113240.37,
+      "forecast_p50": 121830.12,
+      "forecast_p90": 131357.39,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T17:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 125025.45,
-      "forecast_p50": 129595.79,
-      "forecast_p90": 137994.78,
+      "forecast_p10": 117569.28,
+      "forecast_p50": 128459.52,
+      "forecast_p90": 137408.4,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T18:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 122630.21,
-      "forecast_p50": 127534.46,
-      "forecast_p90": 137655.1,
+      "forecast_p10": 122269.96,
+      "forecast_p50": 131297.95,
+      "forecast_p90": 140478.66,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T19:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 121188.61,
-      "forecast_p50": 125900.36,
-      "forecast_p90": 136151.13,
+      "forecast_p10": 123068.57,
+      "forecast_p50": 131867.61,
+      "forecast_p90": 138999.35,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T20:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 121706.21,
-      "forecast_p50": 125277.99,
-      "forecast_p90": 135718.76,
+      "forecast_p10": 123821.09,
+      "forecast_p50": 134117.56,
+      "forecast_p90": 141363.41,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T21:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 122548.67,
-      "forecast_p50": 124607.75,
-      "forecast_p90": 134868.65,
+      "forecast_p10": 126184.97,
+      "forecast_p50": 134009.89,
+      "forecast_p90": 141772.24,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T22:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 124151.17,
-      "forecast_p50": 126103.14,
-      "forecast_p90": 132238.88,
+      "forecast_p10": 128359.2,
+      "forecast_p50": 136523.55,
+      "forecast_p90": 145187.8,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-28T23:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 126623.94,
-      "forecast_p50": 127377.8,
-      "forecast_p90": 132432.95,
+      "forecast_p10": 128958.08,
+      "forecast_p50": 138068.36,
+      "forecast_p90": 148177.71,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T00:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 120061.8,
-      "forecast_p50": 120366.06,
-      "forecast_p90": 122972.99,
+      "forecast_p10": 130804.32,
+      "forecast_p50": 143924.53,
+      "forecast_p90": 152538.43,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T01:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 117792.5,
-      "forecast_p50": 118321.22,
-      "forecast_p90": 119247.87,
+      "forecast_p10": 137011.06,
+      "forecast_p50": 147925.18,
+      "forecast_p90": 158338.88,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T02:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 114723.63,
-      "forecast_p50": 115740.19,
-      "forecast_p90": 116113.85,
+      "forecast_p10": 138588.74,
+      "forecast_p50": 149593.04,
+      "forecast_p90": 159891.52,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T03:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 110506.09,
-      "forecast_p50": 111057.32,
-      "forecast_p90": 113514.73,
+      "forecast_p10": 137439.81,
+      "forecast_p50": 149682.24,
+      "forecast_p90": 159932.06,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T04:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 109104.21,
-      "forecast_p50": 109169.67,
-      "forecast_p90": 109878.66,
+      "forecast_p10": 136265.27,
+      "forecast_p50": 146699.14,
+      "forecast_p90": 158618.2,
       "model_version": "2.0.0"
     },
     {
       "target_timestamp_utc": "2026-11-29T05:00:00+00:00",
       "region": "ALL_INDIA",
-      "forecast_p10": 107775.08,
-      "forecast_p50": 108208.45,
-      "forecast_p90": 109790.28,
+      "forecast_p10": 132253.11,
+      "forecast_p50": 143209.17,
+      "forecast_p90": 154151.26,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T06:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 127428.69,
+      "forecast_p50": 139199.63,
+      "forecast_p90": 150585.89,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T07:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 124330.0,
+      "forecast_p50": 134466.88,
+      "forecast_p90": 145382.33,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T08:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 120165.88,
+      "forecast_p50": 128391.16,
+      "forecast_p90": 138922.85,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T09:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 112406.63,
+      "forecast_p50": 121122.33,
+      "forecast_p90": 131036.75,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T10:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 107660.02,
+      "forecast_p50": 115004.57,
+      "forecast_p90": 126439.14,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T11:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 104403.01,
+      "forecast_p50": 111723.26,
+      "forecast_p90": 122959.62,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T12:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 103165.73,
+      "forecast_p50": 111894.76,
+      "forecast_p90": 124368.99,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T13:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 102788.54,
+      "forecast_p50": 112008.16,
+      "forecast_p90": 123398.85,
+      "model_version": "2.0.0"
+    },
+    {
+      "target_timestamp_utc": "2026-11-29T14:00:00+00:00",
+      "region": "ALL_INDIA",
+      "forecast_p10": 102505.13,
+      "forecast_p50": 111389.77,
+      "forecast_p90": 122405.78,
       "model_version": "2.0.0"
     }
   ],
   "nominal_anomaly": {
     "region": "ALL_INDIA",
-    "timestamp_utc": "2026-11-26T05:00:00+00:00",
-    "actual_demand_mw": 120106.71,
-    "predicted_p10_mw": 116207.32,
-    "predicted_p50_mw": 118038.8,
-    "predicted_p90_mw": 119241.21,
-    "anomaly_score": -0.531,
+    "timestamp_utc": "2026-11-26T14:00:00+00:00",
+    "actual_demand_mw": 118808.0,
+    "predicted_p10_mw": 117095.0,
+    "predicted_p50_mw": 118736.84,
+    "predicted_p90_mw": 123307.19,
+    "anomaly_score": -0.5182,
     "is_structural": false,
     "residual_breach": false,
     "top_shap_features": [
       {
         "feature": "demand_lag_24h",
-        "shap_value": -15823.39,
-        "actual_value": 116326.52
+        "shap_value": -15401.75,
+        "actual_value": 117494.59
       },
       {
         "feature": "demand_lag_1h",
-        "shap_value": -11231.43,
-        "actual_value": 114538.85
+        "shap_value": -11857.25,
+        "actual_value": 113650.31
+      },
+      {
+        "feature": "cos_hour_k2",
+        "shap_value": 995.98,
+        "actual_value": -0.87
+      }
+    ],
+    "anomaly_shap_features": [
+      {
+        "feature": "temperature_2m",
+        "shap_value": 0.593,
+        "actual_value": 17.1
       },
       {
         "feature": "sin_hour_k1",
-        "shap_value": 1291.58,
-        "actual_value": 0.97
+        "shap_value": 0.577,
+        "actual_value": -0.97
+      },
+      {
+        "feature": "surface_solar_radiation",
+        "shap_value": -0.278,
+        "actual_value": 0.0
       }
     ]
   },
   "drift_summary": {
     "region": "ALL_INDIA",
+    "observation_hours": 168,
+    "window_source": "live_window",
     "drift_alarm": false,
     "drift_ratio": 0.1667,
     "drifted_features": 2,
@@ -624,9 +643,9 @@
     "feature_metrics": {
       "demand_mw": {
         "test": "wasserstein_ks",
-        "statistic": 0.1425,
-        "ks_statistic": 0.1101,
-        "p_value": 0.067715,
+        "statistic": 0.1363,
+        "ks_statistic": 0.1004,
+        "p_value": 0.119245,
         "threshold": 0.5,
         "drift_detected": false
       },
@@ -680,9 +699,9 @@
       },
       "demand_rolling_std_24h": {
         "test": "wasserstein_ks",
-        "statistic": 0.4052,
-        "ks_statistic": 0.1984,
-        "p_value": 3.6e-05,
+        "statistic": 0.4677,
+        "ks_statistic": 0.2109,
+        "p_value": 9e-06,
         "threshold": 0.5,
         "drift_detected": false
       },
@@ -700,7 +719,7 @@
       },
       "day_of_week": {
         "test": "wasserstein",
-        "score": 0.1667,
+        "score": 0.1528,
         "threshold": 0.15,
         "drift_detected": true
       },

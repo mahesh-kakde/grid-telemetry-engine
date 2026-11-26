@@ -368,7 +368,10 @@ def test_horizon_dependent_cqr_margins_and_ist_calendar_contract(artifacts_bundl
 
     contract_bundle = ContractBundle()
     assert resolve_calendar_timezone(contract_bundle.quantile_calibration, "NR") == "Asia/Kolkata"
-    assert resolve_calendar_timezone(artifacts_bundle.quantile_calibration, "NR") == "UTC"
+    assert resolve_calendar_timezone({"NR": {"cqr_margin_80": 50.0}}, "NR") == "UTC"
+    assert resolve_calendar_timezone(artifacts_bundle.quantile_calibration, "NR") == "Asia/Kolkata"
+    assert len(artifacts_bundle.quantile_calibration["NR"]["horizon_margins_80"]) == 72
+    assert len(artifacts_bundle.quantile_calibration["NR"]["horizon_margins_90"]) == 72
 
     df_sample = artifacts_bundle.reference_baselines["NR"].head(1)
     p10_h1, p50_h1, p90_h1 = predict_quantiles(df_sample, "NR", contract_bundle, widened=False, horizon_step=1)
