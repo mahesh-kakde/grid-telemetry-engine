@@ -210,3 +210,27 @@ def test_ist_midnight_holiday_conversion():
     })
     res = compute_telemetry_features(df_ist, drop_nulls_flag=False)
     assert res["is_holiday"].to_list() == [0, 1]
+
+
+def test_asia_kolkata_calendar_feature_alignment():
+    import polars as pl
+    from datetime import datetime, timezone
+    from src.features.build_features import compute_telemetry_features
+
+    # 2024-02-04 18:30 UTC == 2024-02-05 00:00 IST (Sunday UTC -> Monday IST hour=0, weekday=1)
+    df_tz = pl.DataFrame({
+        "timestamp_utc": [
+            datetime(2024, 2, 4, 18, 0, tzinfo=timezone.utc),  # 23:30 IST Sun
+            datetime(2024, 2, 4, 19, 0, tzinfo=timezone.utc),  # 00:30 IST Mon
+        ],
+        "region": ["ALL_INDIA", "ALL_INDIA"],
+        "demand_mw": [140000.0, 130000.0],
+        "temperature_2m": [20.0, 19.0],
+        "relative_humidity_2m": [65.0, 66.0],
+        "surface_solar_radiation": [0.0, 0.0],
+        "wind_speed_100m": [3.0, 3.0],
+    })
+    res_ist = compute_telemetry_features(df_tz, drop_nulls_flag=False, calendar_tz="Asia/Kolkata")
+    assert res_ist["hour"].to_list() == [23, 0]
+    assert res_ist["day_of_week"].to_list() == [7, 1]
+    assert res_ist["day_of_year"].to_list() == [35, 36]

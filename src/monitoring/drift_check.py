@@ -714,6 +714,7 @@ def fetch_trailing_telemetry_window(
 ) -> pd.DataFrame:
     # retrieves trailing 7-day feature window from supabase cursor helper or baseline fallback
     from src.models.infer_and_detect import fetch_telemetry_window_from_db
+    from src.models.load_artifacts import resolve_calendar_timezone
     from src.features.build_features import compute_telemetry_features
 
     pl_df = fetch_telemetry_window_from_db(
@@ -722,9 +723,10 @@ def fetch_trailing_telemetry_window(
         db_url=db_url,
     )
     ref_df = load_reference_baseline(region)
+    cal_tz = resolve_calendar_timezone(region=region)
     live_feat_df = None
     if pl_df is not None and len(pl_df) >= window_hours + 168:
-        feat_df = compute_telemetry_features(pl_df, drop_nulls_flag=True)
+        feat_df = compute_telemetry_features(pl_df, drop_nulls_flag=True, calendar_tz=cal_tz)
         if not feat_df.is_empty():
             live_feat_df = feat_df.to_pandas()
 

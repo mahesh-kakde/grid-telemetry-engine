@@ -972,8 +972,10 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
     )
 
     bundle, explainer = get_cached_artifacts()
+    from src.models.load_artifacts import resolve_calendar_timezone
+    cal_tz = resolve_calendar_timezone(bundle.quantile_calibration, region)
     df_history, _ = fetch_live_or_baseline_history(region, lookback_hours=240, bundle=bundle)
-    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True, calendar_tz=cal_tz)
     feat_df = bundle.reference_baselines[region] if feat_pl.is_empty() else feat_pl.to_pandas()
     feature_row = feat_df.iloc[-1].copy()
     features_df = pd.DataFrame([feature_row[bundle.feature_columns]])

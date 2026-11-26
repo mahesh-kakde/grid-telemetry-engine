@@ -343,3 +343,57 @@ def test_lru_bounded_model_and_shap_cache_eviction():
     _ = bounded_bundle.lgb_models["WR"]
     _ = bounded_bundle.lgb_models["ER"]
     assert set(bounded_bundle.lgb_models.keys()) == {"WR", "ER"}
+
+
+def test_horizon_dependent_cqr_margins_and_ist_calendar_contract(artifacts_bundle):
+    from src.models.infer_and_detect import IST_OFFSET
+    from src.models.load_artifacts import resolve_calendar_timezone
+
+    # clone bundle metadata safely to test horizon-wise CQR margins and IST calendar alignment
+    class ContractBundle:
+        feature_columns = artifacts_bundle.feature_columns
+        anomaly_feature_columns = artifacts_bundle.anomaly_feature_columns
+        lgb_models = artifacts_bundle.lgb_models
+        isolation_forests = artifacts_bundle.isolation_forests
+        reference_baselines = artifacts_bundle.reference_baselines
+        quantile_calibration = {
+            "NR": {
+                "calendar_timezone": "Asia/Kolkata",
+                "cqr_margin_80": 100.0,
+                "cqr_margin_90": 200.0,
+                "horizon_margins_80": [float(100 + h * 25) for h in range(72)],
+                "horizon_margins_90": [float(200 + h * 40) for h in range(72)],
+            }
+        }
+
+    contract_bundle = ContractBundle()
+    assert resolve_calendar_timezone(contract_bundle.quantile_calibration, "NR") == "Asia/Kolkata"
+    assert resolve_calendar_timezone(artifacts_bundle.quantile_calibration, "NR") == "UTC"
+
+    df_sample = artifacts_bundle.reference_baselines["NR"].head(1)
+    p10_h1, p50_h1, p90_h1 = predict_quantiles(df_sample, "NR", contract_bundle, widened=False, horizon_step=1)
+    p10_h72, p50_h72, p90_h72 = predict_quantiles(df_sample, "NR", contract_bundle, widened=False, horizon_step=72)
+    p10_w72, _, p90_w72 = predict_quantiles(df_sample, "NR", contract_bundle, widened=True, horizon_step=72)
+
+    assert p50_h1[0] == pytest.approx(p50_h72[0])
+    assert (p90_h72[0] - p10_h72[0]) > (p90_h1[0] - p10_h1[0])
+    assert (p90_w72[0] - p10_w72[0]) > (p90_h72[0] - p10_h72[0])
+
+    # rollout with IST contract runs cleanly without skew errors
+    base_ts = datetime(2024, 6, 1, 18, 0, tzinfo=timezone.utc)
+    hist = pl.DataFrame([
+        {
+            "timestamp_utc": base_ts + timedelta(hours=i),
+            "region": "NR",
+            "demand_mw": 45000.0 + 4000.0 * np.sin(2 * np.pi * ((i + 5.5) % 24.0) / 24.0),
+            "frequency_hz": 50.0,
+            "temperature_2m": 30.0,
+            "relative_humidity_2m": 55.0,
+            "surface_solar_radiation": 200.0 if 0 <= ((base_ts + timedelta(hours=i) + IST_OFFSET).hour) <= 12 else 0.0,
+            "wind_speed_100m": 4.5,
+        }
+        for i in range(180)
+    ])
+    fc_ist = generate_72h_multi_step_forecast(hist, "NR", contract_bundle, widened=False)
+    assert len(fc_ist) == 72
+    assert (fc_ist[71]["forecast_p90"] - fc_ist[71]["forecast_p10"]) > (fc_ist[0]["forecast_p90"] - fc_ist[0]["forecast_p10"])

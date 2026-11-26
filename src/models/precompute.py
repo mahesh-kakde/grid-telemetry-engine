@@ -163,7 +163,7 @@ def precompute_region(
     # precalculates 72h forecast, nominal anomaly, and drift metrics for single region
     import numpy as np
     from src.features.build_features import compute_telemetry_features
-    from src.models.load_artifacts import load_reference_baseline
+    from src.models.load_artifacts import load_reference_baseline, resolve_calendar_timezone
     from src.models.infer_and_detect import (
         fetch_live_or_baseline_history,
         fetch_weather_forecast_map,
@@ -188,7 +188,8 @@ def precompute_region(
         bundle=bundle,
         db_url=target_db,
     )
-    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+    cal_tz = resolve_calendar_timezone(getattr(bundle, "quantile_calibration", None), region)
+    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True, calendar_tz=cal_tz)
     curr_feat_df = ref_df.copy() if feat_pl.is_empty() else feat_pl.to_pandas()
 
     # 1. statistical drift evaluation (requires full 168h post-warmup window across 12 covariates)

@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import polars as pl
 import holidays
@@ -17,9 +18,24 @@ def get_indian_holidays(years: list[int]) -> set:
     return _HOLIDAY_CACHE[key]
 
 
+def _resolve_active_calendar_tz(df_raw: pl.DataFrame, calendar_tz: Optional[str]) -> str:
+    if calendar_tz:
+        return calendar_tz
+    try:
+        from src.models.load_artifacts import resolve_calendar_timezone
+
+        region_hint: Optional[str] = None
+        if "region" in df_raw.columns and len(df_raw) > 0:
+            region_hint = str(df_raw["region"][0])
+        return resolve_calendar_timezone(region=region_hint)
+    except Exception:
+        return "UTC"
+
+
 def compute_telemetry_features(
     df_raw: pl.DataFrame,
     drop_nulls_flag: bool = True,
+    calendar_tz: Optional[str] = None,
 ) -> pl.DataFrame:
     """
     Transforms raw telemetry into a zero-leakage feature matrix.
@@ -28,6 +44,8 @@ def compute_telemetry_features(
     """
     if df_raw.is_empty():
         return df_raw
+
+    resolved_cal_tz = _resolve_active_calendar_tz(df_raw, calendar_tz)
 
     ts_dtype = df_raw.schema["timestamp_utc"]
     if isinstance(ts_dtype, pl.Datetime) and ts_dtype.time_zone is not None:
@@ -61,13 +79,19 @@ def compute_telemetry_features(
     )
     holidays_list = list(get_indian_holidays(ist_years))
 
+    cal_ts = (
+        pl.col("timestamp_utc")
+        if resolved_cal_tz == "UTC"
+        else pl.col("timestamp_utc").dt.convert_time_zone(resolved_cal_tz)
+    )
+
     lazy_df = (
         df_grid.lazy()
         .sort(["region", "timestamp_utc"])
         .with_columns([
-            pl.col("timestamp_utc").dt.hour().alias("hour"),
-            pl.col("timestamp_utc").dt.weekday().alias("day_of_week"),
-            pl.col("timestamp_utc").dt.ordinal_day().alias("day_of_year"),
+            cal_ts.dt.hour().alias("hour"),
+            cal_ts.dt.weekday().alias("day_of_week"),
+            cal_ts.dt.ordinal_day().alias("day_of_year"),
             pl.col("timestamp_utc")
             .dt.convert_time_zone("Asia/Kolkata")
             .dt.date()

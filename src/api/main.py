@@ -28,6 +28,7 @@ from src.models.load_artifacts import (
     ModelArtifactsBundle,
     REGIONS,
     load_reference_baseline,
+    resolve_calendar_timezone,
     validate_artifacts_presence,
 )
 from src.models.infer_and_detect import (
@@ -505,7 +506,8 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
 
     with _inference_slot():
         df_history, _ = fetch_live_or_baseline_history(req.region, lookback_hours=240, bundle=bundle)
-        feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+        cal_tz = resolve_calendar_timezone(bundle.quantile_calibration, req.region)
+        feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True, calendar_tz=cal_tz)
         feat_df = bundle.reference_baselines[req.region] if feat_pl.is_empty() else feat_pl.to_pandas()
         feature_row = feat_df.iloc[-1].copy()
         features_df = pd.DataFrame([feature_row[bundle.feature_columns]])

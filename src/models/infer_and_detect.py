@@ -17,6 +17,7 @@ except ImportError:
 from src.models.load_artifacts import (
     ModelArtifactsBundle,
     REGIONS,
+    resolve_calendar_timezone,
 )
 from src.features.build_features import (
     compute_telemetry_features,
@@ -46,6 +47,7 @@ def predict_quantiles(
     region: str,
     bundle: Optional[ModelArtifactsBundle] = None,
     widened: bool = False,
+    horizon_step: Optional[int] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     # produces conformal-calibrated quantile demand forecasts with monotonicity enforcement
     if bundle is None:
@@ -60,7 +62,13 @@ def predict_quantiles(
 
     cal = getattr(bundle, "quantile_calibration", {}).get(region, {})
     margin_key = "cqr_margin_90" if widened else "cqr_margin_80"
-    margin = float(cal.get(margin_key, 0.0))
+    horizon_key = "horizon_margins_90" if widened else "horizon_margins_80"
+    horizon_margins = cal.get(horizon_key) if horizon_step is not None else None
+    if isinstance(horizon_margins, list) and horizon_margins:
+        idx = min(max(int(horizon_step) - 1, 0), len(horizon_margins) - 1)
+        margin = float(horizon_margins[idx])
+    else:
+        margin = float(cal.get(margin_key, 0.0))
 
     p10_cal = np.maximum(0.0, p10_raw - margin)
     p90_cal = p90_raw + margin
@@ -383,13 +391,16 @@ def generate_72h_multi_step_forecast(
 
     weather_map = weather_forecast_map or {}
     feature_cols = bundle.feature_columns
+    cal_tz = resolve_calendar_timezone(getattr(bundle, "quantile_calibration", None), region)
+    cal_offset = IST_OFFSET if cal_tz == "Asia/Kolkata" else timedelta(0)
     forecasts: List[Dict[str, Any]] = []
 
     for step in range(1, 73):
         target_ts = latest_utc + timedelta(hours=step)
-        hour = target_ts.hour
-        day_of_week = target_ts.isoweekday()
-        day_of_year = target_ts.timetuple().tm_yday
+        cal_ts = target_ts + cal_offset
+        hour = cal_ts.hour
+        day_of_week = cal_ts.isoweekday()
+        day_of_year = cal_ts.timetuple().tm_yday
         ist_date = (target_ts + IST_OFFSET).date()
         is_holiday = 1 if ist_date in holidays_set else 0
 
@@ -435,7 +446,7 @@ def generate_72h_multi_step_forecast(
             "rh_delta_24h": rh - rh_hist[-24],
         }
         X_step = pd.DataFrame([[row_feats[c] for c in feature_cols]], columns=feature_cols)
-        p10, p50, p90 = predict_quantiles(X_step, region, bundle, widened=widened)
+        p10, p50, p90 = predict_quantiles(X_step, region, bundle, widened=widened, horizon_step=step)
 
         forecasts.append({
             "forecast_generated_at": forecast_generated_at,
@@ -569,7 +580,8 @@ def run_inference_and_detection() -> Dict[str, Any]:
             bundle=bundle,
             db_url=db_url,
         )
-        feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+        cal_tz = resolve_calendar_timezone(bundle.quantile_calibration, region)
+        feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True, calendar_tz=cal_tz)
         if feat_pl.is_empty():
             ref_pd = bundle.reference_baselines[region].copy()
         else:

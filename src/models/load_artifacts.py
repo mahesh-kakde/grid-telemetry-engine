@@ -57,13 +57,32 @@ def load_anomaly_feature_columns(artifacts_dir: Optional[str] = None) -> List[st
         return json.load(f)
 
 
-def load_quantile_calibration(artifacts_dir: Optional[str] = None) -> Dict[str, Dict[str, float]]:
-    # loads conformal quantile regression margins per region
+def load_quantile_calibration(artifacts_dir: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    # loads conformal quantile regression margins and contract metadata per region
     path = os.path.join(get_artifacts_dir(artifacts_dir), "models", "quantile_calibration.json")
     if not os.path.exists(path):
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def resolve_calendar_timezone(
+    quantile_calibration: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
+    artifacts_dir: Optional[str] = None,
+) -> str:
+    # resolves calendar feature timezone from calibration metadata while preserving legacy UTC contracts
+    cal_map = quantile_calibration if quantile_calibration is not None else load_quantile_calibration(artifacts_dir)
+    if not isinstance(cal_map, dict) or not cal_map:
+        return "UTC"
+    if region and isinstance(cal_map.get(region), dict):
+        tz_val = cal_map[region].get("calendar_timezone")
+        if tz_val:
+            return str(tz_val)
+    for entry in cal_map.values():
+        if isinstance(entry, dict) and entry.get("calendar_timezone"):
+            return str(entry["calendar_timezone"])
+    return "UTC"
 
 
 def load_model_registry(artifacts_dir: Optional[str] = None) -> Dict[str, Dict[str, str]]:
