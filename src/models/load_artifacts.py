@@ -11,6 +11,17 @@ logger = logging.getLogger(__name__)
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
 QUANTILES = [0.10, 0.50, 0.90]
+DEFAULT_ANOMALY_FEATURES = [
+    "demand_mw",
+    "demand_delta_1h",
+    "demand_delta_24h",
+    "demand_zscore_24h",
+    "temperature_2m",
+    "relative_humidity_2m",
+    "surface_solar_radiation",
+    "sin_hour_k1",
+    "cos_hour_k1",
+]
 
 
 def get_artifacts_dir(custom_path: Optional[str] = None) -> str:
@@ -27,10 +38,28 @@ def get_artifacts_dir(custom_path: Optional[str] = None) -> str:
 
 
 def load_feature_columns(artifacts_dir: Optional[str] = None) -> List[str]:
-    # loads model feature contract from json
+    # loads forecast model feature contract from json
     path = os.path.join(get_artifacts_dir(artifacts_dir), "feature_columns.json")
     if not os.path.exists(path):
         raise FileNotFoundError(f"feature columns contract not found at {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_anomaly_feature_columns(artifacts_dir: Optional[str] = None) -> List[str]:
+    # loads isolation forest feature contract from json with safe default fallback
+    path = os.path.join(get_artifacts_dir(artifacts_dir), "anomaly_feature_columns.json")
+    if not os.path.exists(path):
+        return list(DEFAULT_ANOMALY_FEATURES)
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_quantile_calibration(artifacts_dir: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+    # loads conformal quantile regression margins per region
+    path = os.path.join(get_artifacts_dir(artifacts_dir), "models", "quantile_calibration.json")
+    if not os.path.exists(path):
+        return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -92,18 +121,6 @@ def load_reference_baseline(
     return pd.read_parquet(parquet_path)
 
 
-def load_shap_background(
-    region: str,
-    artifacts_dir: Optional[str] = None,
-) -> Any:
-    # deserializes pre-computed 150 k-means background cluster centers
-    reg_dir = get_artifacts_dir(artifacts_dir)
-    shap_path = os.path.join(reg_dir, "baselines", f"shap_background_{region}.joblib")
-    if not os.path.exists(shap_path):
-        raise FileNotFoundError(f"shap background centroid file not found: {shap_path}")
-    return joblib.load(shap_path)
-
-
 class LazyDict(dict):
     # dictionary with on-demand lazy loader callback for missing keys
     def __init__(self, loader_fn):
@@ -138,13 +155,12 @@ class ModelArtifactsBundle:
     def __init__(self, artifacts_dir: Optional[str] = None):
         self.artifacts_dir = get_artifacts_dir(artifacts_dir)
         self.feature_columns = load_feature_columns(self.artifacts_dir)
+        self.anomaly_feature_columns = load_anomaly_feature_columns(self.artifacts_dir)
+        self.quantile_calibration = load_quantile_calibration(self.artifacts_dir)
         self.model_registry = load_model_registry(self.artifacts_dir)
         self.lgb_models: Dict[str, Dict[float, lgb.Booster]] = LazyDict(self._load_region_boosters)
         self.isolation_forests: Dict[str, Any] = LazyDict(
             lambda r: load_isolation_forest(r, self.artifacts_dir)
-        )
-        self.shap_backgrounds: Dict[str, Any] = LazyDict(
-            lambda r: load_shap_background(r, self.artifacts_dir)
         )
         self.reference_baselines: Dict[str, pd.DataFrame] = LazyDict(
             lambda r: load_reference_baseline(r, self.artifacts_dir)
@@ -163,7 +179,6 @@ class ModelArtifactsBundle:
         for region in REGIONS:
             _ = self.lgb_models[region]
             _ = self.isolation_forests[region]
-            _ = self.shap_backgrounds[region]
             _ = self.reference_baselines[region]
         logger.info("all regional model artifacts successfully preloaded")
 
@@ -173,6 +188,12 @@ def validate_artifacts_presence(artifacts_dir: Optional[str] = None) -> bool:
     reg_dir = get_artifacts_dir(artifacts_dir)
     cols = load_feature_columns(reg_dir)
     if not cols:
+        return False
+    anom_path = os.path.join(reg_dir, "anomaly_feature_columns.json")
+    if not os.path.exists(anom_path):
+        return False
+    cal_path = os.path.join(reg_dir, "models", "quantile_calibration.json")
+    if not os.path.exists(cal_path):
         return False
     registry = load_model_registry(reg_dir)
     for region in REGIONS:
@@ -187,7 +208,5 @@ def validate_artifacts_presence(artifacts_dir: Optional[str] = None) -> bool:
         if not os.path.exists(os.path.join(reg_dir, "models", f"isolation_forest_{region}.joblib")):
             return False
         if not os.path.exists(os.path.join(reg_dir, "baselines", f"reference_baseline_{region}.parquet")):
-            return False
-        if not os.path.exists(os.path.join(reg_dir, "baselines", f"shap_background_{region}.joblib")):
             return False
     return True

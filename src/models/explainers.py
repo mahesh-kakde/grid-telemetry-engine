@@ -58,7 +58,7 @@ class AnomalySHAPExplainer:
     ) -> List[Dict[str, Any]]:
         # calculates shap feature attributions and formats top-k physical drivers
         explainer = self.get_explainer(region)
-        X_point = pd.DataFrame([feature_row[self.feature_columns]])
+        X_point = pd.DataFrame([feature_row[self.feature_columns]]).astype(float)
 
         shap_vals = explainer.shap_values(X_point)
         if isinstance(shap_vals, list):
@@ -108,7 +108,7 @@ def persist_anomaly_events_to_supabase(
     anomaly_events: List[Dict[str, Any]],
     db_url: str,
 ) -> int:
-    # persists verified anomaly events and top shap feature jsonb to telemetry_anomalies table
+    # idempotent upsert of anomaly events and shap attributions into telemetry_anomalies
     if not anomaly_events:
         return 0
     if psycopg2 is None:
@@ -119,32 +119,47 @@ def persist_anomaly_events_to_supabase(
             ev["timestamp_utc"],
             ev["region"],
             ev["actual_demand_mw"],
+            ev.get("predicted_p10_mw"),
             ev.get("predicted_p50_mw"),
+            ev.get("predicted_p90_mw"),
             ev["anomaly_score"],
-            ev.get("is_structural", True),
+            bool(ev.get("is_structural", False)),
+            bool(ev.get("residual_breach", False)),
             Json(ev["top_shap_features"]),
         )
         for ev in anomaly_events
     ]
 
-    insert_sql = """
+    upsert_sql = """
         INSERT INTO telemetry_anomalies (
             timestamp_utc,
             region,
             actual_demand_mw,
+            predicted_p10_mw,
             predicted_p50_mw,
+            predicted_p90_mw,
             anomaly_score,
             is_structural,
+            residual_breach,
             top_shap_features
-        ) VALUES %s;
+        ) VALUES %s
+        ON CONFLICT (region, timestamp_utc) DO UPDATE SET
+            actual_demand_mw = EXCLUDED.actual_demand_mw,
+            predicted_p10_mw = EXCLUDED.predicted_p10_mw,
+            predicted_p50_mw = EXCLUDED.predicted_p50_mw,
+            predicted_p90_mw = EXCLUDED.predicted_p90_mw,
+            anomaly_score = EXCLUDED.anomaly_score,
+            is_structural = EXCLUDED.is_structural,
+            residual_breach = EXCLUDED.residual_breach,
+            top_shap_features = EXCLUDED.top_shap_features;
     """
 
     conn = psycopg2.connect(db_url)
     try:
         with conn.cursor() as cur:
-            execute_values(cur, insert_sql, rows)
+            execute_values(cur, upsert_sql, rows)
         conn.commit()
-        logger.info(f"successfully persisted {len(rows)} anomaly events to supabase")
+        logger.info(f"successfully upserted {len(rows)} anomaly events to supabase")
         return len(rows)
     finally:
         conn.close()

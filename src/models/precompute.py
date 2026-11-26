@@ -12,8 +12,17 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
-MODEL_VERSION = "1.0.0"
+MODEL_VERSION = "2.0.0"
 DEFAULT_PRECOMPUTED_DIR = os.path.join(root_dir, "artifacts", "precomputed")
+DEFAULT_HTML_REPORT_PATH = os.path.join(root_dir, "static", "reports", "drift_report.html")
+
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values, Json
+except ImportError:
+    psycopg2 = None
+    execute_values = None
+    Json = None
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -24,14 +33,86 @@ def get_precomputed_path(region: str, output_dir: str = DEFAULT_PRECOMPUTED_DIR)
     return os.path.join(output_dir, f"{region}.json")
 
 
+def load_snapshot_from_supabase(
+    region: str,
+    db_url: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    # fetches live precomputed dashboard snapshot for region from supabase
+    target_db = db_url or os.environ.get("SUPABASE_DB_URL")
+    if not target_db or psycopg2 is None:
+        return None
+    conn = None
+    try:
+        conn = psycopg2.connect(target_db)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT payload, generated_at, model_version
+                FROM precomputed_snapshots
+                WHERE region = %s;
+                """,
+                (region,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            payload = row[0]
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            if isinstance(payload, dict):
+                payload.setdefault("generated_at", row[1].isoformat() if hasattr(row[1], "isoformat") else str(row[1]))
+                payload.setdefault("model_version", row[2])
+                payload["snapshot_source"] = "supabase_live"
+            return payload
+    except Exception as exc:
+        logger.warning(f"failed to load snapshot for {region} from supabase: {exc}")
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def load_drift_report_html_from_supabase(
+    region: str = "ALL_INDIA",
+    db_url: Optional[str] = None,
+) -> Optional[str]:
+    # fetches latest persisted html drift report from supabase precomputed_snapshots
+    target_db = db_url or os.environ.get("SUPABASE_DB_URL")
+    if not target_db or psycopg2 is None:
+        return None
+    conn = None
+    try:
+        conn = psycopg2.connect(target_db)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
+                (region,),
+            )
+            row = cur.fetchone()
+            return row[0] if row and row[0] else None
+    except Exception as exc:
+        logger.warning(f"failed to load drift report html for {region} from supabase: {exc}")
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def load_precomputed_data(region: str, output_dir: str = DEFAULT_PRECOMPUTED_DIR) -> Optional[Dict[str, Any]]:
-    # reads serialized precomputed json payload for region
+    # reads live supabase snapshot when configured, falling back cleanly to bundled local json
+    live_data = load_snapshot_from_supabase(region)
+    if live_data is not None:
+        return live_data
+
     path = get_precomputed_path(region, output_dir)
     if not os.path.exists(path):
         return None
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            payload = json.load(f)
+            if isinstance(payload, dict):
+                payload.setdefault("snapshot_source", "local_snapshot")
+            return payload
     except Exception as exc:
         logger.warning(f"failed to load precomputed snapshot for {region}: {exc}")
         return None
@@ -76,43 +157,66 @@ def precompute_region(
     bundle: Any,
     explainer: Any,
     feature_cols: Optional[List[str]] = None,
+    db_url: Optional[str] = None,
+    use_live_weather: Optional[bool] = None,
 ) -> Dict[str, Any]:
     # precalculates 72h forecast, nominal anomaly, and drift metrics for single region
     import numpy as np
-    import polars as pl
-    from src.models.load_artifacts import load_reference_baseline, load_feature_columns
+    from src.features.build_features import compute_telemetry_features
+    from src.models.load_artifacts import load_reference_baseline
     from src.models.infer_and_detect import (
+        fetch_live_or_baseline_history,
+        fetch_weather_forecast_map,
         generate_72h_multi_step_forecast,
         predict_quantiles,
         detect_structural_anomalies,
     )
     from src.monitoring.drift_check import (
         evaluate_feature_drift,
-        fetch_trailing_telemetry_window,
+        build_html_drift_report,
     )
 
     logger.info(f"precomputing telemetry artifacts for region: {region}")
-    ref_df = load_reference_baseline(region).copy()
-    if feature_cols is None:
-        feature_cols = load_feature_columns()
+    target_db = db_url or os.environ.get("SUPABASE_DB_URL")
+    live_weather_enabled = bool(target_db) if use_live_weather is None else bool(use_live_weather)
 
-    # 1. 72-hour recursive multi-step quantile forecast
-    history_tail = ref_df.tail(168).copy()
-    base_ts = datetime.now(timezone.utc) - timedelta(hours=len(history_tail))
-    records = []
-    for idx, (_, row) in enumerate(history_tail.iterrows()):
-        records.append({
-            "timestamp_utc": base_ts + timedelta(hours=idx),
-            "region": region,
-            "demand_mw": float(row["demand_mw"]),
-            "frequency_hz": 50.0,
-            "temperature_2m": 30.0,
-            "relative_humidity_2m": 50.0,
-            "surface_solar_radiation": 350.0,
-            "wind_speed_100m": 4.0,
-        })
-    df_history = pl.DataFrame(records)
-    raw_forecasts = generate_72h_multi_step_forecast(df_history, region, bundle)
+    ref_df = load_reference_baseline(region).copy()
+    df_history, source_tag = fetch_live_or_baseline_history(
+        region=region,
+        lookback_hours=360,
+        bundle=bundle,
+        db_url=target_db,
+    )
+    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+    curr_feat_df = ref_df.copy() if feat_pl.is_empty() else feat_pl.to_pandas()
+
+    # 1. statistical drift evaluation (monitors 12 physical/diurnal covariates)
+    curr_window = curr_feat_df.tail(168).copy()
+    drift = evaluate_feature_drift(ref_df, curr_window, feature_cols=None)
+    widened = bool(drift["drift_alarm"])
+    generated_at = datetime.now(timezone.utc).isoformat()
+
+    drift_summary = {
+        "region": region,
+        "drift_alarm": widened,
+        "drift_ratio": float(drift["drift_ratio"]),
+        "drifted_features": int(drift["drifted_features"]),
+        "total_features": int(drift["total_features"]),
+        "recommended_quantile_alpha": list(drift["recommended_quantile_alpha"]),
+        "feature_metrics": drift["feature_metrics"],
+        "report_available": True,
+    }
+    drift_report_html = build_html_drift_report(drift_summary, region=region, generated_at=generated_at)
+
+    # 2. 72-hour recursive multi-step quantile forecast (widened automatically if drift alarm active)
+    wx_map = fetch_weather_forecast_map(region, forecast_days=4) if live_weather_enabled else None
+    raw_forecasts = generate_72h_multi_step_forecast(
+        df_history,
+        region,
+        bundle,
+        widened=widened,
+        weather_forecast_map=wx_map,
+    )
     serialized_forecasts = [
         {
             "target_timestamp_utc": fc["target_timestamp_utc"].isoformat()
@@ -127,10 +231,10 @@ def precompute_region(
         for fc in raw_forecasts
     ]
 
-    # 2. nominal anomaly scoring and top-3 shap drivers
-    feature_row = ref_df.iloc[-1]
+    # 3. latest observation anomaly scoring and top-3 shap drivers
+    feature_row = curr_feat_df.iloc[-1]
     features_df = pd.DataFrame([feature_row[bundle.feature_columns]])
-    p10, p50, p90 = predict_quantiles(features_df, region, bundle)
+    p10, p50, p90 = predict_quantiles(features_df, region, bundle, widened=widened)
     actual_demand = float(feature_row["demand_mw"])
     scores, is_structural, trigger_b = detect_structural_anomalies(
         X=features_df,
@@ -142,9 +246,11 @@ def precompute_region(
         bundle=bundle,
     )
     top_shap = explainer.explain_anomaly_point(feature_row, region, top_k=3)
+    obs_ts = feature_row.get("timestamp_utc")
+    obs_iso = obs_ts.isoformat() if hasattr(obs_ts, "isoformat") else generated_at
     nominal_anomaly = {
         "region": region,
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": obs_iso,
         "actual_demand_mw": round(actual_demand, 2),
         "predicted_p10_mw": round(float(p10[0]), 2),
         "predicted_p50_mw": round(float(p50[0]), 2),
@@ -155,33 +261,72 @@ def precompute_region(
         "top_shap_features": top_shap,
     }
 
-    # 3. statistical drift evaluation
-    curr_df = fetch_trailing_telemetry_window(region=region, window_hours=168)
-    drift = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
-    drift_summary = {
-        "region": region,
-        "drift_alarm": bool(drift["drift_alarm"]),
-        "drift_ratio": float(drift["drift_ratio"]),
-        "drifted_features": int(drift["drifted_features"]),
-        "total_features": int(drift["total_features"]),
-        "recommended_quantile_alpha": str(drift["recommended_quantile_alpha"]),
-        "feature_metrics": drift["feature_metrics"],
-        "report_available": True,
-    }
-
     return {
         "region": region,
         "model_version": MODEL_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at,
+        "data_source": source_tag,
+        "widened": widened,
         "forecasts": serialized_forecasts,
         "nominal_anomaly": nominal_anomaly,
         "drift_summary": drift_summary,
+        "drift_report_html": drift_report_html,
     }
+
+
+def persist_precomputed_snapshots_to_supabase(
+    snapshots: List[Dict[str, Any]],
+    db_url: str,
+) -> int:
+    # idempotent upsert of precomputed dashboard snapshots into supabase
+    if not snapshots:
+        return 0
+    if psycopg2 is None:
+        raise ImportError("psycopg2 is required for database persistence. Install psycopg2-binary.")
+
+    rows = []
+    for snap in snapshots:
+        clean_payload = {k: v for k, v in snap.items() if k != "drift_report_html"}
+        rows.append((
+            snap["region"],
+            snap.get("model_version", MODEL_VERSION),
+            snap["generated_at"],
+            Json(clean_payload),
+            snap.get("drift_report_html"),
+        ))
+
+    upsert_sql = """
+        INSERT INTO precomputed_snapshots (
+            region,
+            model_version,
+            generated_at,
+            payload,
+            drift_report_html
+        ) VALUES %s
+        ON CONFLICT (region) DO UPDATE SET
+            model_version = EXCLUDED.model_version,
+            generated_at = EXCLUDED.generated_at,
+            payload = EXCLUDED.payload,
+            drift_report_html = EXCLUDED.drift_report_html,
+            updated_at = now();
+    """
+
+    conn = psycopg2.connect(db_url)
+    try:
+        with conn.cursor() as cur:
+            execute_values(cur, upsert_sql, rows)
+        conn.commit()
+        logger.info(f"successfully upserted {len(rows)} snapshots to precomputed_snapshots")
+        return len(rows)
+    finally:
+        conn.close()
 
 
 def precompute_all(
     output_dir: str = DEFAULT_PRECOMPUTED_DIR,
     regions: Optional[List[str]] = None,
+    db_url: Optional[str] = None,
+    use_live_weather: Optional[bool] = None,
 ) -> Dict[str, str]:
     # executes batch precomputations across all designated regions
     from src.models.load_artifacts import ModelArtifactsBundle, load_feature_columns
@@ -189,6 +334,7 @@ def precompute_all(
 
     os.makedirs(output_dir, exist_ok=True)
     target_regions = regions or REGIONS
+    target_db = db_url or os.environ.get("SUPABASE_DB_URL")
 
     logger.info("warming up model artifacts bundle and shap explainer for batch precomputation...")
     bundle = ModelArtifactsBundle()
@@ -196,13 +342,31 @@ def precompute_all(
     feature_cols = load_feature_columns()
 
     saved_paths: Dict[str, str] = {}
+    snapshots_for_db: List[Dict[str, Any]] = []
+
     for region in target_regions:
-        payload = precompute_region(region, bundle, explainer, feature_cols=feature_cols)
+        full_snap = precompute_region(
+            region,
+            bundle,
+            explainer,
+            feature_cols=feature_cols,
+            db_url=target_db,
+            use_live_weather=use_live_weather,
+        )
+        snapshots_for_db.append(full_snap)
+
+        json_payload = {k: v for k, v in full_snap.items() if k != "drift_report_html"}
         out_path = os.path.join(output_dir, f"{region}.json")
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+            json.dump(json_payload, f, indent=2)
         saved_paths[region] = out_path
         logger.info(f"saved precomputed artifact: {out_path}")
+
+        if region == "ALL_INDIA" and full_snap.get("drift_report_html"):
+            os.makedirs(os.path.dirname(DEFAULT_HTML_REPORT_PATH), exist_ok=True)
+            with open(DEFAULT_HTML_REPORT_PATH, "w", encoding="utf-8") as f:
+                f.write(full_snap["drift_report_html"])
+            logger.info(f"updated standalone drift report: {DEFAULT_HTML_REPORT_PATH}")
 
     # export manifest index
     manifest_path = os.path.join(output_dir, "manifest.json")
@@ -214,6 +378,9 @@ def precompute_all(
     }
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest_data, f, indent=2)
+
+    if target_db:
+        persist_precomputed_snapshots_to_supabase(snapshots_for_db, target_db)
 
     logger.info(f"batch precomputation complete for {len(saved_paths)} regions")
     return saved_paths

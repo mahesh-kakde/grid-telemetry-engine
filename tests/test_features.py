@@ -163,3 +163,50 @@ def test_drop_nulls_warmup_filtering():
     # 200 - 168 warmup hours = 32 valid rows
     assert len(features_dropped) == 32
     assert features_dropped["demand_lag_168h"].null_count() == 0
+
+
+def test_upsample_prevents_gap_shift_aliasing():
+    import polars as pl
+    from datetime import datetime, timezone
+    from src.features.build_features import compute_telemetry_features
+
+    # t0 = 00:00, missing 01:00..23:00 (23h hole), next observed = t0 + 24h
+    df_gap = pl.DataFrame({
+        "timestamp_utc": [
+            datetime(2024, 2, 1, 0, 0, tzinfo=timezone.utc),
+            datetime(2024, 2, 2, 0, 0, tzinfo=timezone.utc),
+        ],
+        "region": ["NR", "NR"],
+        "demand_mw": [41000.0, 42500.0],
+        "temperature_2m": [16.0, 17.5],
+        "relative_humidity_2m": [60.0, 58.0],
+        "surface_solar_radiation": [0.0, 0.0],
+        "wind_speed_100m": [3.5, 4.0],
+    })
+    res = compute_telemetry_features(df_gap, drop_nulls_flag=False)
+    assert len(res) == 2
+    # t0 + 24h must see exact 24h lag while 1h lag remains null due to missing 23h slot
+    assert res["demand_lag_1h"][1] is None
+    assert res["demand_lag_24h"][1] == 41000.0
+
+
+def test_ist_midnight_holiday_conversion():
+    import polars as pl
+    from datetime import datetime, timezone
+    from src.features.build_features import compute_telemetry_features
+
+    # 2024-01-25 19:00 UTC == 2024-01-26 00:30 IST (Republic Day in India)
+    df_ist = pl.DataFrame({
+        "timestamp_utc": [
+            datetime(2024, 1, 25, 17, 0, tzinfo=timezone.utc),  # 22:30 IST on Jan 25 (non-holiday)
+            datetime(2024, 1, 25, 19, 0, tzinfo=timezone.utc),  # 00:30 IST on Jan 26 (Republic Day)
+        ],
+        "region": ["ALL_INDIA", "ALL_INDIA"],
+        "demand_mw": [140000.0, 130000.0],
+        "temperature_2m": [20.0, 19.0],
+        "relative_humidity_2m": [65.0, 66.0],
+        "surface_solar_radiation": [0.0, 0.0],
+        "wind_speed_100m": [3.0, 3.0],
+    })
+    res = compute_telemetry_features(df_ist, drop_nulls_flag=False)
+    assert res["is_holiday"].to_list() == [0, 1]

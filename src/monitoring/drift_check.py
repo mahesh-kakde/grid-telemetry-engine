@@ -1,36 +1,18 @@
 import os
 import json
+import html
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
+import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp, wasserstein_distance
 import requests
 
-try:
-    import psycopg2
-except ImportError:
-    psycopg2 = None
-
-try:
-    try:
-        from evidently.report import Report
-        from evidently.metric_preset import DataDriftPreset
-    except (ImportError, ModuleNotFoundError):
-        try:
-            from evidently.legacy.report import Report
-            from evidently.legacy.metric_preset import DataDriftPreset
-        except (ImportError, ModuleNotFoundError):
-            from evidently import Report
-            from evidently.presets.drift import DataDriftPreset
-except Exception:
-    # fallback when evidently encounters dependency conflicts in host environment
-    Report = None
-    DataDriftPreset = None
-
 from src.models.load_artifacts import (
     load_reference_baseline,
     load_feature_columns,
+    REGIONS,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -46,9 +28,24 @@ CYCLICAL_CATEGORICAL_FEATURES = [
     "day_of_week",
     "is_holiday",
 ]
+MONITORED_DRIFT_FEATURES = [
+    "demand_mw",
+    "temperature_2m",
+    "relative_humidity_2m",
+    "surface_solar_radiation",
+    "wind_speed_100m",
+    "temp_delta_24h",
+    "rh_delta_24h",
+    "demand_rolling_std_24h",
+    "sin_hour_k1",
+    "cos_hour_k1",
+    "day_of_week",
+    "is_holiday",
+]
 DRIFT_ALARM_THRESHOLD = 0.30
-KS_PVALUE_THRESHOLD = 0.05
-WASSERSTEIN_THRESHOLD = 0.10
+KS_PVALUE_THRESHOLD = 0.01
+WASSERSTEIN_NORM_THRESHOLD = 0.50
+WASSERSTEIN_THRESHOLD = 0.15
 DEFAULT_REPORT_PATH = os.path.join("static", "reports", "drift_report.html")
 REGION_NAMES = {
     "ALL_INDIA": "ALL_INDIA — National Grid",
@@ -185,24 +182,24 @@ def evaluate_feature_drift(
     feature_cols: Optional[List[str]] = None,
     target_col: str = "demand_mw",
 ) -> Dict[str, Any]:
-    # evaluates ks test for continuous features and wasserstein distance for cyclical/categorical features
+    # evaluates normalized wasserstein + ks on physical features and wasserstein on cyclical features
     if feature_cols is None:
-        feature_cols = load_feature_columns()
-
-    eval_cols = [c for c in feature_cols if c in ref_df.columns and c in curr_df.columns]
-    if target_col in ref_df.columns and target_col in curr_df.columns:
-        eval_cols.append(target_col)
+        eval_cols = [c for c in MONITORED_DRIFT_FEATURES if c in ref_df.columns and c in curr_df.columns]
+    else:
+        eval_cols = list(dict.fromkeys(
+            [c for c in feature_cols if c in ref_df.columns and c in curr_df.columns]
+            + ([target_col] if target_col in ref_df.columns and target_col in curr_df.columns else [])
+        ))
 
     metrics = {}
     for col in eval_cols:
-        u = ref_df[col].dropna().to_numpy()
-        v = curr_df[col].dropna().to_numpy()
+        u = pd.to_numeric(ref_df[col], errors="coerce").dropna().to_numpy(dtype=float)
+        v = pd.to_numeric(curr_df[col], errors="coerce").dropna().to_numpy(dtype=float)
 
         if len(u) == 0 or len(v) == 0:
             continue
 
         if col in CYCLICAL_CATEGORICAL_FEATURES:
-            # 1d wasserstein distance for cyclical and discrete calendar indicators
             w_score = float(wasserstein_distance(u, v))
             is_drifted = bool(w_score >= WASSERSTEIN_THRESHOLD)
             metrics[col] = {
@@ -212,14 +209,17 @@ def evaluate_feature_drift(
                 "drift_detected": is_drifted,
             }
         else:
-            # two-sample kolmogorov-smirnov test for continuous features and demand target
+            ref_std = float(np.std(u))
+            w_raw = float(wasserstein_distance(u, v))
+            w_norm = w_raw / max(ref_std, 1e-6)
             ks_res = ks_2samp(u, v)
-            is_drifted = bool(ks_res.pvalue < KS_PVALUE_THRESHOLD)
+            is_drifted = bool(w_norm >= WASSERSTEIN_NORM_THRESHOLD and ks_res.pvalue < KS_PVALUE_THRESHOLD)
             metrics[col] = {
-                "test": "kolmogorov_smirnov",
-                "statistic": round(float(ks_res.statistic), 4),
+                "test": "wasserstein_ks",
+                "statistic": round(w_norm, 4),
+                "ks_statistic": round(float(ks_res.statistic), 4),
                 "p_value": round(float(ks_res.pvalue), 6),
-                "threshold": KS_PVALUE_THRESHOLD,
+                "threshold": WASSERSTEIN_NORM_THRESHOLD,
                 "drift_detected": is_drifted,
             }
 
@@ -245,14 +245,14 @@ def build_html_drift_report(
     generated_at: Optional[str] = None,
 ) -> str:
     # generates standalone html report mirroring dashboard design standards and specifications
-    full_region = REGION_NAMES.get(region, region)
-    timestamp = generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    full_region = html.escape(str(REGION_NAMES.get(region, region)))
+    timestamp = html.escape(str(generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")))
 
-    total_features = drift_summary.get("total_features", 0)
-    drifted_features = drift_summary.get("drifted_features", 0)
-    drift_ratio = drift_summary.get("drift_ratio", 0.0)
-    drift_alarm = drift_summary.get("drift_alarm", False)
-    alphas = str(drift_summary.get("recommended_quantile_alpha", [0.10, 0.50, 0.90]))
+    total_features = int(drift_summary.get("total_features", 0))
+    drifted_features = int(drift_summary.get("drifted_features", 0))
+    drift_ratio = float(drift_summary.get("drift_ratio", 0.0))
+    drift_alarm = bool(drift_summary.get("drift_alarm", False))
+    alphas = html.escape(str(drift_summary.get("recommended_quantile_alpha", [0.10, 0.50, 0.90])))
 
     if drift_alarm:
         notice_class = "notice-alarm"
@@ -260,13 +260,13 @@ def build_html_drift_report(
         notice_desc = (
             f"Covariate feature drift exceeds the 30.0% alarm threshold "
             f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
-            f"Model recalibration is advised; quantile prediction bounds recommended widening to {alphas}."
+            f"Model recalibration is advised; quantile prediction bounds widened to {alphas}."
         )
     else:
         notice_class = "notice-normal"
         notice_title = "Distribution Stability Nominal"
         notice_desc = (
-            f"Continuous and cyclical feature distributions match the 30-day reference baseline. "
+            f"Physical and cyclical feature distributions match the 30-day reference baseline. "
             f"Covariate feature drift is within normal tolerance "
             f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
             f"Quantile intervals operating at standard [0.10, 0.50, 0.90]."
@@ -276,14 +276,20 @@ def build_html_drift_report(
     table_rows = []
     feature_metrics = drift_summary.get("feature_metrics", {})
     for feat_name, metric_info in feature_metrics.items():
+        safe_feat = html.escape(str(feat_name))
         meta = FEATURE_METADATA.get(feat_name, {"name": feat_name, "desc": "Telemetry parameter"})
-        friendly_title = meta["name"]
+        friendly_title = html.escape(str(meta["name"]))
         test_type = metric_info.get("test", "unknown")
-        test_label = "Kolmogorov-Smirnov" if test_type == "kolmogorov_smirnov" else "Wasserstein Distance"
-        stat_val = metric_info.get("statistic", metric_info.get("score", 0.0))
-        thresh_val = metric_info.get("threshold", 0.0)
+        if test_type == "wasserstein_ks":
+            test_label = "Norm. Wasserstein + KS"
+        elif test_type == "kolmogorov_smirnov":
+            test_label = "Kolmogorov-Smirnov"
+        else:
+            test_label = "Wasserstein Distance"
+        stat_val = float(metric_info.get("statistic", metric_info.get("score", 0.0)))
+        thresh_val = float(metric_info.get("threshold", 0.0))
         p_val_str = f"{metric_info['p_value']:.6f}" if "p_value" in metric_info else "N/A (Wasserstein)"
-        is_drifted = metric_info.get("drift_detected", False)
+        is_drifted = bool(metric_info.get("drift_detected", False))
         status_html = (
             '<span style="color: #dc2626; font-weight: 600;">Drift Detected</span>'
             if is_drifted
@@ -292,7 +298,7 @@ def build_html_drift_report(
 
         table_rows.append(
             f"<tr>"
-            f"<td><code>{feat_name}</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>{friendly_title}</span></td>"
+            f"<td><code>{safe_feat}</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>{friendly_title}</span></td>"
             f"<td>{test_label}</td>"
             f"<td>{stat_val:.4f}</td>"
             f"<td>{thresh_val:.4f}</td>"
@@ -566,7 +572,7 @@ def build_html_drift_report(
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Engine Version</span>
-                    <span class="meta-val">v1.0.0</span>
+                    <span class="meta-val">v2.0.0</span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Baseline Window</span>
@@ -613,7 +619,7 @@ def build_html_drift_report(
 
         <div class="section-header">
             <h2>Feature-by-Feature Statistical Drift Audit</h2>
-            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous variables use the two-sample Kolmogorov-Smirnov test (significance threshold p &lt; 0.05); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.10).</div>
+            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics and calendar indicators use 1D Wasserstein distance (threshold W1 &ge; 0.15).</div>
         </div>
         
         <div class="table-wrap">
@@ -654,8 +660,7 @@ def generate_evidently_drift_report(
     os.makedirs(os.path.dirname(abs_output), exist_ok=True)
 
     if drift_summary is None:
-        feature_cols = load_feature_columns()
-        drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
+        drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=None)
 
     html_report = build_html_drift_report(drift_summary, region=region)
     with open(abs_output, "w", encoding="utf-8") as f:
@@ -664,41 +669,28 @@ def generate_evidently_drift_report(
     return abs_output
 
 
+generate_drift_report = generate_evidently_drift_report
+
+
 def fetch_trailing_telemetry_window(
     db_url: Optional[str] = None,
     region: str = "ALL_INDIA",
     window_hours: int = 168,
 ) -> pd.DataFrame:
-    # retrieves trailing 7-day feature window from postgres or falls back to baseline slice
-    if db_url and psycopg2 is not None:
-        try:
-            from src.features.build_features import compute_telemetry_features
-            import polars as pl
+    # retrieves trailing 7-day feature window from supabase cursor helper or baseline fallback
+    from src.models.infer_and_detect import fetch_telemetry_window_from_db
+    from src.features.build_features import compute_telemetry_features
 
-            conn = psycopg2.connect(db_url)
-            try:
-                query = f"""
-                    SELECT timestamp_utc, region, demand_mw, frequency_hz,
-                           temperature_2m, relative_humidity_2m,
-                           surface_solar_radiation, wind_speed_100m
-                    FROM regional_telemetry
-                    WHERE region = %s
-                    ORDER BY timestamp_utc DESC
-                    LIMIT %s;
-                """
-                pdf = pd.read_sql(query, conn, params=(region, window_hours + 168))
-            finally:
-                conn.close()
+    pl_df = fetch_telemetry_window_from_db(
+        region=region,
+        hours=window_hours + 168,
+        db_url=db_url,
+    )
+    if pl_df is not None and len(pl_df) >= 168:
+        feat_df = compute_telemetry_features(pl_df, drop_nulls_flag=True)
+        if not feat_df.is_empty():
+            return feat_df.tail(window_hours).to_pandas()
 
-            if len(pdf) >= 168:
-                pdf = pdf.sort_values("timestamp_utc").reset_index(drop=True)
-                pl_df = pl.from_pandas(pdf)
-                feat_df = compute_telemetry_features(pl_df, drop_nulls_flag=False)
-                return feat_df.tail(window_hours).to_pandas()
-        except Exception as exc:
-            logger.warning(f"failed to fetch telemetry from database: {exc}. using baseline fallback")
-
-    # baseline fallback slice
     ref_df = load_reference_baseline(region)
     return ref_df.tail(window_hours).copy()
 
@@ -714,8 +706,7 @@ def run_drift_monitoring_pipeline(
     ref_df = load_reference_baseline(region)
     curr_df = fetch_trailing_telemetry_window(db_url=db_url, region=region, window_hours=168)
 
-    feature_cols = load_feature_columns()
-    drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
+    drift_summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=None)
 
     # generate standalone html dashboard
     report_path = generate_evidently_drift_report(
@@ -750,6 +741,14 @@ def run_drift_monitoring_pipeline(
 
 if __name__ == "__main__":
     db_url = os.environ.get("SUPABASE_DB_URL")
-    trigger_url = os.environ.get("RENDER_TRIGGER_URL")
-    result = run_drift_monitoring_pipeline(db_url=db_url, render_trigger_url=trigger_url)
-    print(json.dumps(result, indent=2))
+    trigger_url = os.environ.get("RENDER_TRIGGER_URL") or os.environ.get("ALERT_WEBHOOK_URL")
+    all_results = {}
+    for reg in REGIONS:
+        out_path = DEFAULT_REPORT_PATH if reg == "ALL_INDIA" else os.path.join("static", "reports", f"drift_report_{reg}.html")
+        all_results[reg] = run_drift_monitoring_pipeline(
+            db_url=db_url,
+            region=reg,
+            report_output_path=out_path,
+            render_trigger_url=trigger_url,
+        )
+    print(json.dumps(all_results, indent=2))

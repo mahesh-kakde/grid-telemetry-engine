@@ -23,19 +23,57 @@ def compute_telemetry_features(
 ) -> pl.DataFrame:
     """
     Transforms raw telemetry into a zero-leakage feature matrix.
-    Guaranteed deterministic across historical and live streaming batches.
+    Upsamples each region to a uniform 1h grid before computing lags and IST holidays
+    so temporal gaps cannot silently alias lagged columns.
     """
-    years = df_raw["timestamp_utc"].dt.year().unique().to_list()
-    holidays_set = get_indian_holidays(years)
+    if df_raw.is_empty():
+        return df_raw
+
+    ts_dtype = df_raw.schema["timestamp_utc"]
+    if isinstance(ts_dtype, pl.Datetime) and ts_dtype.time_zone is not None:
+        ts_expr = pl.col("timestamp_utc").dt.convert_time_zone("UTC").dt.cast_time_unit("us")
+    elif isinstance(ts_dtype, pl.Datetime):
+        ts_expr = pl.col("timestamp_utc").dt.replace_time_zone("UTC").dt.cast_time_unit("us")
+    else:
+        ts_expr = pl.col("timestamp_utc").cast(pl.Datetime(time_unit="us", time_zone="UTC"))
+
+    df_norm = (
+        df_raw.with_columns([
+            ts_expr.alias("timestamp_utc"),
+            pl.lit(True).alias("_is_observed"),
+        ])
+        .unique(subset=["region", "timestamp_utc"], keep="last")
+        .sort(["region", "timestamp_utc"])
+    )
+
+    df_grid = (
+        df_norm.upsample(time_column="timestamp_utc", every="1h", group_by="region")
+        .with_columns(pl.col("region").forward_fill())
+    )
+
+    ist_years = (
+        df_grid["timestamp_utc"]
+        .dt.convert_time_zone("Asia/Kolkata")
+        .dt.year()
+        .unique()
+        .drop_nulls()
+        .to_list()
+    )
+    holidays_list = list(get_indian_holidays(ist_years))
 
     lazy_df = (
-        df_raw.lazy()
+        df_grid.lazy()
         .sort(["region", "timestamp_utc"])
         .with_columns([
             pl.col("timestamp_utc").dt.hour().alias("hour"),
             pl.col("timestamp_utc").dt.weekday().alias("day_of_week"),
             pl.col("timestamp_utc").dt.ordinal_day().alias("day_of_year"),
-            pl.col("timestamp_utc").dt.date().is_in(holidays_set).cast(pl.Int8).alias("is_holiday"),
+            pl.col("timestamp_utc")
+            .dt.convert_time_zone("Asia/Kolkata")
+            .dt.date()
+            .is_in(holidays_list)
+            .cast(pl.Int8)
+            .alias("is_holiday"),
         ])
         .with_columns([
             (2 * np.pi * pl.col("hour") / 24.0).sin().alias("sin_hour_k1"),
@@ -59,11 +97,27 @@ def compute_telemetry_features(
         .with_columns([
             (pl.col("temperature_2m") - pl.col("temperature_2m").shift(24).over("region")).alias("temp_delta_24h"),
             (pl.col("relative_humidity_2m") - pl.col("relative_humidity_2m").shift(24).over("region")).alias("rh_delta_24h"),
+            (pl.col("demand_mw") - pl.col("demand_mw").shift(1).over("region")).alias("demand_delta_1h"),
+            (pl.col("demand_mw") - pl.col("demand_mw").shift(24).over("region")).alias("demand_delta_24h"),
+            (
+                (pl.col("demand_mw") - pl.col("demand_rolling_mean_24h"))
+                / pl.col("demand_rolling_std_24h").clip(lower_bound=1.0)
+            ).alias("demand_zscore_24h"),
         ])
+        .filter(pl.col("_is_observed") == True)
+        .drop("_is_observed")
     )
 
     if drop_nulls_flag:
-        lazy_df = lazy_df.drop_nulls(subset=["demand_lag_168h", "demand_rolling_std_168h"])
+        lazy_df = lazy_df.drop_nulls(
+            subset=[
+                "demand_lag_168h",
+                "demand_rolling_std_168h",
+                "temp_delta_24h",
+                "rh_delta_24h",
+                "demand_zscore_24h",
+            ]
+        )
 
     return lazy_df.collect()
 

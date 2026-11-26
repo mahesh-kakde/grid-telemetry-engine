@@ -71,7 +71,9 @@ def test_model_artifacts_bundle_completeness(artifacts_bundle):
         assert isinstance(df_base, pd.DataFrame)
         assert len(df_base) > 0
 
-        assert region in artifacts_bundle.shap_backgrounds
+        assert region in artifacts_bundle.quantile_calibration
+    assert len(artifacts_bundle.feature_columns) == 26
+    assert len(artifacts_bundle.anomaly_feature_columns) == 9
 
     assert len(artifacts_bundle.feature_columns) > 0
 
@@ -214,3 +216,37 @@ def test_shap_tree_explainer_attribution(artifacts_bundle):
     batch_attrs = explainer.explain_anomalies_batch(batch_rows, "NR", top_k=3)
     assert len(batch_attrs) == 3
     assert len(batch_attrs[0]) == 3
+
+
+def test_extreme_shock_fires_both_dual_triggers(artifacts_bundle):
+    from src.models.infer_and_detect import predict_quantiles, detect_structural_anomalies
+
+    ref_df = artifacts_bundle.reference_baselines["ALL_INDIA"].tail(5).copy()
+    X = ref_df[artifacts_bundle.feature_columns]
+    p10, p50, p90 = predict_quantiles(X, "ALL_INDIA", artifacts_bundle)
+
+    extreme_shock = p90 + 150000.0
+    scores, is_structural, trigger_b = detect_structural_anomalies(
+        X=X,
+        y_actual=extreme_shock,
+        p10=p10,
+        p50=p50,
+        p90=p90,
+        region="ALL_INDIA",
+        bundle=artifacts_bundle,
+    )
+    assert np.all(trigger_b), "Extreme load shock must breach 1.5xIQR envelope (Trigger B)"
+    assert np.all(is_structural), "Observation-aware Isolation Forest + IQR must flag CRITICAL GRID FAULT"
+
+
+def test_cqr_calibration_widening_increases_band(artifacts_bundle):
+    from src.models.infer_and_detect import predict_quantiles
+
+    ref_df = artifacts_bundle.reference_baselines["ALL_INDIA"].tail(5).copy()
+    X = ref_df[artifacts_bundle.feature_columns]
+    p10_std, p50_std, p90_std = predict_quantiles(X, "ALL_INDIA", artifacts_bundle, widened=False)
+    p10_wide, p50_wide, p90_wide = predict_quantiles(X, "ALL_INDIA", artifacts_bundle, widened=True)
+
+    assert np.all(p10_std <= p50_std) and np.all(p50_std <= p90_std)
+    assert np.all(p10_wide <= p50_wide) and np.all(p50_wide <= p90_wide)
+    assert np.all((p90_wide - p10_wide) > (p90_std - p10_std))

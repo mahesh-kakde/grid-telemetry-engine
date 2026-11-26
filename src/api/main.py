@@ -29,6 +29,7 @@ from src.models.infer_and_detect import (
     generate_72h_multi_step_forecast,
     predict_quantiles,
     detect_structural_anomalies,
+    fetch_live_or_baseline_history,
     MODEL_VERSION,
 )
 from src.models.explainers import AnomalySHAPExplainer
@@ -62,18 +63,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Grid Telemetry Engine API",
-    description="Internal loopback REST service for probabilistic grid forecasting and anomaly detection",
-    version="1.0.0",
+    description="Optional developer REST service for probabilistic grid forecasting and anomaly detection",
+    version=MODEL_VERSION,
     lifespan=lifespan,
 )
 
-# permissive loopback cors policy
+# restricted cors origins (no wildcard credentials)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "http://127.0.0.1:8501",
+        "http://localhost:8501",
+        "https://grid.maheshkakde.com",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -194,22 +199,11 @@ def generate_forecast(req: ForecastRequest) -> Dict[str, Any]:
     if bundle is None:
         raise HTTPException(status_code=503, detail="model bundle not initialized")
 
-    # synthesize historical telemetry frame from reference baseline
-    ref_df = load_reference_baseline(req.region).tail(req.lookback_hours).copy()
-    base_ts = datetime.now(timezone.utc) - timedelta(hours=len(ref_df))
-    records = []
-    for idx, (_, row) in enumerate(ref_df.iterrows()):
-        records.append({
-            "timestamp_utc": base_ts + timedelta(hours=idx),
-            "region": req.region,
-            "demand_mw": float(row["demand_mw"]),
-            "frequency_hz": 50.0,
-            "temperature_2m": 30.0,
-            "relative_humidity_2m": 50.0,
-            "surface_solar_radiation": 350.0,
-            "wind_speed_100m": 4.0,
-        })
-    df_history = pl.DataFrame(records)
+    df_history, _ = fetch_live_or_baseline_history(
+        req.region,
+        lookback_hours=req.lookback_hours,
+        bundle=bundle,
+    )
 
     forecast_records = generate_72h_multi_step_forecast(df_history, req.region, bundle)
     serialized_forecasts = [
@@ -254,12 +248,25 @@ def evaluate_anomaly(req: AnomalyCheckRequest) -> Dict[str, Any]:
     if bundle is None or explainer is None:
         raise HTTPException(status_code=503, detail="inference runtime not initialized")
 
-    ref_df = load_reference_baseline(req.region)
-    feature_row = ref_df.iloc[-1]
+    from src.features.build_features import compute_telemetry_features
+    df_history, _ = fetch_live_or_baseline_history(req.region, lookback_hours=240, bundle=bundle)
+    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+    feat_df = bundle.reference_baselines[req.region] if feat_pl.is_empty() else feat_pl.to_pandas()
+    feature_row = feat_df.iloc[-1].copy()
     features_df = pd.DataFrame([feature_row[bundle.feature_columns]])
 
     p10, p50, p90 = predict_quantiles(features_df, req.region, bundle)
-    actual_demand = req.actual_demand_mw if req.actual_demand_mw is not None else float(feature_row["demand_mw"])
+    actual_demand = float(req.actual_demand_mw) if req.actual_demand_mw is not None else float(feature_row["demand_mw"])
+
+    # update instantaneous shock indicators before scoring
+    feature_row["demand_mw"] = actual_demand
+    if "demand_lag_1h" in feature_row:
+        feature_row["demand_delta_1h"] = actual_demand - float(feature_row["demand_lag_1h"])
+    if "demand_lag_24h" in feature_row:
+        feature_row["demand_delta_24h"] = actual_demand - float(feature_row["demand_lag_24h"])
+    if "demand_rolling_mean_24h" in feature_row and "demand_rolling_std_24h" in feature_row:
+        denom = max(float(feature_row["demand_rolling_std_24h"]), 1.0)
+        feature_row["demand_zscore_24h"] = (actual_demand - float(feature_row["demand_rolling_mean_24h"])) / denom
 
     scores, is_structural, trigger_b = detect_structural_anomalies(
         X=features_df,
@@ -304,9 +311,8 @@ def get_drift_metrics(region: str = Query("ALL_INDIA", description="Regional gri
 
     ref_df = load_reference_baseline(region)
     curr_df = fetch_trailing_telemetry_window(region=region, window_hours=168)
-    feature_cols = load_feature_columns()
 
-    summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=feature_cols)
+    summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=None)
     summary["region"] = region
     summary["report_available"] = os.path.exists(DEFAULT_REPORT_PATH)
     return summary

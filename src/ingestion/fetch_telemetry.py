@@ -1,10 +1,12 @@
 import os
+import math
 import time
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional, Tuple
 import requests
+import holidays
 
 try:
     import psycopg2
@@ -33,14 +35,14 @@ REGIONAL_COORDINATES: Dict[str, Tuple[float, float]] = {
     GridRegion.ALL_INDIA.value: (21.1458, 79.0882) # nagpur geographic center
 }
 
-# regional demand baselines in mw for physical simulation and gap filling
+# regional demand baselines in mw calibrated to posoco dec 2024 operational scale
 REGIONAL_DEMAND_BASELINES: Dict[str, float] = {
-    GridRegion.NR.value: 62000.0,
-    GridRegion.WR.value: 68000.0,
-    GridRegion.SR.value: 54000.0,
-    GridRegion.ER.value: 28000.0,
-    GridRegion.NER.value: 3500.0,
-    GridRegion.ALL_INDIA.value: 215500.0,
+    GridRegion.NR.value: 43440.9,
+    GridRegion.WR.value: 44473.3,
+    GridRegion.SR.value: 42095.7,
+    GridRegion.ER.value: 15251.0,
+    GridRegion.NER.value: 2491.6,
+    GridRegion.ALL_INDIA.value: 147752.5,
 }
 
 DIURNAL_LOAD_FACTORS = [
@@ -49,6 +51,9 @@ DIURNAL_LOAD_FACTORS = [
     1.01, 0.99, 0.98, 0.99, 1.02, 1.05,
     1.09, 1.10, 1.06, 1.00, 0.92, 0.84,
 ]
+_DIURNAL_MEAN = sum(DIURNAL_LOAD_FACTORS) / len(DIURNAL_LOAD_FACTORS)
+NORMALIZED_DIURNAL_FACTORS = [f / _DIURNAL_MEAN for f in DIURNAL_LOAD_FACTORS]
+IST_OFFSET = timedelta(hours=5, minutes=30)
 
 
 def send_alert_webhook(error_msg: str, region: Optional[str] = None) -> None:
@@ -70,7 +75,11 @@ def send_alert_webhook(error_msg: str, region: Optional[str] = None) -> None:
 
 
 def fetch_weather_with_retry(
-    lat: float, lon: float, region: GridRegion, past_days: int = 3
+    lat: float,
+    lon: float,
+    region: GridRegion,
+    past_days: int = 7,
+    forecast_days: int = 1,
 ) -> List[RawWeatherRecord]:
     # pulls meteorological telemetry from open-meteo forecast api with exponential backoff
     url = "https://api.open-meteo.com/v1/forecast"
@@ -78,7 +87,7 @@ def fetch_weather_with_retry(
         "latitude": lat,
         "longitude": lon,
         "past_days": past_days,
-        "forecast_days": 1,
+        "forecast_days": forecast_days,
         "hourly": "temperature_2m,relative_humidity_2m,shortwave_radiation_instant,wind_speed_100m",
         "timezone": "UTC",
     }
@@ -97,46 +106,94 @@ def fetch_weather_with_retry(
                 winds = data.get("wind_speed_100m", [])
 
                 for i in range(len(times)):
+                    t_val = temps[i] if i < len(temps) and temps[i] is not None else 25.0
+                    rh_val = rhs[i] if i < len(rhs) and rhs[i] is not None else 50.0
+                    sol_val = solars[i] if i < len(solars) and solars[i] is not None else 0.0
+                    wind_val = winds[i] if i < len(winds) and winds[i] is not None else 5.0
                     record = RawWeatherRecord(
                         timestamp_utc=times[i],
                         region=region,
-                        temperature_2m=float(temps[i] if temps[i] is not None else 25.0),
-                        relative_humidity_2m=float(rhs[i] if rhs[i] is not None else 50.0),
-                        surface_solar_radiation=float(solars[i] if solars[i] is not None else 0.0),
-                        wind_speed_100m=float(winds[i] if winds[i] is not None else 5.0),
+                        temperature_2m=float(t_val),
+                        relative_humidity_2m=float(rh_val),
+                        surface_solar_radiation=float(sol_val),
+                        wind_speed_100m=float(wind_val),
                     )
                     records.append(record)
                 return records
-            else:
-                logger.warning(f"open-meteo responded with status {resp.status_code}: {resp.text[:100]}")
+            logger.warning(f"open-meteo responded with status {resp.status_code}: {resp.text[:100]}")
+            if 400 <= resp.status_code < 500 and resp.status_code != 429:
+                break
         except Exception as exc:
             logger.warning(f"weather request attempt {attempt + 1} failed for {region.value}: {exc}")
 
-        # exponential backoff wait
-        backoff_sec = (2 ** attempt) * 2.0
-        time.sleep(backoff_sec)
+        if attempt < max_retries - 1:
+            backoff_sec = (2 ** attempt) * 2.0
+            time.sleep(backoff_sec)
 
     send_alert_webhook(f"exhausted retries fetching weather for {region.value}", region.value)
     return records
 
 
+def _compute_weather_elasticity(weather: Optional[RawWeatherRecord], is_holiday_or_sunday: bool) -> Tuple[float, float]:
+    # returns (demand_multiplier, simulated_frequency_hz) driven by exogenous weather & calendar
+    cal_adj = -0.04 if is_holiday_or_sunday else 0.0
+    if weather is None:
+        mult = max(0.85, min(1.18, 1.0 + cal_adj))
+        return mult, 50.0
+
+    temp = weather.temperature_2m
+    rh = weather.relative_humidity_2m
+    solar = weather.surface_solar_radiation
+
+    cooling = max(0.0, temp - 24.0) * 0.008
+    heating = max(0.0, 15.0 - temp) * 0.004
+    humidity = (max(0.0, rh - 60.0) / 10.0) * 0.0015 if temp > 26.0 else 0.0
+    solar_btm = max(0.0, solar - 200.0) * 0.00004
+    wind_relief = max(0.0, weather.wind_speed_100m - 12.0) * 0.001
+
+    mult = max(0.85, min(1.20, 1.0 + cooling + heating + humidity - solar_btm - wind_relief + cal_adj))
+    freq = round(max(49.85, min(50.15, 50.0 - 0.15 * (mult - 1.0))), 3)
+    return mult, freq
+
+
 def fetch_live_grid_records(
-    region: GridRegion, start_time: datetime, end_time: datetime
+    region: GridRegion,
+    start_time: datetime,
+    end_time: datetime,
+    weather_records: Optional[List[RawWeatherRecord]] = None,
 ) -> List[RawGridRecord]:
-    # fetches or generates physical telemetry conforming to nldc operational curves
+    # generates ist-aligned weather-elastic telemetry calibrated to posoco regional scale
     records: List[RawGridRecord] = []
     curr = start_time
     base = REGIONAL_DEMAND_BASELINES[region.value]
+    weather_map = {
+        w.timestamp_utc.replace(minute=0, second=0, microsecond=0): w
+        for w in (weather_records or [])
+    }
+
+    ist_years = sorted({(start_time + IST_OFFSET).year, (end_time + IST_OFFSET).year})
+    ind_holidays = set(holidays.India(years=ist_years).keys())
 
     while curr <= end_time:
-        hour = curr.hour
-        factor = DIURNAL_LOAD_FACTORS[hour]
-        demand = round(base * factor, 2)
-        freq = 50.0
+        curr_utc = curr if curr.tzinfo is not None else curr.replace(tzinfo=timezone.utc)
+        ist_dt = curr_utc.astimezone(timezone.utc) + IST_OFFSET
+        ist_hour_float = ist_dt.hour + ist_dt.minute / 60.0
+        idx_lo = int(math.floor(ist_hour_float)) % 24
+        idx_hi = (idx_lo + 1) % 24
+        frac = ist_hour_float - math.floor(ist_hour_float)
+        factor = (
+            NORMALIZED_DIURNAL_FACTORS[idx_lo] * (1.0 - frac)
+            + NORMALIZED_DIURNAL_FACTORS[idx_hi] * frac
+        )
 
+        is_off_day = (ist_dt.weekday() == 6) or (ist_dt.date() in ind_holidays)
+        matched_weather = weather_map.get(curr_utc.replace(minute=0, second=0, microsecond=0))
+        elastic_mult, freq = _compute_weather_elasticity(matched_weather, is_off_day)
+
+        demand = round(max(100.0, base * factor * elastic_mult), 2)
         records.append(
             RawGridRecord(
-                timestamp_utc=curr,
+                timestamp_utc=curr_utc,
                 region=region,
                 demand_mw=demand,
                 frequency_hz=freq,
@@ -288,7 +345,7 @@ def run_ingestion_pipeline() -> TelemetryPayload:
     logger.info(f"initializing telemetry ingestion batch: {batch_id}")
 
     now_utc = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    start_utc = now_utc - timedelta(hours=72)
+    start_utc = now_utc - timedelta(hours=168)
 
     all_grid_records: List[RawGridRecord] = []
     all_weather_records: List[RawWeatherRecord] = []
@@ -297,16 +354,20 @@ def run_ingestion_pipeline() -> TelemetryPayload:
         logger.info(f"harvesting telemetry for region: {region.value}")
         lat, lon = REGIONAL_COORDINATES[region.value]
 
-        # 1. pull live weather
-        weather = fetch_weather_with_retry(lat, lon, region, past_days=3)
+        # 1. pull live weather across 7+ days lookback for 168h rolling lags
+        weather = fetch_weather_with_retry(lat, lon, region, past_days=7, forecast_days=1)
         all_weather_records.extend(weather)
 
-        # 2. pull grid records
-        raw_grid = fetch_live_grid_records(region, start_utc, now_utc)
+        # 2. generate ist-aligned, weather-elastic simulated grid records
+        raw_grid = fetch_live_grid_records(region, start_utc, now_utc, weather_records=weather)
 
         # 3. apply gap mitigation
         mitigated_grid = apply_gap_mitigation(raw_grid)
         all_grid_records.extend(mitigated_grid)
+
+    db_url = os.environ.get("SUPABASE_DB_URL")
+    if not all_weather_records and db_url:
+        raise RuntimeError("weather ingestion failed for all regions; aborting database persistence")
 
     payload = TelemetryPayload(
         ingestion_batch_id=batch_id,
@@ -314,7 +375,6 @@ def run_ingestion_pipeline() -> TelemetryPayload:
         weather_records=all_weather_records,
     )
 
-    db_url = os.environ.get("SUPABASE_DB_URL")
     if db_url:
         logger.info("persisting records to supabase database...")
         persist_telemetry_to_supabase(all_grid_records, all_weather_records, db_url)

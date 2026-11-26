@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-11-26T05:44:06.803224+00:00",
+  "model_version": "2.0.0",
+  "regions": [
+    "ALL_INDIA",
+    "NR",
+    "WR",
+    "SR",
+    "ER",
+    "NER"
+  ],
+  "file_count": 6
+}

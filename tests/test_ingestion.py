@@ -183,3 +183,39 @@ def test_send_alert_webhook_disabled(monkeypatch):
     monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
     # should execute without raising exceptions
     send_alert_webhook("test failure message", "NR")
+
+
+def test_weather_elasticity_and_ist_diurnal_peak():
+    from datetime import datetime, timezone
+    from src.ingestion.schemas import GridRegion, RawWeatherRecord
+    from src.ingestion.fetch_telemetry import fetch_live_grid_records
+
+    # Morning IST peak (~10:30 IST = 05:00 UTC) vs pre-dawn IST trough (~03:30 IST = 22:00 UTC prior day)
+    t_trough = datetime(2024, 3, 12, 22, 0, tzinfo=timezone.utc)
+    t_peak = datetime(2024, 3, 13, 5, 0, tzinfo=timezone.utc)
+
+    cool_wx = [
+        RawWeatherRecord(
+            timestamp_utc=t_trough, region=GridRegion.NR,
+            temperature_2m=22.0, relative_humidity_2m=45.0,
+            surface_solar_radiation=0.0, wind_speed_100m=4.0,
+        ),
+        RawWeatherRecord(
+            timestamp_utc=t_peak, region=GridRegion.NR,
+            temperature_2m=22.0, relative_humidity_2m=45.0,
+            surface_solar_radiation=0.0, wind_speed_100m=4.0,
+        ),
+    ]
+    recs_cool = fetch_live_grid_records(GridRegion.NR, t_trough, t_peak, weather_records=cool_wx)
+    by_ts_cool = {r.timestamp_utc: r.demand_mw for r in recs_cool}
+    assert by_ts_cool[t_peak] > by_ts_cool[t_trough]
+
+    hot_wx = [
+        RawWeatherRecord(
+            timestamp_utc=t_peak, region=GridRegion.NR,
+            temperature_2m=40.0, relative_humidity_2m=75.0,
+            surface_solar_radiation=100.0, wind_speed_100m=4.0,
+        ),
+    ]
+    recs_hot = fetch_live_grid_records(GridRegion.NR, t_peak, t_peak, weather_records=hot_wx)
+    assert recs_hot[0].demand_mw > by_ts_cool[t_peak]

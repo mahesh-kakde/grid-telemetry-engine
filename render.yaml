@@ -2,18 +2,18 @@ services:
   - type: web
     name: grid-telemetry-engine
     runtime: docker
-    plan: starter
-    region: singapore
+    plan: free
+    region: oregon
     branch: main
     dockerContext: .
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /_stcore/health
+    healthCheckPath: /health
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: SUPABASE_DB_URL
         sync: false
-      - key: API_BASE_URL
-        value: "http://127.0.0.1:8000"
+      - key: ARTIFACTS_PATH
+        value: "artifacts"
       - key: STREAMLIT_SERVER_HEADLESS
         value: "true"

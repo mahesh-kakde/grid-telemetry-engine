@@ -259,7 +259,7 @@
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Engine Version</span>
-                    <span class="meta-val">v1.0.0</span>
+                    <span class="meta-val">v2.0.0</span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Baseline Window</span>
@@ -271,7 +271,7 @@
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Audit Generated</span>
-                    <span class="meta-val">2026-11-22 10:02:06 UTC</span>
+                    <span class="meta-val">2026-11-26 05:44:09 UTC</span>
                 </div>
             </div>
         </div>
@@ -279,13 +279,13 @@
         <div class="metric-grid">
             <div class="metric-card">
                 <div class="metric-label">Total Monitored Features</div>
-                <div class="metric-value">21</div>
+                <div class="metric-value">12</div>
                 <div class="metric-desc">Pydantic physical contract</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Drifted Features</div>
-                <div class="metric-value" style="color: #dc2626;">15 <span style="font-size: 14px; font-weight: 500; color: #64748b;">(71.4%)</span></div>
-                <div class="metric-desc">Status: <span style="font-weight: 600; color: #dc2626;">Action Required</span></div>
+                <div class="metric-value" style="color: #059669;">2 <span style="font-size: 14px; font-weight: 500; color: #64748b;">(16.7%)</span></div>
+                <div class="metric-desc">Status: <span style="font-weight: 600; color: #059669;">Nominal</span></div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Watchdog Threshold</div>
@@ -294,19 +294,19 @@
             </div>
             <div class="metric-card">
                 <div class="metric-label">Recommended Alpha Bounds</div>
-                <div class="metric-value" style="font-size: 18px; font-family: monospace;">[0.05, 0.5, 0.95]</div>
+                <div class="metric-value" style="font-size: 18px; font-family: monospace;">[0.1, 0.5, 0.9]</div>
                 <div class="metric-desc">Operating safety envelope</div>
             </div>
         </div>
 
-        <div class="notice-card notice-alarm">
-            <div class="notice-title">Retraining Advisory Active</div>
-            <div class="notice-desc">Covariate feature drift exceeds the 30.0% alarm threshold (15/21 features drifted, 71.4%). Model recalibration is advised; quantile prediction bounds recommended widening to [0.05, 0.5, 0.95].</div>
+        <div class="notice-card notice-normal">
+            <div class="notice-title">Distribution Stability Nominal</div>
+            <div class="notice-desc">Physical and cyclical feature distributions match the 30-day reference baseline. Covariate feature drift is within normal tolerance (2/12 features drifted, 16.7%). Quantile intervals operating at standard [0.10, 0.50, 0.90].</div>
         </div>
 
         <div class="section-header">
             <h2>Feature-by-Feature Statistical Drift Audit</h2>
-            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous variables use the two-sample Kolmogorov-Smirnov test (significance threshold p &lt; 0.05); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.10).</div>
+            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics and calendar indicators use 1D Wasserstein distance (threshold W1 &ge; 0.15).</div>
         </div>
         
         <div class="table-wrap">
@@ -322,27 +322,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>sin_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>cos_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>sin_hour_k2</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>12h Semi-Diurnal Peak (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>cos_hour_k2</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>12h Semi-Diurnal Peak (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>sin_doy</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Annual Seasonal Cycle (Sine)</span></td><td>Wasserstein Distance</td><td>0.1924</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>cos_doy</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Annual Seasonal Cycle (Cosine)</span></td><td>Wasserstein Distance</td><td>0.0406</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>day_of_week</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Day of Week (Mon-Sun)</span></td><td>Wasserstein Distance</td><td>0.1667</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>is_holiday</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>National Statutory Holiday</span></td><td>Wasserstein Distance</td><td>0.1095</td><td>0.1000</td><td>N/A (Wasserstein)</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_1h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Demand 1 Hour Ago (t - 1h)</span></td><td>Kolmogorov-Smirnov</td><td>0.2661</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_2h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Demand 2 Hours Ago (t - 2h)</span></td><td>Kolmogorov-Smirnov</td><td>0.2661</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_3h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Demand 3 Hours Ago (t - 3h)</span></td><td>Kolmogorov-Smirnov</td><td>0.2661</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Same-Hour Demand Yesterday (24h Lag)</span></td><td>Kolmogorov-Smirnov</td><td>0.2565</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_48h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Same-Hour Demand 2 Days Ago (48h Lag)</span></td><td>Kolmogorov-Smirnov</td><td>0.2677</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_lag_168h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Same-Hour Demand 1 Week Ago (168h Lag)</span></td><td>Kolmogorov-Smirnov</td><td>0.3286</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_rolling_mean_6h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>6-Hour Mean Demand Trend</span></td><td>Kolmogorov-Smirnov</td><td>0.2845</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_rolling_mean_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Mean Demand Trend</span></td><td>Kolmogorov-Smirnov</td><td>0.5605</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_rolling_mean_168h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>7-Day Mean Demand Baseline</span></td><td>Kolmogorov-Smirnov</td><td>0.7667</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_rolling_std_6h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>6-Hour Demand Volatility (Std Dev)</span></td><td>Kolmogorov-Smirnov</td><td>0.0867</td><td>0.0500</td><td>0.241911</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
-<tr><td><code>demand_rolling_std_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Demand Volatility (Std Dev)</span></td><td>Kolmogorov-Smirnov</td><td>0.4419</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_rolling_std_168h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>7-Day Demand Volatility (Std Dev)</span></td><td>Kolmogorov-Smirnov</td><td>0.6847</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
-<tr><td><code>demand_mw</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Active Electrical Demand</span></td><td>Kolmogorov-Smirnov</td><td>0.2661</td><td>0.0500</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
+                    <tr><td><code>demand_mw</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Active Electrical Demand</span></td><td>Norm. Wasserstein + KS</td><td>0.1425</td><td>0.5000</td><td>0.067715</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>temperature_2m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Surface Ambient Temperature</span></td><td>Norm. Wasserstein + KS</td><td>0.1985</td><td>0.5000</td><td>0.010078</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>relative_humidity_2m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Atmospheric Relative Humidity</span></td><td>Norm. Wasserstein + KS</td><td>0.6105</td><td>0.5000</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
+<tr><td><code>surface_solar_radiation</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Solar Irradiance / Sunlight</span></td><td>Norm. Wasserstein + KS</td><td>0.0315</td><td>0.5000</td><td>0.994565</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>wind_speed_100m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Wind Speed at Turbine Height</span></td><td>Norm. Wasserstein + KS</td><td>0.1844</td><td>0.5000</td><td>0.260776</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>temp_delta_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Temperature Shift</span></td><td>Norm. Wasserstein + KS</td><td>0.1945</td><td>0.5000</td><td>0.199229</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>rh_delta_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Relative Humidity Shift</span></td><td>Norm. Wasserstein + KS</td><td>0.2095</td><td>0.5000</td><td>0.059210</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>demand_rolling_std_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Demand Volatility (Std Dev)</span></td><td>Norm. Wasserstein + KS</td><td>0.4052</td><td>0.5000</td><td>0.000036</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>sin_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>cos_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>day_of_week</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Day of Week (Mon-Sun)</span></td><td>Wasserstein Distance</td><td>0.1667</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
+<tr><td><code>is_holiday</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>National Statutory Holiday</span></td><td>Wasserstein Distance</td><td>0.0798</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
                 </tbody>
             </table>
         </div>

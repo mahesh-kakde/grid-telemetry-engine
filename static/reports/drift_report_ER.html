@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistical Drift Diagnostic Report - ER — Eastern Region</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpolyline points='4,16 9,16 12,9 15,23 18,11 21,19 23,16 28,16' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            line-height: 1.5;
+            padding: 32px 16px;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .report-container {
+            max-width: 1040px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 36px 40px;
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+        }
+        .header-section {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+        .subtitle {
+            font-size: 13.5px;
+            color: #64748b;
+            margin: 0;
+        }
+        .meta-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-top: 18px;
+            padding: 14px 18px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .meta-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .meta-val {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 24px 20px;
+            }
+            .metric-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .metric-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px 18px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+        .metric-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .metric-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .metric-desc {
+            font-size: 11.5px;
+            color: #64748b;
+        }
+        .notice-card {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            border: 1px solid #e2e8f0;
+        }
+        .notice-normal {
+            border-left: 4px solid #059669;
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+        .notice-alarm {
+            border-left: 4px solid #dc2626;
+            background-color: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        .notice-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .notice-desc {
+            font-size: 13px;
+            line-height: 1.5;
+            opacity: 0.95;
+        }
+        .section-header {
+            margin-bottom: 12px;
+        }
+        h2 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            color: #0f172a;
+        }
+        .section-desc {
+            font-size: 13px;
+            color: #64748b;
+            margin: 0 0 14px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+            margin-bottom: 32px;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 11px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #475569;
+        }
+        td {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 11px 16px;
+            color: #1e293b;
+            vertical-align: middle;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background-color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #0f172a;
+        }
+        .footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 640px) {
+            body {
+                padding: 12px 8px;
+            }
+            .container {
+                padding: 16px 12px;
+                border-radius: 8px;
+            }
+            .header h1 {
+                font-size: 18px;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            th, td {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+        @media print {
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+            .report-container {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <div class="header-section">
+            <h1>National Power Grid Telemetry & Forecasting Engine</h1>
+            <div class="subtitle">Statistical Covariate & Target Drift Diagnostic Report · Continuous MLOps Reliability Audit</div>
+            
+            <div class="meta-bar">
+                <div class="meta-item">
+                    <span class="meta-label">Regional Grid</span>
+                    <span class="meta-val">ER — Eastern Region</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Engine Version</span>
+                    <span class="meta-val">v2.0.0</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Baseline Window</span>
+                    <span class="meta-val">30-Day Reference (720h)</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Observation Window</span>
+                    <span class="meta-val">Trailing 7-Day (168h)</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Audit Generated</span>
+                    <span class="meta-val">2026-11-26 05:44:09 UTC</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Monitored Features</div>
+                <div class="metric-value">12</div>
+                <div class="metric-desc">Pydantic physical contract</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Drifted Features</div>
+                <div class="metric-value" style="color: #059669;">2 <span style="font-size: 14px; font-weight: 500; color: #64748b;">(16.7%)</span></div>
+                <div class="metric-desc">Status: <span style="font-weight: 600; color: #059669;">Nominal</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Watchdog Threshold</div>
+                <div class="metric-value">30.0%</div>
+                <div class="metric-desc">Maximum allowable shift</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Recommended Alpha Bounds</div>
+                <div class="metric-value" style="font-size: 18px; font-family: monospace;">[0.1, 0.5, 0.9]</div>
+                <div class="metric-desc">Operating safety envelope</div>
+            </div>
+        </div>
+
+        <div class="notice-card notice-normal">
+            <div class="notice-title">Distribution Stability Nominal</div>
+            <div class="notice-desc">Physical and cyclical feature distributions match the 30-day reference baseline. Covariate feature drift is within normal tolerance (2/12 features drifted, 16.7%). Quantile intervals operating at standard [0.10, 0.50, 0.90].</div>
+        </div>
+
+        <div class="section-header">
+            <h2>Feature-by-Feature Statistical Drift Audit</h2>
+            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics and calendar indicators use 1D Wasserstein distance (threshold W1 &ge; 0.15).</div>
+        </div>
+        
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Audit Test</th>
+                        <th>Observed Metric</th>
+                        <th>Safe Threshold</th>
+                        <th>P-Value / Score</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>demand_mw</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Active Electrical Demand</span></td><td>Norm. Wasserstein + KS</td><td>0.2543</td><td>0.5000</td><td>0.000111</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>temperature_2m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Surface Ambient Temperature</span></td><td>Norm. Wasserstein + KS</td><td>0.1310</td><td>0.5000</td><td>0.446319</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>relative_humidity_2m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Atmospheric Relative Humidity</span></td><td>Norm. Wasserstein + KS</td><td>0.0615</td><td>0.5000</td><td>0.982527</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>surface_solar_radiation</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Solar Irradiance / Sunlight</span></td><td>Norm. Wasserstein + KS</td><td>0.0350</td><td>0.5000</td><td>0.980627</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>wind_speed_100m</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Wind Speed at Turbine Height</span></td><td>Norm. Wasserstein + KS</td><td>0.0841</td><td>0.5000</td><td>0.737452</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>temp_delta_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Temperature Shift</span></td><td>Norm. Wasserstein + KS</td><td>0.1708</td><td>0.5000</td><td>0.477895</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>rh_delta_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Relative Humidity Shift</span></td><td>Norm. Wasserstein + KS</td><td>0.1639</td><td>0.5000</td><td>0.280695</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>demand_rolling_std_24h</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24-Hour Demand Volatility (Std Dev)</span></td><td>Norm. Wasserstein + KS</td><td>0.5304</td><td>0.5000</td><td>0.000000</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
+<tr><td><code>sin_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Sine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>cos_hour_k1</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>24h Diurnal Rhythm (Harmonic Cosine)</span></td><td>Wasserstein Distance</td><td>0.0000</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+<tr><td><code>day_of_week</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>Day of Week (Mon-Sun)</span></td><td>Wasserstein Distance</td><td>0.1667</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #dc2626; font-weight: 600;">Drift Detected</span></td></tr>
+<tr><td><code>is_holiday</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>National Statutory Holiday</span></td><td>Wasserstein Distance</td><td>0.0798</td><td>0.1500</td><td>N/A (Wasserstein)</td><td><span style="color: #059669; font-weight: 600;">Nominal</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <div>Created by <a href="https://maheshkakde.com" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">Mahesh Kakde</a></div>
+        </div>
+    </div>
+</body>
+</html>

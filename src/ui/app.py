@@ -6,14 +6,11 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-import requests
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Any
 import numpy as np
 import pandas as pd
-import polars as pl
 import streamlit as st
-import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
@@ -25,7 +22,7 @@ REGION_NAMES = {
     "ER": "ER — Eastern Region",
     "NER": "NER — North Eastern Region",
 }
-MODEL_VERSION = "1.0.0"
+MODEL_VERSION = "2.0.0"
 DEFAULT_REPORT_PATH = os.path.join(root_dir, "static", "reports", "drift_report.html")
 
 from src.monitoring.drift_check import (
@@ -413,13 +410,15 @@ st.markdown(
         justify-content: space-between;
     }
     .kpi-value, .metric-value {
-        font-size: 21px;
+        font-size: clamp(16px, 1.35vw, 21px);
         font-weight: 700;
         color: #0f172a;
         font-feature-settings: "tnum";
         font-variant-numeric: tabular-nums;
         line-height: 1.25;
         margin-bottom: 3px;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
     }
     .kpi-caption, .metric-caption {
         font-size: 11.5px;
@@ -551,6 +550,10 @@ st.markdown(
         box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.02);
         white-space: nowrap;
         box-sizing: border-box;
+    }
+    .stApp:has([data-testid="stSidebar"][aria-expanded="false"]) .fixed-footer {
+        left: 0 !important;
+        width: 100% !important;
     }
     .fixed-footer a {
         color: #2563eb;
@@ -885,29 +888,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# SEO meta description head injection
-components.html(
-    """
-    <script>
-    try {
-        var doc = window.parent.document;
-        var meta = doc.querySelector('meta[name="description"]');
-        if (!meta) {
-            meta = doc.createElement('meta');
-            meta.name = 'description';
-            doc.head.appendChild(meta);
-        }
-        meta.content = "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's National Power Grid.";
-    } catch(e) {}
-    </script>
-    """,
-    height=0,
-    width=0,
-)
-
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
-
-
 @st.cache_resource
 def get_cached_artifacts():
     # caches in-memory bundle with on-demand lazy loading
@@ -918,110 +898,69 @@ def get_cached_artifacts():
     return bundle, explainer
 
 
-def check_api_health() -> Tuple[bool, Dict[str, Any]]:
-    # queries loopback api health probe
-    try:
-        res = requests.get(f"{API_BASE_URL}/health", timeout=1.5)
-        if res.status_code == 200:
-            return True, res.json()
-    except Exception:
-        pass
-    return False, {}
+@st.cache_data(ttl=300, show_spinner=False)
+def load_snapshot(region: str) -> Dict[str, Any]:
+    # loads live snapshot from supabase precomputed_snapshots or local json fallback
+    from src.models.precompute import load_precomputed_data
+    snap = load_precomputed_data(region)
+    if snap is not None and snap.get("forecasts") and snap.get("nominal_anomaly") and snap.get("drift_summary"):
+        return snap
 
-
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
-    # retrieves 72-hour forecast via precomputed cache, loopback api, or local model fallback
-    from src.models.precompute import load_precomputed_forecasts
-    precomputed = load_precomputed_forecasts(region)
-    if precomputed is not None and len(precomputed) == 72:
-        return precomputed
-
-    is_live, _ = check_api_health()
-    if is_live:
-        try:
-            res = requests.post(
-                f"{API_BASE_URL}/forecast",
-                json={"region": region, "lookback_hours": 168},
-                timeout=15,
-            )
-            if res.status_code == 200:
-                data = res.json()
-                parsed = []
-                for fc in data["forecasts"]:
-                    parsed.append({
-                        "target_timestamp_utc": pd.to_datetime(fc["target_timestamp_utc"]),
-                        "forecast_p10": fc["forecast_p10"],
-                        "forecast_p50": fc["forecast_p50"],
-                        "forecast_p90": fc["forecast_p90"],
-                        "region": fc["region"],
-                    })
-                return parsed
-        except Exception:
-            pass
-
-    # direct local execution fallback with deferred imports
-    from src.models.load_artifacts import load_reference_baseline
-    from src.models.infer_and_detect import generate_72h_multi_step_forecast
-    bundle, _ = get_cached_artifacts()
-    ref_df = load_reference_baseline(region).tail(168).copy()
-    base_ts = datetime.now(timezone.utc) - timedelta(hours=len(ref_df))
-    records = []
-    for idx, (_, row) in enumerate(ref_df.iterrows()):
-        records.append({
-            "timestamp_utc": base_ts + timedelta(hours=idx),
-            "region": region,
-            "demand_mw": float(row["demand_mw"]),
-            "frequency_hz": 50.0,
-            "temperature_2m": 30.0,
-            "relative_humidity_2m": 50.0,
-            "surface_solar_radiation": 350.0,
-            "wind_speed_100m": 4.0,
-        })
-    df_history = pl.DataFrame(records)
-    raw_forecasts = generate_72h_multi_step_forecast(df_history, region, bundle)
-    return [
-        {
-            "target_timestamp_utc": pd.to_datetime(fc["target_timestamp_utc"]),
-            "forecast_p10": fc["forecast_p10"],
-            "forecast_p50": fc["forecast_p50"],
-            "forecast_p90": fc["forecast_p90"],
-            "region": fc["region"],
-        }
-        for fc in raw_forecasts
-    ]
-
-
-@st.cache_data(ttl=1800, show_spinner=False)
-def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) -> Dict[str, Any]:
-    # evaluates anomaly detection status via precomputed nominal snapshot, api, or local fallback
-    if custom_demand is None:
-        from src.models.precompute import load_precomputed_anomaly
-        precomputed = load_precomputed_anomaly(region)
-        if precomputed is not None:
-            return precomputed
-
-    is_live, _ = check_api_health()
-    if is_live:
-        try:
-            payload = {"region": region}
-            if custom_demand is not None:
-                payload["actual_demand_mw"] = custom_demand
-            res = requests.post(f"{API_BASE_URL}/anomalies", json=payload, timeout=10)
-            if res.status_code == 200:
-                return res.json()
-        except Exception:
-            pass
-
-    from src.models.load_artifacts import load_reference_baseline
-    from src.models.infer_and_detect import predict_quantiles, detect_structural_anomalies
+    # local inference fallback if neither supabase nor bundled json snapshot is available
+    from src.models.precompute import precompute_region
     bundle, explainer = get_cached_artifacts()
-    ref_df = load_reference_baseline(region)
-    feature_row = ref_df.iloc[-1]
+    snap = precompute_region(region, bundle, explainer, use_live_weather=False)
+    snap["snapshot_source"] = "local_runtime_fallback"
+    return snap
+
+
+def fetch_forecasts(region: str) -> List[Dict[str, Any]]:
+    # parses 72-hour probabilistic forecast series from active snapshot
+    snap = load_snapshot(region)
+    parsed = []
+    for fc in snap["forecasts"]:
+        parsed.append({
+            "target_timestamp_utc": pd.to_datetime(fc["target_timestamp_utc"]),
+            "forecast_p10": float(fc["forecast_p10"]),
+            "forecast_p50": float(fc["forecast_p50"]),
+            "forecast_p90": float(fc["forecast_p90"]),
+            "region": fc["region"],
+        })
+    return parsed
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) -> Dict[str, Any]:
+    # evaluates nominal sentinel state from live snapshot or scores custom stress-test load locally
+    if custom_demand is None:
+        return load_snapshot(region)["nominal_anomaly"]
+
+    from src.features.build_features import compute_telemetry_features
+    from src.models.infer_and_detect import (
+        fetch_live_or_baseline_history,
+        predict_quantiles,
+        detect_structural_anomalies,
+    )
+
+    bundle, explainer = get_cached_artifacts()
+    df_history, _ = fetch_live_or_baseline_history(region, lookback_hours=240, bundle=bundle)
+    feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
+    feat_df = bundle.reference_baselines[region] if feat_pl.is_empty() else feat_pl.to_pandas()
+    feature_row = feat_df.iloc[-1].copy()
     features_df = pd.DataFrame([feature_row[bundle.feature_columns]])
 
-    p10, p50, p90 = predict_quantiles(features_df, region, bundle)
-    actual = custom_demand if custom_demand is not None else float(feature_row["demand_mw"])
+    widened = bool(load_snapshot(region).get("widened", False))
+    p10, p50, p90 = predict_quantiles(features_df, region, bundle, widened=widened)
+    actual = float(custom_demand)
+
+    feature_row["demand_mw"] = actual
+    if "demand_lag_1h" in feature_row:
+        feature_row["demand_delta_1h"] = actual - float(feature_row["demand_lag_1h"])
+    if "demand_lag_24h" in feature_row:
+        feature_row["demand_delta_24h"] = actual - float(feature_row["demand_lag_24h"])
+    if "demand_rolling_mean_24h" in feature_row and "demand_rolling_std_24h" in feature_row:
+        denom = max(float(feature_row["demand_rolling_std_24h"]), 1.0)
+        feature_row["demand_zscore_24h"] = (actual - float(feature_row["demand_rolling_mean_24h"])) / denom
 
     scores, is_structural, trigger_b = detect_structural_anomalies(
         X=features_df,
@@ -1048,44 +987,24 @@ def evaluate_live_anomaly(region: str, custom_demand: Optional[float] = None) ->
     }
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_drift_summary(region: str) -> Dict[str, Any]:
-    # fetches statistical drift summary via precomputed snapshot, api, or local evaluation
-    from src.models.precompute import load_precomputed_drift
-    precomputed = load_precomputed_drift(region)
-    if precomputed is not None:
-        return precomputed
-
-    is_live, _ = check_api_health()
-    if is_live:
-        try:
-            res = requests.get(f"{API_BASE_URL}/drift?region={region}", timeout=10)
-            if res.status_code == 200:
-                return res.json()
-        except Exception:
-            pass
-
-    from src.models.load_artifacts import load_reference_baseline
-    from src.monitoring.drift_check import evaluate_feature_drift, fetch_trailing_telemetry_window
-    ref_df = load_reference_baseline(region)
-    curr_df = fetch_trailing_telemetry_window(region=region, window_hours=168)
-    summary = evaluate_feature_drift(ref_df, curr_df)
-    summary["region"] = region
-    summary["report_available"] = os.path.exists(DEFAULT_REPORT_PATH)
-    return summary
+    # retrieves statistical covariate drift summary from active snapshot
+    return load_snapshot(region)["drift_summary"]
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_forecast_dataframe(region: str) -> pd.DataFrame:
     # retrieves and caches tabular 72-hour forecast data
     forecasts = fetch_forecasts(region)
     return pd.DataFrame(forecasts)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
     # generates and caches forecast plotly figure with responsive horizon slice
     df_fc = get_forecast_dataframe(region)
+    widened = bool(load_snapshot(region).get("widened", False))
+    ci_label = "90% Widened CQR CI" if widened else "80% CQR CI"
     if horizon_hours and horizon_hours < len(df_fc):
         df_fc = df_fc.head(horizon_hours).copy()
 
@@ -1108,7 +1027,7 @@ def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
         line=dict(width=0),
         fill="tonexty",
         fillcolor="rgba(37, 99, 235, 0.08)",
-        name="80% CI",
+        name=ci_label,
         hoverinfo="skip",
     ))
 
@@ -1243,6 +1162,9 @@ def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
 
 SHAP_SHORT_LABELS = {
     "demand_mw": "Active Demand",
+    "demand_lag_1h": "Demand (1h Lag)",
+    "demand_lag_2h": "Demand (2h Lag)",
+    "demand_lag_3h": "Demand (3h Lag)",
     "demand_lag_24h": "Demand (24h Lag)",
     "demand_lag_48h": "Demand (48h Lag)",
     "demand_lag_168h": "Demand (168h Lag)",
@@ -1256,14 +1178,18 @@ SHAP_SHORT_LABELS = {
     "relative_humidity_2m": "Relative Humidity",
     "surface_solar_radiation": "Solar Radiation",
     "wind_speed_100m": "Wind Speed (100m)",
+    "temp_delta_24h": "Temp Shift (24h)",
+    "rh_delta_24h": "Humidity Shift (24h)",
     "hour": "Hour of Day",
     "day_of_week": "Day of Week",
     "day_of_year": "Day of Year",
-    "is_holiday": "Holiday",
-    "sin_hour_k1": "Diurnal Harmonic",
-    "cos_hour_k1": "Diurnal Harmonic",
-    "sin_day_k1": "Weekly Harmonic",
-    "cos_day_k1": "Weekly Harmonic",
+    "is_holiday": "Holiday (IST)",
+    "sin_hour_k1": "Diurnal Sin (24h)",
+    "cos_hour_k1": "Diurnal Cos (24h)",
+    "sin_hour_k2": "Semi-Diurnal Sin",
+    "cos_hour_k2": "Semi-Diurnal Cos",
+    "sin_doy": "Annual Sin",
+    "cos_doy": "Annual Cos",
 }
 
 
@@ -1324,7 +1250,7 @@ def build_shap_figure(top_features: List[Dict[str, Any]]) -> go.Figure:
     return fig_shap
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_drift_metrics_dataframe(region: str) -> pd.DataFrame:
     # converts drift feature metrics into cached formatted audit dataframe
     drift_data = fetch_drift_summary(region)
@@ -1333,8 +1259,14 @@ def get_drift_metrics_dataframe(region: str) -> pd.DataFrame:
         meta = FEATURE_METADATA.get(f_name, {"name": f_name, "desc": "Telemetry parameter"})
         friendly_title = meta["name"]
         friendly_desc = meta["desc"]
-        test_type = "Kolmogorov-Smirnov" if m["test"] == "kolmogorov_smirnov" else "1D Wasserstein Distance"
-        stat_val = f"{m.get('statistic', m.get('score')):.4f}"
+        t_code = m.get("test", "")
+        if t_code == "wasserstein_ks":
+            test_type = "Norm. Wasserstein + KS"
+        elif t_code == "kolmogorov_smirnov":
+            test_type = "Kolmogorov-Smirnov"
+        else:
+            test_type = "1D Wasserstein Distance"
+        stat_val = f"{m.get('statistic', m.get('score', 0.0)):.4f}"
         p_or_thresh = f"{m.get('p_value'):.6f}" if "p_value" in m else "N/A (Wasserstein)"
         thresh_val = f"{m['threshold']:.2f}"
         status_txt = "SHIFT DETECTED" if m["drift_detected"] else "STABLE (NOMINAL)"
@@ -1350,11 +1282,12 @@ def get_drift_metrics_dataframe(region: str) -> pd.DataFrame:
     return pd.DataFrame(metrics_records)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_cached_drift_report(region: str) -> str:
     # caches generated standalone html report per region
-    drift_data = fetch_drift_summary(region)
-    return build_html_drift_report(drift_data, region=region)
+    snap = load_snapshot(region)
+    drift_data = snap["drift_summary"]
+    return build_html_drift_report(drift_data, region=region, generated_at=snap.get("generated_at"))
 
 
 # sidebar controls initialized first to establish layout and dispatch state
@@ -1385,9 +1318,10 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown(
-        """
+        f"""
         <div style="font-size: 12.5px; line-height: 1.6; color: #334155;">
-            <div><b>Engine Version:</b> v1.0.0</div>
+            <div><b>Engine Version:</b> v{MODEL_VERSION}</div>
+            <div><b>Mode:</b> Weather-Elastic IST Simulation</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1409,45 +1343,78 @@ with st.sidebar:
     )
 
 
+# resolve active regional telemetry snapshot
+active_snapshot = load_snapshot(selected_region)
+df_fc = get_forecast_dataframe(selected_region)
+nom_state = active_snapshot["nominal_anomaly"]
+drift_state = active_snapshot["drift_summary"]
+snap_src = active_snapshot.get("snapshot_source", "local_snapshot")
+snap_src_label = (
+    "Live Supabase Telemetry Cache"
+    if snap_src == "supabase_live"
+    else ("Bundled Snapshot" if snap_src == "local_snapshot" else "Local Runtime Fallback")
+)
+gen_ts_raw = active_snapshot.get("generated_at", "")
+try:
+    gen_dt = pd.to_datetime(gen_ts_raw, utc=True)
+    gen_str = gen_dt.strftime("%d %b %Y %H:%M UTC")
+except Exception:
+    gen_str = str(gen_ts_raw)[:19]
+
+
 # header and executive navigation
 st.title("National Power Grid Telemetry & Forecasting Engine")
 st.markdown(
-    "<div style='font-size: 13.5px; color: #475569; margin-bottom: 16px;'>"
-    "Multi-horizon probabilistic load forecasting, real-time dual-trigger fault sentinel, and automated statistical drift monitoring across India's 5 Regional Load Despatch Centres."
-    "</div>",
+    f"<div style='font-size: 13.5px; color: #475569; margin-bottom: 8px;'>"
+    f"Multi-horizon conformal quantile forecasting, observation-aware fault detection, and statistical drift monitoring across India's 5 Regional Load Despatch Centres."
+    f"</div>"
+    f"<div style='font-size: 12px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-bottom: 14px;'>"
+    f"<b>Simulation Disclosure:</b> Powered by live Open-Meteo meteorological feeds driving a weather-elastic POSOCO-calibrated IST demand model (non-SCADA). "
+    f"&nbsp;·&nbsp; <b>Snapshot Source:</b> {snap_src_label} ({gen_str})"
+    f"</div>",
     unsafe_allow_html=True,
 )
 
-# executive control room kpi banner
+# dynamic executive control room kpi banner driven by active region & telemetry snapshot
+peak_mw = float(df_fc["forecast_p50"].max()) if not df_fc.empty else 0.0
+nom_alert = bool(nom_state.get("is_structural", False))
+sentinel_text = "Alert Active" if nom_alert else "Nominal"
+sentinel_color = "#dc2626" if nom_alert else "#047857"
+drift_alarm_flag = bool(drift_state.get("drift_alarm", False))
+watchdog_text = "Retrain Advisory" if drift_alarm_flag else "Optimal"
+watchdog_color = "#dc2626" if drift_alarm_flag else "#047857"
+stability_pct = (1.0 - float(drift_state.get("drift_ratio", 0.0))) * 100.0
+widened_flag = bool(active_snapshot.get("widened", False))
+
 kpi_c1, kpi_c2, kpi_c3, kpi_c4 = st.columns(4)
 with kpi_c1:
     st.markdown(
-        """
+        f"""
         <div class="kpi-card">
-            <div class="kpi-title">National Grid Coverage</div>
-            <div class="kpi-value">215,500 MW</div>
-            <div class="kpi-caption">Active Peak Aggregate (5 RLDCs)</div>
+            <div class="kpi-title">{selected_region} Projected Peak</div>
+            <div class="kpi-value">{peak_mw:,.0f} MW</div>
+            <div class="kpi-caption">POSOCO-Calibrated Simulation Scale</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 with kpi_c2:
     st.markdown(
-        """
+        f"""
         <div class="kpi-card">
             <div class="kpi-title">Forward Load Visibility</div>
             <div class="kpi-value">72 Hours</div>
-            <div class="kpi-caption">Probabilistic Quantile Horizon</div>
+            <div class="kpi-caption">{"Widened 90% CQR Envelope" if widened_flag else "Conformal 80% CQR Envelope"}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 with kpi_c3:
     st.markdown(
-        """
+        f"""
         <div class="kpi-card">
-            <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" tabindex="0" data-tip="Dual-algorithm safety filter combining an Isolation Forest and an empirical IQR envelope to distinguish physical faults from benign weather surges.">?</span></div>
-            <div class="kpi-value" style="color: #047857;">Nominal</div>
+            <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" tabindex="0" data-tip="Dual-algorithm safety filter combining an observation-aware Isolation Forest and empirical 1.5xIQR boundary to isolate physical faults from weather surges.">?</span></div>
+            <div class="kpi-value" style="color: {sentinel_color};">{sentinel_text}</div>
             <div class="kpi-caption">Dual-Trigger Safety Guard Active</div>
         </div>
         """,
@@ -1455,11 +1422,11 @@ with kpi_c3:
     )
 with kpi_c4:
     st.markdown(
-        """
+        f"""
         <div class="kpi-card">
-            <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" tabindex="0" data-tip="Automated MLOps watchdog checking whether live telemetry distributions match baseline distributions, alerting if model needs retraining.">?</span></div>
-            <div class="kpi-value" style="color: #047857;">Optimal</div>
-            <div class="kpi-caption">Telemetry Distributions Verified</div>
+            <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" tabindex="0" data-tip="Automated MLOps watchdog checking trailing 7-day telemetry covariates against 30-day baseline distributions.">?</span></div>
+            <div class="kpi-value" style="color: {watchdog_color};">{watchdog_text}</div>
+            <div class="kpi-caption">{stability_pct:.1f}% Distribution Stability</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1480,13 +1447,11 @@ with tab_forecast:
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
-            Probabilistic forward electrical demand projections across 72 hourly steps with guaranteed 80% confidence bounds.
+            Conformalized forward electrical demand projections across 72 hourly steps with monotonic confidence bounds.
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    df_fc = get_forecast_dataframe(selected_region)
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1516,9 +1481,9 @@ with tab_forecast:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Reserve Margin (p90 - p10) <span class="info-tip tip-right" tabindex="0" data-tip="Difference between 90th percentile stress limit and 10th percentile conservative estimate. Dictates required standby spinning reserve.">?</span></div>
+                <div class="metric-label">Reserve Margin (p90 - p10) <span class="info-tip tip-right" tabindex="0" data-tip="Conformalized spread between p90 stress limit and p10 conservative estimate. Dictates required standby spinning reserve.">?</span></div>
                 <div class="metric-value">{avg_band:,.0f} MW</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Mean uncertainty spread for spinning reserve</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Mean CQR uncertainty spread for spinning reserve</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1573,7 +1538,7 @@ with tab_forecast:
     fig = get_forecast_figure(selected_region, horizon_hours=selected_horizon)
     st.plotly_chart(
         fig,
-        use_container_width=True,
+        width="stretch",
         config={
             "displayModeBar": True,
             "displaylogo": False,
@@ -1584,7 +1549,7 @@ with tab_forecast:
     )
 
     with st.expander(f"Tabular Forecast Data ({selected_horizon} Hourly Steps)"):
-        st.dataframe(df_fc.head(selected_horizon), use_container_width=True)
+        st.dataframe(df_fc.head(selected_horizon), width="stretch")
 
 # tab 2: grid fault & surge sentinel
 with tab_anomalies:
@@ -1592,7 +1557,7 @@ with tab_anomalies:
     st.markdown(
         """
         <div style="font-size: 13px; color: #444444; margin-bottom: 12px;">
-            Dual-trigger safety guard cross-checking unsupervised anomaly isolation with physical boundary envelopes to eliminate false alarms.
+            Dual-trigger safety guard cross-checking observation-aware anomaly isolation with physical boundary envelopes to eliminate false alarms.
         </div>
         """,
         unsafe_allow_html=True,
@@ -1614,17 +1579,19 @@ with tab_anomalies:
             "Evaluation Scenario:",
             [
                 "Normal Grid Operations (Standard Baseline)",
-                "Simulate Severe Grid Shock (+200,000 MW Surge)",
+                "Simulate Severe Grid Shock (Extreme Load Surge)",
                 "Custom Demand Stress-Test (Manual Input)",
             ],
             index=0,
             key=f"scenario_{selected_region}",
         )
         custom_val = None
-        if anomaly_scenario == "Simulate Severe Grid Shock (+200,000 MW Surge)":
-            custom_val = 260000.0 if selected_region == "ALL_INDIA" else 150000.0
+        if anomaly_scenario == "Simulate Severe Grid Shock (Extreme Load Surge)":
+            nom_p50 = float(nom_state.get("predicted_p50_mw", 50000.0))
+            custom_val = round(nom_p50 * 2.0 + 15000.0, 0)
         elif anomaly_scenario == "Custom Demand Stress-Test (Manual Input)":
-            custom_val = st.number_input("Injected Demand (MW):", min_value=100.0, max_value=350000.0, value=75000.0)
+            default_custom = float(round(nom_state.get("predicted_p50_mw", 50000.0) * 1.15, 0))
+            custom_val = st.number_input("Injected Demand (MW):", min_value=100.0, max_value=500000.0, value=default_custom)
 
     with col_status:
         st.markdown(
@@ -1655,7 +1622,7 @@ with tab_anomalies:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Operating Envelope Check <span class="info-tip" tabindex="0" data-tip="Evaluates whether the observed residual breaches the empirical 1.5xIQR safety margin calculated from 30 days of baseline operations.">?</span></div>
+                    <div class="metric-label">Operating Envelope Check <span class="info-tip" tabindex="0" data-tip="Evaluates whether the observed residual breaches the conformal 1.5xIQR safety boundary.">?</span></div>
                     <div class="metric-value" style="color: {trig_b_color};">{trig_b_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{trig_b_desc}</div>
                 </div>
@@ -1665,11 +1632,11 @@ with tab_anomalies:
         with status_col3:
             struct_text = "CRITICAL GRID FAULT" if anomaly_res["is_structural"] else "Normal Operation"
             struct_color = "#dc2626" if anomaly_res["is_structural"] else "#047857"
-            struct_desc = "Dual-Trigger Confirmed: Alert Dispatched" if anomaly_res["is_structural"] else "No Action Required (Nominal)"
+            struct_desc = "Dual-Trigger Confirmed: Alert Active" if anomaly_res["is_structural"] else "No Action Required (Nominal)"
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Actionable Sentinel Alert <span class="info-tip tip-right" tabindex="0" data-tip="Dual-trigger consensus: Emergency alert triggers ONLY if the Isolation Forest flags structural anomaly AND the load breaches the physical operating envelope.">?</span></div>
+                    <div class="metric-label">Actionable Sentinel Alert <span class="info-tip tip-right" tabindex="0" data-tip="Dual-trigger consensus: Emergency alert triggers ONLY when the observation-aware Isolation Forest flags structural surprise AND load breaches the operating envelope.">?</span></div>
                     <div class="metric-value" style="color: {struct_color};">{struct_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{struct_desc}</div>
                 </div>
@@ -1682,8 +1649,8 @@ with tab_anomalies:
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
-            TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
-            <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Using SHAP (Shapley Additive Explanations) evaluated against 150 background centroids, the engine calculates the exact Megawatt impact of each physical variable. Red values push demand projections higher; blue values pull projections lower.">?</span>
+            Path-dependent TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
+            <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Exact TreeExplainer Shapley values decompose each forecast into per-feature MW impacts. Red values push demand projections higher; blue values pull projections lower.">?</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1731,7 +1698,7 @@ with tab_anomalies:
     fig_shap = build_shap_figure(top_features)
     st.plotly_chart(
         fig_shap,
-        use_container_width=True,
+        width="stretch",
         config={
             "displayModeBar": True,
             "displaylogo": False,
@@ -1753,7 +1720,7 @@ with tab_anomalies:
             }
             for i, f in enumerate(top_features)
         ])
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_display, width="stretch")
 
 # tab 3: model health & reliability watchdog
 with tab_drift:
@@ -1761,7 +1728,7 @@ with tab_drift:
     st.markdown(
         """
         <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
-            Continuous data distribution audit comparing trailing 7-day live telemetry against the 30-day baseline across all 18 physical variables.
+            Continuous data distribution audit comparing trailing 7-day telemetry against the 30-day baseline across 12 physical and diurnal covariates.
         </div>
         """,
         unsafe_allow_html=True,
@@ -1784,12 +1751,12 @@ with tab_drift:
             unsafe_allow_html=True,
         )
     with d_col2:
-        stability_pct = (1.0 - drift_data['drift_ratio']) * 100.0
+        stability_pct_tab = (1.0 - float(drift_data["drift_ratio"])) * 100.0
         st.markdown(
             f"""
             <div class="metric-card">
                 <div class="metric-label">Data Distribution Stability</div>
-                <div class="metric-value">{stability_pct:.1f}% Stable</div>
+                <div class="metric-value">{stability_pct_tab:.1f}% Stable</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{drift_data['drifted_features']} of {drift_data['total_features']} features shifted</div>
             </div>
             """,
@@ -1799,7 +1766,7 @@ with tab_drift:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Watchdog Tolerance <span class="info-tip tip-right" tabindex="0" data-tip="Operational alarm threshold: if more than 30% of features show statistical drift, the watchdog flags a data shift and recommends retraining or widened quantile uncertainty.">?</span></div>
+                <div class="metric-label">Watchdog Tolerance <span class="info-tip tip-right" tabindex="0" data-tip="Operational alarm threshold: if more than 30% of monitored features show statistical drift, the watchdog flags a data shift and widens forecast uncertainty bounds.">?</span></div>
                 <div class="metric-value">30.0% Max Shift</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Alert triggers if &gt; 30% of features shift</div>
             </div>
@@ -1807,13 +1774,14 @@ with tab_drift:
             unsafe_allow_html=True,
         )
     with d_col4:
-        alphas = drift_data["recommended_quantile_alpha"]
+        alphas_val = drift_data["recommended_quantile_alpha"]
+        alphas_display = str(alphas_val)
         model_action_desc = "Standard 80% Confidence Interval" if not drift_data["drift_alarm"] else "Widened 90% Confidence Interval"
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Recommended Model Action <span class="info-tip tip-right" tabindex="0" data-tip="Dynamic uncertainty adaptation: Under normal conditions, uses standard [p10, p50, p90] bounds. Under high drift, automatically expands to [p05, p50, p95] to provide safer reserve margins.">?</span></div>
-                <div class="metric-value">{alphas}</div>
+                <div class="metric-label">Recommended Model Action <span class="info-tip tip-right" tabindex="0" data-tip="Dynamic uncertainty adaptation: Under normal conditions, uses conformal 80% [p10, p50, p90] bounds. Under high drift, expands to 90% [p05, p50, p95] bounds.">?</span></div>
+                <div class="metric-value">{alphas_display}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{model_action_desc}</div>
             </div>
             """,
@@ -1824,14 +1792,14 @@ with tab_drift:
     st.markdown(
         """
         <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-            Feature-by-Feature Distribution Audit (Trailing 7-Day Live Telemetry vs 30-Day Baseline) <span class="info-tip" tabindex="0" data-tip="Continuous two-sample distribution tests: Kolmogorov-Smirnov test for continuous physical metrics (p < 0.05 indicates drift) and 1D Wasserstein distance for cyclical harmonics (distance >= 0.10 indicates drift).">?</span>
+            Feature-by-Feature Distribution Audit (Trailing 7-Day Telemetry vs 30-Day Baseline) <span class="info-tip" tabindex="0" data-tip="Normalized 1D Wasserstein distance (W1/std >= 0.50 gated by KS p < 0.01) for continuous physical metrics and 1D Wasserstein distance (W1 >= 0.15) for cyclical harmonics.">?</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.caption("Each physical parameter is tested for statistical distribution drift. Continuous variables use the Kolmogorov-Smirnov test; cyclical harmonics use 1D Wasserstein distance.")
+    st.caption("Continuous physical metrics use normalized Wasserstein + Kolmogorov-Smirnov gating (W1/std >= 0.50 and p < 0.01); cyclical harmonics use 1D Wasserstein distance.")
     df_metrics = get_drift_metrics_dataframe(selected_region)
-    st.dataframe(df_metrics, use_container_width=True)
+    st.dataframe(df_metrics, width="stretch")
 
     st.markdown("---")
     st.markdown(
@@ -1842,7 +1810,7 @@ with tab_drift:
         """,
         unsafe_allow_html=True,
     )
-    st.caption("Download a self-contained HTML audit report containing complete Kolmogorov-Smirnov and Wasserstein metrics formatted for engineering and compliance review.")
+    st.caption("Download a self-contained HTML audit report containing complete normalized Wasserstein and Kolmogorov-Smirnov metrics formatted for engineering and compliance review.")
     report_html = get_cached_drift_report(selected_region)
     st.download_button(
         label=f"Download Executive Audit Report ({selected_region})",
@@ -1854,7 +1822,7 @@ with tab_drift:
 # tab 4: info for nerds
 with tab_system:
     st.markdown("## Info for Nerds")
-    st.caption("How the engine works under the hood — from raw grid telemetry to 72-hour forward dispatch and automated reliability monitoring.")
+    st.caption("How the engine works under the hood — from live Open-Meteo weather and causal Polars features to 72-hour conformal forecasting and reliability monitoring.")
 
     # 1. Project Overview & The Physical Problem
     st.markdown("### The Problem: Why Power Grids Require Probabilistic ML")
@@ -1863,13 +1831,12 @@ with tab_system:
         Unlike software systems where compute and network requests can buffer or queue, an electrical power grid has
         virtually zero storage at utility scale. Every single Megawatt (MW) consumed across homes, railways, and factories
         must be generated and dispatched in real time.
-        
-        - **If generation lags demand:** System frequency drops below the mandatory 50.0 Hz threshold, causing automated relays to trip generators to protect them, risking cascading regional blackouts.
-        - **If generation exceeds demand:** System frequency surges above 50.5 Hz, causing transformer over-excitation and equipment burnout.
-        - **The Dispatcher Dilemma:** Grid operators at Regional Load Despatch Centres (RLDCs) must commit thermal generators 8 to 12 hours in advance (cold startup time). They cannot rely on a single best-guess number; they need guaranteed confidence bounds (p10, p50, p90) to size spinning reserves safely.
-        
-        This engine models India's national active electrical demand (160,000+ MW) and all 5 Regional Load Despatch Centres
-        (Northern, Western, Southern, Eastern, and North Eastern regions) across an automated 6-stage production pipeline.
+
+        - **If generation lags demand:** System frequency drops below the 50.0 Hz nominal target, risking under-frequency load shedding or generator tripping.
+        - **If generation exceeds demand:** System frequency surges above safe tolerances, stressing transformers and turbine governors.
+        - **The Dispatcher Dilemma:** Grid operators at Regional Load Despatch Centres (RLDCs) must commit thermal units hours in advance. Probabilistic quantile envelopes (`p10`, `p50`, `p90`) quantify both expected baseload dispatch and spinning-reserve headroom.
+
+        This engine models India's national and regional electrical demand (`ALL_INDIA` plus `NR`, `WR`, `SR`, `ER`, `NER`) calibrated to POSOCO/Grid-India operational scale using live Open-Meteo meteorological telemetry across an automated 6-stage pipeline.
         """
     )
 
@@ -1880,16 +1847,15 @@ with tab_system:
     st.markdown(
         """
         **How Data Enters the Engine:**
-        Every 6 hours, an automated GitHub Actions cron workflow (`15 */6 * * *`) connects to primary data sources:
-        - **Grid Telemetry:** Regional electrical load (MW) and system frequency (Hz) telemetry calibrated against Grid-India (formerly POSOCO / NLDC) operational dispatch records and open government registries (data.gov.in).
-        - **Collocated Weather:** Fetches hourly meteorological telemetry (2m ambient temperature, relative humidity, surface solar irradiance, and 100m wind speed) from Open-Meteo across regional grid centroids.
-        
+        Every 6 hours, an automated GitHub Actions cron workflow (`15 */6 * * *`) executes ingestion and batch inference:
+        - **Exogenous Meteorological Feed:** Pulls live hourly ambient `temperature_2m`, `relative_humidity_2m`, `shortwave_radiation_instant`, and `wind_speed_100m` from the Open-Meteo Forecast API across regional grid centroids.
+        - **Weather-Elastic Grid Simulation:** Evaluates an IST-aligned diurnal load profile calibrated to POSOCO Dec 2024 regional baselines with empirical cooling/heating degree elasticity, solar behind-the-meter offset, and Indian statutory holiday calendars (explicitly non-SCADA simulation).
+
         **At-the-Door Data Hygiene:**
-        Raw sensor telemetry from high-voltage substations is inherently noisy due to communication dropouts and transient telemetry spikes.
-        Inbound payloads are immediately passed through strict **Pydantic v2** validation contracts:
-        - Active power is enforced to be non-negative and bounded within regional capacity thresholds.
-        - Grid frequency must reside within the strict operating envelope (49.0 - 51.0 Hz).
-        - Timestamps are normalized to UTC, and missing hourly records are repaired using monotonic linear splines before reaching any downstream models.
+        Inbound payloads pass through strict **Pydantic v2** validation contracts before reaching downstream tables:
+        - Active power is enforced to be non-negative and bounded within physical regional envelopes.
+        - Grid frequency is validated within standard grid limits (`47.5 - 52.5 Hz`).
+        - Timestamps normalize strictly to UTC, and missing hourly packets (`<= 6h`) are repaired before idempotent upsert into PostgreSQL (`Supabase`, `us-west-1` with TLS and Row-Level Security).
         """
     )
 
@@ -1899,100 +1865,80 @@ with tab_system:
     st.markdown("### Step 2: Causal Feature Engineering (Zero-Leakage Polars Pipeline)")
     st.markdown(
         """
-        **The #1 Trap in Time-Series ML: Future Lookahead Leakage:**
-        In standard tabular ML, shuffling rows is normal. In time-series forecasting, calculating rolling statistics on unshifted data accidentally leaks future information into the past, causing models to appear 99% accurate in offline tests while failing catastrophically in production.
-        
+        **Preventing Lookahead & Gap-Shift Leakage:**
+        In time-series ML, missing rows cause `.shift(k)` to silently alias older observations onto shorter lags, while computing rolling windows without shifting leaks current-step demand into features.
+
         **How the Pipeline Guarantees Strict Causality:**
-        The feature pipeline is built using vectorized **Polars LazyFrames** for query optimization and high-throughput execution:
-        - **Mandatory `.shift(1)` Temporal Fence:** Before computing any rolling moving averages (6h, 24h, 168h) or rolling standard deviation volatility, a strict 1-step lag is applied. When predicting hour `t`, the feature pipeline is strictly blinded to anything at or beyond hour `t`.
-        - **Continuous Fourier Harmonics (Diurnal & Annual):** Electricity demand follows strong 24-hour daily rhythms and 365.25-day annual seasonality. Using plain integer hours (1 to 24) introduces an artificial step discontinuity between 23:59 and 00:00. We transform time into continuous Fourier sine and cosine wave harmonics:
+        - **Explicit 1h Hourly Upsampling:** Input batches are sorted per region and upsampled to a strict `1h` grid (`df.upsample(every="1h")`) prior to computing lags (`1h, 2h, 3h, 24h, 48h, 168h`), rolling statistics, and `24h` weather differentials (`temp_delta_24h`, `rh_delta_24h`), then filtered back to observed rows.
+        - **Mandatory `.shift(1)` Temporal Fence:** Rolling means and standard deviations (`6h, 24h, 168h`) apply a strict 1-hour lag prior to aggregation.
+        - **IST Holiday & Harmonic Encodings:** Holidays resolve in `Asia/Kolkata` local dates via `holidays.India`, paired with Fourier diurnal and annual harmonics across **26 LightGBM features**:
         """
     )
-    st.latex(r"\sin\left(\frac{2\pi \cdot t}{24}\right),\quad \cos\left(\frac{2\pi \cdot t}{24}\right),\quad \sin\left(\frac{2\pi \cdot t}{8766}\right),\quad \cos\left(\frac{2\pi \cdot t}{8766}\right)")
-    st.markdown(
-        """
-        - **Regional Isolation:** Rolling aggregations and feature calculations partition strictly by regional code (`ALL_INDIA`, `NR`, `WR`, `SR`, `ER`, `NER`), mathematically preventing cross-regional telemetry contamination.
-        """
-    )
+    st.latex(r"\sin\left(\frac{2\pi \cdot \text{hour}}{24}\right),\quad \cos\left(\frac{2\pi \cdot \text{hour}}{24}\right),\quad \sin\left(\frac{2\pi \cdot \text{doy}}{365.25}\right),\quad \cos\left(\frac{2\pi \cdot \text{doy}}{365.25}\right)")
 
     st.markdown("---")
 
     # Step 3
-    st.markdown("### Step 3: Multi-Horizon Probabilistic Forecasting (LightGBM Quantiles)")
+    st.markdown("### Step 3: Conformal Multi-Horizon Forecasting (LightGBM Quantiles)")
     st.markdown(
         """
-        **Why Single Point Forecasts Are Dangerous:**
-        Standard regression models predict a single mean value. However, grid dispatchers manage operational risk: they need to know the worst-case peak demand for reserve margin planning, the expected baseload for economic dispatch, and the conservative minimum for overnight thermal backing-down.
-        
-        **Tilted Pinball Loss Ensembles:**
-        We train 3 independent LightGBM gradient-boosted decision tree ensembles per region, using asymmetric pinball loss for quantiles:
-        - **p10 (Lower Bound):** 90% probability that demand will exceed this value (conservative baseload).
-        - **p50 (Median Forecast):** Expected dispatch trajectory with minimum absolute error.
-        - **p90 (Upper Bound):** 90% probability that demand will stay below this value (peak reserve ceiling).
-        
-        **The Isotonic Monotonicity Guarantee:**
-        Because quantile regressors are trained independently, rapid weather transitions can occasionally produce "quantile crossing" where `p10 > p50` or `p50 > p90`. We apply post-inference isotonic sorting along axis 1, mathematically guaranteeing:
+        **26-Feature Quantile Ensembles + Conformal Calibration (`CQR`):**
+        We train 3 independent LightGBM quantile regressors (`p10`, `p50`, `p90`) per region across 18 weather-aware boosters, then calibrate raw intervals on held-out calibration residuals using symmetric Conformal Quantile Regression (`cqr_margin_80` / `cqr_margin_90` in `quantile_calibration.json`), followed by isotonic monotonicity sorting:
         """
     )
     st.latex(r"p_{10}(t) \le p_{50}(t) \le p_{90}(t) \quad \forall t \in [1, 72]")
     st.markdown(
         """
-        **Recursive 72-Hour Forward Trajectory:**
-        To forecast 72 hours ahead without future telemetry, the model predicts hour `t+1`, feeds the `p50` projection back as the surrogate for subsequent autoregressive lags (1h, 2h, 3h, 24h), and recursively iterates forward across 72 steps.
+        **Iterative 72-Hour Exogenous Trajectory:**
+        At inference time, each recursive step incorporates live Open-Meteo `forecast_days` exogenous weather predictions alongside updated autoregressive load lags and rolling windows.
         """
     )
 
     st.markdown("---")
 
     # Step 4
-    st.markdown("### Step 4: Real-Time Dual-Trigger Fault Sentinel (Zero False Alarms)")
+    st.markdown("### Step 4: Observation-Aware Dual-Trigger Fault Sentinel")
     st.markdown(
         """
-        **The False Alarm Dilemma in Mission-Critical Infrastructure:**
-        Grid control rooms suffer from alert fatigue. If a threshold detector screams every time afternoon air-conditioning surges during a heatwave, operators mute the alarm. But a genuine substation busbar trip or transmission line outage requires immediate response.
-        
-        **Dual-Trigger Consensus Architecture:**
-        We eliminate false alarms by requiring consensus between two fundamentally different detection algorithms:
-        - **Trigger A (Unsupervised Pattern Isolation):** An Isolation Forest (contamination = 0.01) evaluates multi-dimensional feature space (load, frequency, temperature, rate of change) to detect structural correlation anomalies.
-        - **Trigger B (Physical Residual Boundary):** Calculates the actual active power residual `|y_actual - y_pred_p50|` and compares it against an empirical 1.5x IQR boundary derived from 30 days of baseline operations:
+        **Eliminating Alert Fatigue via Independent Dual Consensus:**
+        Instead of evaluating static historical lags alone, the sentinel builds a dedicated **9-feature live observation matrix** (`demand_mw`, instantaneous `demand_delta_1h`, `demand_delta_24h`, `demand_zscore_24h`, ambient weather, and diurnal harmonics):
+        - **Trigger A (Observation-Aware Isolation Forest):** Flags multivariate structural surprise (`predict == -1`) when live demand decouples sharply from weather and recent momentum.
+        - **Trigger B (Conformal Residual Envelope):** Checks whether live demand breaches the calibrated physical safety band:
         """
     )
-    st.latex(r"\text{Operating Boundary} = \Big[p_{10} - 1.5 \cdot \text{IQR},\; p_{90} + 1.5 \cdot \text{IQR}\Big] \quad \text{where} \quad \text{IQR} = p_{75} - p_{25}")
+    st.latex(r"\text{Operating Boundary} = \Big[\max(0,\; p_{10} - 1.5 \cdot \text{IQR}),\; p_{90} + 1.5 \cdot \text{IQR}\Big] \quad \text{where} \quad \text{IQR} = p_{90} - p_{10}")
     st.markdown(
         """
-        - **Consensus Boolean Gate (`Alert = Trigger_A AND Trigger_B`):** An actionable alarm triggers only when both algorithms agree. When an extreme heatwave strikes, Trigger B sees high demand, but Trigger A recognizes that weather features explain the shift, so no alarm sounds. Only true physical anomalies breach both gates.
+        - **Consensus Gate (`Alert = Trigger_A AND Trigger_B`):** Normal weather-driven load shifts stay inside healthy consensus, while sudden physical surges fire both gates simultaneously.
         """
     )
 
     st.markdown("---")
 
     # Step 5
-    st.markdown("### Step 5: Explainability & Continuous Drift Watchdog (Production MLOps)")
+    st.markdown("### Step 5: Path-Dependent SHAP & Statistical Drift Watchdog")
     st.markdown(
         """
-        **Explainability with SHAP TreeExplainer:**
-        Black-box AI is unacceptable during power emergencies. When an alert fires or demand spikes, SHAP TreeExplainer evaluates 150 k-means background centroids to compute exact additive Megawatt contributions per physical feature. Dispatchers immediately see whether a spike was driven by temperature, recent hourly momentum, or seasonal harmonics.
-        
-        **Automated Statistical Drift Monitoring (Evidently AI):**
-        Machine learning models degrade over time as weather patterns shift across seasons or consumer habits change. The engine continuously runs two-sample distribution tests comparing trailing 7-day telemetry against a 30-day baseline reference:
-        - **Two-Sample Kolmogorov-Smirnov Test (p < 0.05):** Evaluates continuous variables (demand, frequency, temperature, solar radiation, wind speed).
-        - **1D Wasserstein Distance (W1 >= 0.10):** Measures Earth Mover's Distance for cyclical harmonic features.
-        
-        **Dynamic Uncertainty Adaptation:**
-        If the percentage of drifted features breaches the 30% tolerance threshold, the watchdog alerts operators and dynamically expands the forecast confidence interval from `[p10, p50, p90]` to `[p05, p50, p95]` for conservative reserve safety until automated retraining completes.
+        **Exact SHAP TreeExplainer Attribution:**
+        Using path-dependent `shap.TreeExplainer(booster)`, every flagged point is decomposed into exact Megawatt attributions across all 26 physical and calendar features without external centroid approximations.
+
+        **Normalized Covariate Drift Monitoring:**
+        Every 6 hours, trailing 7-day telemetry covariates are audited against each region's 30-day reference distribution across 12 physical and diurnal variables:
+        - **Continuous Physical Features:** Normalized 1D Wasserstein distance (`W1 / std >= 0.50`) gated by two-sample Kolmogorov-Smirnov significance (`p < 0.01`).
+        - **Cyclical & Calendar Indicators:** 1D Wasserstein distance (`W1 >= 0.15`).
+        - **Dynamic Reserve Widening:** When drifted covariates exceed `30%`, `drift_alarm` engages and forecast generation automatically switches from standard `80%` conformal intervals to widened `90%` (`cqr_margin_90`) reserve bounds.
         """
     )
 
     st.markdown("---")
 
     # Step 6
-    st.markdown("### Step 6: Production Deployment & Architecture")
+    st.markdown("### Step 6: Production Serving & Persistence Architecture")
     st.markdown(
         """
-        **Containerized Co-Located Architecture:**
-        The engine is packaged into a multi-stage Docker container deployed at `grid.maheshkakde.com`:
-        - **Internal FastAPI REST Service (`127.0.0.1:8000`):** Handles high-throughput vectorized model inference, artifact loading, and telemetry endpoints.
-        - **Interactive Streamlit Dashboard:** Delivers the real-time operational interface, interactive 24h / 48h / 72h horizon toggles, and mobile-responsive dispatch controls.
-        - **Deep Dive Technical Architecture:** For system design blueprints, quantile Pinball loss formulation, and container runtime details, explore the repository's [README.md](https://github.com/mahesh-kakde/grid-telemetry-engine#readme).
+        **Single-Process ASGI + Live Snapshot Architecture:**
+        - **ASGI Wrapper (`src/server.py` + `st.App`):** Runs in a single container process on Render (`us-west1` alongside Supabase `us-west-1`), injecting strict HTTP security headers (`HSTS`, `CSP`, `X-Frame-Options`, `nosniff`), server-side SEO `<meta>` tags, HTTP `404` status handling, `/health`, and `/reports/drift_report.html`.
+        - **Scheduled Supabase Pipeline:** GitHub Actions runs ingestion, dual-trigger anomaly scoring, vintage-tracked `model_forecasts` persistence, and `precomputed_snapshots` JSON/HTML updates every 6 hours, which the Streamlit UI reads directly (300s TTL cache) with bundled fallback.
+        - **Repository Documentation:** Explore the full system specification and optional developer API reference in [README.md](https://github.com/mahesh-kakde/grid-telemetry-engine#readme).
         """
     )
