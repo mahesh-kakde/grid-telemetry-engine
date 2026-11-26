@@ -1,5 +1,4 @@
 import os
-import gc
 import math
 import logging
 from datetime import datetime, timezone, timedelta
@@ -235,11 +234,24 @@ def fetch_live_or_baseline_history(
     lookback_hours: int = 240,
     bundle: Optional[ModelArtifactsBundle] = None,
     db_url: Optional[str] = None,
+    max_staleness_hours: int = 72,
 ) -> Tuple[pl.DataFrame, str]:
-    # loads live telemetry from supabase when available with baseline fallback
+    # loads live telemetry from supabase when fresh and sufficient, with baseline fallback
     live_df = fetch_telemetry_window_from_db(region=region, hours=lookback_hours, db_url=db_url)
     if live_df is not None and len(live_df) >= 168:
-        return live_df, "supabase_live"
+        latest_ts = live_df["timestamp_utc"].max()
+        latest_dt = latest_ts.to_pydatetime() if isinstance(latest_ts, pd.Timestamp) else latest_ts
+        if latest_dt.tzinfo is None:
+            latest_dt = latest_dt.replace(tzinfo=timezone.utc)
+        age_hours = (datetime.now(timezone.utc) - latest_dt.astimezone(timezone.utc)).total_seconds() / 3600.0
+        if age_hours <= max_staleness_hours:
+            if age_hours > 12.0:
+                logger.warning(f"supabase telemetry for {region} is {age_hours:.1f}h old")
+            return live_df, "supabase_live"
+        logger.warning(
+            f"supabase telemetry for {region} is stale ({age_hours:.1f}h > {max_staleness_hours}h); "
+            "falling back to baseline"
+        )
     return build_baseline_history_pl(region, lookback_hours=max(168, lookback_hours), bundle=bundle), "baseline_fallback"
 
 
@@ -275,6 +287,60 @@ def fetch_weather_forecast_map(
     }
 
 
+def _align_hourly_rollout_history(df_reg: pl.DataFrame, region: str) -> pl.DataFrame:
+    # reindexes rollout history onto a uniform 1h grid so gaps never alias ring-buffer lags
+    ts_dtype = df_reg.schema["timestamp_utc"]
+    if isinstance(ts_dtype, pl.Datetime) and ts_dtype.time_zone is not None:
+        ts_expr = pl.col("timestamp_utc").dt.convert_time_zone("UTC").dt.cast_time_unit("us")
+    elif isinstance(ts_dtype, pl.Datetime):
+        ts_expr = pl.col("timestamp_utc").dt.replace_time_zone("UTC").dt.cast_time_unit("us")
+    else:
+        ts_expr = pl.col("timestamp_utc").cast(pl.Datetime(time_unit="us", time_zone="UTC"))
+
+    df_norm = (
+        df_reg.with_columns(ts_expr.alias("timestamp_utc"))
+        .unique(subset=["region", "timestamp_utc"], keep="last")
+        .sort("timestamp_utc")
+    )
+    df_grid = (
+        df_norm.upsample(time_column="timestamp_utc", every="1h", group_by="region")
+        .with_columns(pl.col("region").forward_fill())
+    )
+
+    missing_slots = int(df_grid["demand_mw"].null_count())
+    if missing_slots > 0:
+        logger.warning(
+            f"detected {missing_slots} missing hourly slot(s) in {region} rollout history; "
+            "applying diurnal t-24h and linear backfill"
+        )
+        fill_cols = [
+            col
+            for col in [
+                "demand_mw",
+                "temperature_2m",
+                "relative_humidity_2m",
+                "surface_solar_radiation",
+                "wind_speed_100m",
+            ]
+            if col in df_grid.columns
+        ]
+        # preserve diurnal cycles first via t-24h/t-48h/t+24h, then interpolate any remainder
+        df_grid = df_grid.with_columns([
+            pl.coalesce([
+                pl.col(c),
+                pl.col(c).shift(24),
+                pl.col(c).shift(48),
+                pl.col(c).shift(-24),
+            ]).alias(c)
+            for c in fill_cols
+        ]).with_columns([
+            pl.col(c).interpolate().forward_fill().backward_fill().alias(c)
+            for c in fill_cols
+        ])
+
+    return df_grid
+
+
 def generate_72h_multi_step_forecast(
     df_history: pl.DataFrame,
     region: str,
@@ -290,7 +356,8 @@ def generate_72h_multi_step_forecast(
     if len(df_reg) < 168:
         raise ValueError(f"insufficient historical lookback for {region}: requires at least 168 hours")
 
-    tail_df = df_reg.tail(240)
+    df_aligned = _align_hourly_rollout_history(df_reg, region)
+    tail_df = df_aligned.tail(240)
     latest_ts = tail_df["timestamp_utc"].max()
     if isinstance(latest_ts, pd.Timestamp):
         latest_utc = latest_ts.to_pydatetime()
@@ -387,7 +454,6 @@ def generate_72h_multi_step_forecast(
         solar_hist.append(solar)
         wind_hist.append(wind)
 
-    gc.collect()
     return forecasts
 
 

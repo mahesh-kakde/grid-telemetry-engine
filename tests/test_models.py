@@ -266,3 +266,54 @@ def test_anomaly_shap_responds_to_demand_shock(artifacts_bundle):
     shock_features = {item["feature"] for item in shock_drivers}
     assert shock_features & {"demand_mw", "demand_delta_1h", "demand_delta_24h", "demand_zscore_24h"}
     assert all(item["shap_value"] > 0 for item in shock_drivers)
+
+
+def test_generate_72h_forecast_aligns_gaps_without_aliasing(artifacts_bundle):
+    base_ts = datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
+    clean_rows = []
+    gapped_rows = []
+    for i in range(200):
+        ts = base_ts + timedelta(hours=i)
+        rec = {
+            "timestamp_utc": ts,
+            "region": "NR",
+            "demand_mw": 45000.0 + 4000.0 * np.sin(2 * np.pi * i / 24.0),
+            "frequency_hz": 50.0,
+            "temperature_2m": 30.0 + 4.0 * np.sin(2 * np.pi * i / 24.0),
+            "relative_humidity_2m": 55.0,
+            "surface_solar_radiation": 400.0 if 6 <= ts.hour <= 18 else 0.0,
+            "wind_speed_100m": 4.5,
+        }
+        clean_rows.append(rec)
+        if not (150 <= i <= 159):
+            gapped_rows.append(rec)
+
+    fc_clean = generate_72h_multi_step_forecast(pl.DataFrame(clean_rows), "NR", artifacts_bundle)
+    fc_gapped = generate_72h_multi_step_forecast(pl.DataFrame(gapped_rows), "NR", artifacts_bundle)
+
+    assert fc_gapped[0]["target_timestamp_utc"] == fc_clean[0]["target_timestamp_utc"]
+    assert abs(fc_gapped[0]["forecast_p50"] - fc_clean[0]["forecast_p50"]) < 1e-3
+
+
+def test_fetch_live_or_baseline_history_rejects_stale_db_window(artifacts_bundle, monkeypatch):
+    from src.models import infer_and_detect as inf
+
+    stale_end = datetime.now(timezone.utc) - timedelta(hours=100)
+    stale_rows = pl.DataFrame([
+        {
+            "timestamp_utc": stale_end - timedelta(hours=200 - i),
+            "region": "NR",
+            "demand_mw": 42000.0,
+            "frequency_hz": 50.0,
+            "temperature_2m": 25.0,
+            "relative_humidity_2m": 50.0,
+            "surface_solar_radiation": 200.0,
+            "wind_speed_100m": 4.0,
+        }
+        for i in range(200)
+    ])
+    monkeypatch.setattr(inf, "fetch_telemetry_window_from_db", lambda **kwargs: stale_rows)
+
+    df_out, source = inf.fetch_live_or_baseline_history("NR", lookback_hours=168, bundle=artifacts_bundle)
+    assert source == "baseline_fallback"
+    assert len(df_out) == 168
