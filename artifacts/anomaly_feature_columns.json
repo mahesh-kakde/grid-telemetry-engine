@@ -1,0 +1,11 @@
+[
+  "demand_mw",
+  "demand_delta_1h",
+  "demand_delta_24h",
+  "demand_zscore_24h",
+  "temperature_2m",
+  "relative_humidity_2m",
+  "surface_solar_radiation",
+  "sin_hour_k1",
+  "cos_hour_k1"
+]

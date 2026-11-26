@@ -18,5 +18,11 @@
   "demand_rolling_mean_168h",
   "demand_rolling_std_6h",
   "demand_rolling_std_24h",
-  "demand_rolling_std_168h"
+  "demand_rolling_std_168h",
+  "temperature_2m",
+  "relative_humidity_2m",
+  "surface_solar_radiation",
+  "wind_speed_100m",
+  "temp_delta_24h",
+  "rh_delta_24h"
 ]
