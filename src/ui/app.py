@@ -30,6 +30,10 @@ from src.monitoring.drift_check import (
     FEATURE_METADATA,
     build_html_drift_report,
 )
+from src.ui.helpers import (
+    evaluate_snapshot_freshness,
+    format_info_tip,
+)
 
 
 # 404 error page routing check
@@ -272,7 +276,9 @@ st.markdown(
         max-width: 100% !important;
     }
     header[data-testid="stHeader"] {
-        background: transparent !important;
+        background: rgba(248, 250, 252, 0.92) !important;
+        backdrop-filter: blur(8px) !important;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.65) !important;
         z-index: 100 !important;
     }
     /* sidebar mobile collapsed control */
@@ -478,12 +484,19 @@ st.markdown(
     }
     .info-tip:hover,
     .info-tip:focus,
+    .info-tip:focus-visible,
     .info-tip:active {
         background-color: #2563eb;
         border-color: #2563eb;
         color: #ffffff;
     }
-    .info-tip:hover::after {
+    .info-tip:focus-visible {
+        box-shadow: 0 0 0 2px #93c5fd;
+    }
+    .info-tip:hover::after,
+    .info-tip:focus::after,
+    .info-tip:focus-visible::after,
+    .info-tip:active::after {
         content: attr(data-tip);
         position: absolute;
         bottom: 145%;
@@ -504,7 +517,10 @@ st.markdown(
         text-transform: none;
         letter-spacing: normal;
     }
-    .info-tip:hover::before {
+    .info-tip:hover::before,
+    .info-tip:focus::before,
+    .info-tip:focus-visible::before,
+    .info-tip:active::before {
         content: "";
         position: absolute;
         bottom: 120%;
@@ -517,17 +533,29 @@ st.markdown(
     }
     /* right-anchored tooltip for cards on the right side to prevent viewport clipping */
     .info-tip.tip-right:hover::after,
+    .info-tip.tip-right:focus::after,
+    .info-tip.tip-right:focus-visible::after,
+    .info-tip.tip-right:active::after,
     [data-testid="column"]:nth-child(3) .info-tip:hover::after,
+    [data-testid="column"]:nth-child(3) .info-tip:focus::after,
     [data-testid="column"]:nth-child(4) .info-tip:hover::after,
-    [data-testid="column"]:last-child .info-tip:hover::after {
+    [data-testid="column"]:nth-child(4) .info-tip:focus::after,
+    [data-testid="column"]:last-child .info-tip:hover::after,
+    [data-testid="column"]:last-child .info-tip:focus::after {
         left: auto !important;
         right: -8px !important;
         transform: none !important;
     }
     .info-tip.tip-right:hover::before,
+    .info-tip.tip-right:focus::before,
+    .info-tip.tip-right:focus-visible::before,
+    .info-tip.tip-right:active::before,
     [data-testid="column"]:nth-child(3) .info-tip:hover::before,
+    [data-testid="column"]:nth-child(3) .info-tip:focus::before,
     [data-testid="column"]:nth-child(4) .info-tip:hover::before,
-    [data-testid="column"]:last-child .info-tip:hover::before {
+    [data-testid="column"]:nth-child(4) .info-tip:focus::before,
+    [data-testid="column"]:last-child .info-tip:hover::before,
+    [data-testid="column"]:last-child .info-tip:focus::before {
         left: auto !important;
         right: 2px !important;
         transform: none !important;
@@ -607,7 +635,7 @@ st.markdown(
 
         /* container padding */
         .block-container {
-            padding-top: 0.5rem !important;
+            padding-top: 2.5rem !important;
             padding-bottom: 4.5rem !important;
             padding-left: 0.85rem !important;
             padding-right: 0.85rem !important;
@@ -1115,7 +1143,7 @@ def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
         template="plotly_white",
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        margin=dict(l=28, r=18, t=25, b=35),
+        margin=dict(l=32, r=18, t=42, b=85),
         hovermode="x unified",
         hoverlabel=dict(
             bgcolor="rgba(15, 23, 42, 0.95)",
@@ -1126,8 +1154,8 @@ def get_forecast_figure(region: str, horizon_hours: int = 72) -> go.Figure:
         ),
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
+            yanchor="top",
+            y=-0.24,
             xanchor="center",
             x=0.5,
             font=dict(size=9.5, color="#475569"),
@@ -1234,7 +1262,7 @@ def build_shap_figure(top_features: List[Dict[str, Any]], mode: str = "forecast"
         template="plotly_white",
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        margin=dict(l=120, r=25, t=10, b=35),
+        margin=dict(l=120, r=25, t=32, b=35),
         hovermode="closest",
         hoverlabel=dict(
             bgcolor="rgba(15, 23, 42, 0.95)",
@@ -1362,18 +1390,18 @@ active_snapshot = load_snapshot(selected_region)
 df_fc = get_forecast_dataframe(selected_region)
 nom_state = active_snapshot["nominal_anomaly"]
 drift_state = active_snapshot["drift_summary"]
-snap_src = active_snapshot.get("snapshot_source", "local_snapshot")
-snap_src_label = (
-    "Live Supabase Telemetry Cache"
-    if snap_src == "supabase_live"
-    else ("Bundled Snapshot" if snap_src == "local_snapshot" else "Local Runtime Fallback")
+freshness = evaluate_snapshot_freshness(active_snapshot, stale_after_hours=12.0)
+snap_src_label = html.escape(freshness["source_label"])
+gen_str = html.escape(freshness["generated_at_display"])
+safe_region = html.escape(selected_region)
+freshness_warning = freshness["warning_message"]
+freshness_banner_html = (
+    f"<div style='font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #f59e0b; border-left: 4px solid #d97706; border-radius: 6px; padding: 7px 12px; margin-bottom: 12px;'>"
+    f"{html.escape(freshness_warning)}"
+    f"</div>"
+    if freshness_warning
+    else ""
 )
-gen_ts_raw = active_snapshot.get("generated_at", "")
-try:
-    gen_dt = pd.to_datetime(gen_ts_raw, utc=True)
-    gen_str = gen_dt.strftime("%d %b %Y %H:%M UTC")
-except Exception:
-    gen_str = str(gen_ts_raw)[:19]
 
 
 # header and executive navigation
@@ -1385,7 +1413,8 @@ st.markdown(
     f"<div style='font-size: 12px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-bottom: 14px;'>"
     f"<b>Simulation Disclosure:</b> Powered by live Open-Meteo meteorological feeds driving a weather-elastic POSOCO-calibrated IST demand model (non-SCADA). "
     f"&nbsp;·&nbsp; <b>Snapshot Source:</b> {snap_src_label} ({gen_str})"
-    f"</div>",
+    f"</div>"
+    f"{freshness_banner_html}",
     unsafe_allow_html=True,
 )
 
@@ -1405,7 +1434,7 @@ with kpi_c1:
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">{selected_region} Projected Peak</div>
+            <div class="kpi-title">{safe_region} Projected Peak</div>
             <div class="kpi-value">{peak_mw:,.0f} MW</div>
             <div class="kpi-caption">POSOCO-Calibrated Simulation Scale</div>
         </div>
@@ -1427,7 +1456,7 @@ with kpi_c3:
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">Grid Fault Sentinel <span class="info-tip tip-right" tabindex="0" data-tip="Dual-algorithm safety filter combining an observation-aware Isolation Forest and empirical 1.5xIQR boundary to isolate physical faults from weather surges.">?</span></div>
+            <div class="kpi-title">Grid Fault Sentinel {format_info_tip("Dual-algorithm safety filter combining an observation-aware Isolation Forest and empirical 1.5xIQR boundary to isolate physical faults from weather surges.", tip_right=True)}</div>
             <div class="kpi-value" style="color: {sentinel_color};">{sentinel_text}</div>
             <div class="kpi-caption">Dual-Trigger Safety Guard Active</div>
         </div>
@@ -1438,7 +1467,7 @@ with kpi_c4:
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">Model Health Watchdog <span class="info-tip tip-right" tabindex="0" data-tip="Automated MLOps watchdog checking trailing 7-day telemetry covariates against 30-day baseline distributions.">?</span></div>
+            <div class="kpi-title">Model Health Watchdog {format_info_tip("Automated MLOps watchdog checking trailing 7-day telemetry covariates against 30-day baseline distributions.", tip_right=True)}</div>
             <div class="kpi-value" style="color: {watchdog_color};">{watchdog_text}</div>
             <div class="kpi-caption">{stability_pct:.1f}% Distribution Stability</div>
         </div>
@@ -1495,7 +1524,7 @@ with tab_forecast:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Reserve Margin (p90 - p10) <span class="info-tip tip-right" tabindex="0" data-tip="Conformalized spread between p90 stress limit and p10 conservative estimate. Dictates required standby spinning reserve.">?</span></div>
+                <div class="metric-label">Reserve Margin (p90 - p10) {format_info_tip("Conformalized spread between p90 stress limit and p10 conservative estimate. Dictates required standby spinning reserve.", tip_right=True)}</div>
                 <div class="metric-value">{avg_band:,.0f} MW</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Mean CQR uncertainty spread for spinning reserve</div>
             </div>
@@ -1506,7 +1535,7 @@ with tab_forecast:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Confidence Reliability <span class="info-tip tip-right" tabindex="0" data-tip="Mathematical validation confirming p10 <= p50 <= p90 across all 72 time steps, guaranteeing the uncertainty envelope never inverts.">?</span></div>
+                <div class="metric-label">Confidence Reliability {format_info_tip("Mathematical validation confirming p10 <= p50 <= p90 across all 72 time steps, guaranteeing the uncertainty envelope never inverts.", tip_right=True)}</div>
                 <div class="metric-value" style="color: #047857;">100% Monotonic</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Guaranteed: p10 (Low) ≤ p50 ≤ p90 (Peak)</div>
             </div>
@@ -1516,10 +1545,10 @@ with tab_forecast:
 
     # interactive horizon selector and mobile ergonomics
     st.markdown(
-        """
+        f"""
         <div style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-top: 6px; margin-bottom: 2px;">
             Forecast Resolution Window
-            <span class="info-tip" tabindex="0" data-tip="Switch between Next 24h, 48h, or Full 72h views. The 24h view provides 3x higher hourly resolution on mobile screens.">?</span>
+            {format_info_tip("Switch between Next 24h, 48h, or Full 72h views. The 24h view provides 3x higher hourly resolution on mobile screens.")}
         </div>
         """,
         unsafe_allow_html=True,
@@ -1636,7 +1665,7 @@ with tab_anomalies:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Operating Envelope Check <span class="info-tip" tabindex="0" data-tip="Evaluates whether the observed residual breaches the conformal 1.5xIQR safety boundary.">?</span></div>
+                    <div class="metric-label">Operating Envelope Check {format_info_tip("Evaluates whether the observed residual breaches the conformal 1.5xIQR safety boundary.")}</div>
                     <div class="metric-value" style="color: {trig_b_color};">{trig_b_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{trig_b_desc}</div>
                 </div>
@@ -1650,7 +1679,7 @@ with tab_anomalies:
             st.markdown(
                 f"""
                 <div class="metric-card">
-                    <div class="metric-label">Actionable Sentinel Alert <span class="info-tip tip-right" tabindex="0" data-tip="Dual-trigger consensus: Emergency alert triggers ONLY when the observation-aware Isolation Forest flags structural surprise AND load breaches the operating envelope.">?</span></div>
+                    <div class="metric-label">Actionable Sentinel Alert {format_info_tip("Dual-trigger consensus: Emergency alert triggers ONLY when the observation-aware Isolation Forest flags structural surprise AND load breaches the operating envelope.", tip_right=True)}</div>
                     <div class="metric-value" style="color: {struct_color};">{struct_text}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{struct_desc}</div>
                 </div>
@@ -1668,20 +1697,20 @@ with tab_anomalies:
 
     if primary_mode == "anomaly":
         st.markdown(
-            """
+            f"""
             <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
                 Observation-aware Isolation Forest TreeSHAP values explain which live load or weather signals drive the sentinel's anomaly verdict.
-                <span class="info-tip tip-right" tabindex="0" data-tip="Positive risk shift values (+) shorten isolation tree depth and push the sentinel toward flagging a structural fault. Negative values (-) indicate normal behavior.">?</span>
+                {format_info_tip("Positive risk shift values (+) shorten isolation tree depth and push the sentinel toward flagging a structural fault. Negative values (-) indicate normal behavior.", tip_right=True)}
             </div>
             """,
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            """
+            f"""
             <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
                 Path-dependent TreeExplainer Shapley values attribute exact Megawatt load contributions to physical drivers.
-                <span class="info-tip tip-right" tabindex="0" data-tip="Grid operators cannot trust opaque black boxes during an emergency. Exact TreeExplainer Shapley values decompose each forecast into per-feature MW impacts. Red values push demand projections higher; blue values pull projections lower.">?</span>
+                {format_info_tip("Grid operators cannot trust opaque black boxes during an emergency. Exact TreeExplainer Shapley values decompose each forecast into per-feature MW impacts. Red values push demand projections higher; blue values pull projections lower.", tip_right=True)}
             </div>
             """,
             unsafe_allow_html=True,
@@ -1845,7 +1874,7 @@ with tab_drift:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Watchdog Tolerance <span class="info-tip tip-right" tabindex="0" data-tip="Operational alarm threshold: if more than 30% of monitored features show statistical drift, the watchdog flags a data shift and widens forecast uncertainty bounds.">?</span></div>
+                <div class="metric-label">Watchdog Tolerance {format_info_tip("Operational alarm threshold: if more than 30% of monitored features show statistical drift, the watchdog flags a data shift and widens forecast uncertainty bounds.", tip_right=True)}</div>
                 <div class="metric-value">30.0% Max Shift</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Alert triggers if &gt; 30% of features shift</div>
             </div>
@@ -1859,8 +1888,8 @@ with tab_drift:
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="metric-label">Recommended Model Action <span class="info-tip tip-right" tabindex="0" data-tip="Dynamic uncertainty adaptation: Under normal conditions, uses conformal 80% [p10, p50, p90] bounds. Under high drift, expands to 90% [p05, p50, p95] bounds.">?</span></div>
-                <div class="metric-value">{alphas_display}</div>
+                <div class="metric-label">Recommended Model Action {format_info_tip("Dynamic uncertainty adaptation: Under normal conditions, uses conformal 80% [p10, p50, p90] bounds. Under high drift, expands to 90% [p05, p50, p95] bounds.", tip_right=True)}</div>
+                <div class="metric-value">{html.escape(alphas_display)}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{model_action_desc}</div>
             </div>
             """,
@@ -1869,9 +1898,9 @@ with tab_drift:
 
     st.markdown("---")
     st.markdown(
-        """
+        f"""
         <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-            Feature-by-Feature Distribution Audit (Trailing 7-Day Telemetry vs 30-Day Baseline) <span class="info-tip" tabindex="0" data-tip="Normalized 1D Wasserstein distance (W1/std >= 0.50 gated by KS p < 0.01) for continuous physical metrics and 1D Wasserstein distance (W1 >= 0.15) for cyclical harmonics.">?</span>
+            Feature-by-Feature Distribution Audit (Trailing 7-Day Telemetry vs 30-Day Baseline) {format_info_tip("Normalized 1D Wasserstein distance (W1/std >= 0.50 gated by KS p < 0.01) for continuous physical metrics and 1D Wasserstein distance (W1 >= 0.15) for cyclical harmonics.")}
         </div>
         """,
         unsafe_allow_html=True,

@@ -564,14 +564,14 @@ def build_html_drift_report(
             body {{
                 padding: 12px 8px;
             }}
-            .container {{
-                padding: 16px 12px;
+            .report-container {{
+                padding: 18px 14px;
                 border-radius: 8px;
             }}
-            .header h1 {{
+            .header-section h1, h1 {{
                 font-size: 18px;
             }}
-            .grid {{
+            .metric-grid, .meta-bar {{
                 grid-template-columns: 1fr;
                 gap: 8px;
             }}
