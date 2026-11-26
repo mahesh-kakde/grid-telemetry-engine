@@ -1,6 +1,8 @@
+import gc
 import os
 import json
 import logging
+import threading
 from typing import List, Dict, Any, Optional
 import lightgbm as lgb
 import joblib
@@ -122,17 +124,41 @@ def load_reference_baseline(
 
 
 class LazyDict(dict):
-    # dictionary with on-demand lazy loader callback for missing keys
-    def __init__(self, loader_fn):
+    # thread-safe lazy loader dictionary with optional lru eviction for memory-constrained runtimes
+    def __init__(self, loader_fn, max_entries: Optional[int] = None):
         super().__init__()
         self._loader_fn = loader_fn
+        self._max_entries = max_entries if (max_entries is None or max_entries > 0) else 1
+        self._lru_keys: List[Any] = []
+        self._lock = threading.RLock()
+
+    def _touch(self, key: Any) -> None:
+        if key in self._lru_keys:
+            self._lru_keys.remove(key)
+        self._lru_keys.append(key)
+
+    def _evict_if_needed(self) -> bool:
+        evicted = False
+        if self._max_entries is not None:
+            while len(self._lru_keys) >= self._max_entries:
+                oldest = self._lru_keys.pop(0)
+                if super().__contains__(oldest):
+                    super().__delitem__(oldest)
+                    evicted = True
+        return evicted
 
     def __getitem__(self, key):
-        if not super().__contains__(key):
+        with self._lock:
+            if super().__contains__(key):
+                self._touch(key)
+                return super().__getitem__(key)
             val = self._loader_fn(key)
-            self[key] = val
+            evicted = self._evict_if_needed()
+            super().__setitem__(key, val)
+            self._touch(key)
+            if evicted:
+                gc.collect()
             return val
-        return super().__getitem__(key)
 
     def __contains__(self, key):
         if super().__contains__(key):
@@ -140,30 +166,51 @@ class LazyDict(dict):
         return key in REGIONS
 
     def get(self, key, default=None):
-        if not super().__contains__(key):
-            try:
-                val = self._loader_fn(key)
-                self[key] = val
-                return val
-            except Exception:
-                return default
-        return super().get(key, default)
+        try:
+            return self[key]
+        except KeyError:
+            return default
+        except Exception as exc:
+            logger.warning(f"lazy artifact load failed for '{key}': {exc}")
+            return default
+
+
+def _resolve_max_cached_regions(max_cached_regions: Optional[int]) -> Optional[int]:
+    if max_cached_regions is not None:
+        return max(1, int(max_cached_regions))
+    raw_env = os.environ.get("MODEL_CACHE_MAX_REGIONS", "").strip()
+    if raw_env:
+        try:
+            val = int(raw_env)
+            return max(1, val) if val > 0 else None
+        except ValueError:
+            logger.warning(f"ignoring invalid MODEL_CACHE_MAX_REGIONS='{raw_env}'")
+    return None
 
 
 class ModelArtifactsBundle:
-    # in-memory registry bundle holding deserialized models with lazy on-demand loading
-    def __init__(self, artifacts_dir: Optional[str] = None):
+    # in-memory registry bundle holding deserialized models with optional lru region cap
+    def __init__(
+        self,
+        artifacts_dir: Optional[str] = None,
+        max_cached_regions: Optional[int] = None,
+    ):
         self.artifacts_dir = get_artifacts_dir(artifacts_dir)
+        self.max_cached_regions = _resolve_max_cached_regions(max_cached_regions)
         self.feature_columns = load_feature_columns(self.artifacts_dir)
         self.anomaly_feature_columns = load_anomaly_feature_columns(self.artifacts_dir)
         self.quantile_calibration = load_quantile_calibration(self.artifacts_dir)
         self.model_registry = load_model_registry(self.artifacts_dir)
-        self.lgb_models: Dict[str, Dict[float, lgb.Booster]] = LazyDict(self._load_region_boosters)
+        self.lgb_models: Dict[str, Dict[float, lgb.Booster]] = LazyDict(
+            self._load_region_boosters, max_entries=self.max_cached_regions
+        )
         self.isolation_forests: Dict[str, Any] = LazyDict(
-            lambda r: load_isolation_forest(r, self.artifacts_dir)
+            lambda r: load_isolation_forest(r, self.artifacts_dir),
+            max_entries=self.max_cached_regions,
         )
         self.reference_baselines: Dict[str, pd.DataFrame] = LazyDict(
-            lambda r: load_reference_baseline(r, self.artifacts_dir)
+            lambda r: load_reference_baseline(r, self.artifacts_dir),
+            max_entries=self.max_cached_regions,
         )
 
     def _load_region_boosters(self, region: str) -> Dict[float, lgb.Booster]:

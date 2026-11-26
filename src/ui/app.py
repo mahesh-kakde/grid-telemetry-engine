@@ -891,10 +891,10 @@ st.markdown(
 
 @st.cache_resource
 def get_cached_artifacts():
-    # caches in-memory bundle with on-demand lazy loading
+    # caches in-memory bundle bounded to 2 active regions for 512mb container safety
     from src.models.load_artifacts import ModelArtifactsBundle
     from src.models.explainers import AnomalySHAPExplainer
-    bundle = ModelArtifactsBundle()
+    bundle = ModelArtifactsBundle(max_cached_regions=2)
     explainer = AnomalySHAPExplainer(bundle)
     return bundle, explainer
 

@@ -317,3 +317,29 @@ def test_fetch_live_or_baseline_history_rejects_stale_db_window(artifacts_bundle
     df_out, source = inf.fetch_live_or_baseline_history("NR", lookback_hours=168, bundle=artifacts_bundle)
     assert source == "baseline_fallback"
     assert len(df_out) == 168
+
+
+def test_lru_bounded_model_and_shap_cache_eviction():
+    bounded_bundle = ModelArtifactsBundle(max_cached_regions=2)
+    bounded_explainer = AnomalySHAPExplainer(bounded_bundle)
+
+    # cycle across 3 regions: NR -> WR -> SR; NR must be evicted once SR loads
+    for reg in ["NR", "WR", "SR"]:
+        row = bounded_bundle.reference_baselines[reg].iloc[-1]
+        _ = bounded_bundle.lgb_models[reg]
+        _ = bounded_explainer.explain_anomaly_point(row, reg, top_k=3)
+        _ = bounded_explainer.explain_anomaly_score(row, reg, top_k=3)
+
+    assert len(bounded_bundle.lgb_models) == 2
+    assert set(bounded_bundle.lgb_models.keys()) == {"WR", "SR"}
+    assert len(bounded_bundle.isolation_forests) == 2
+    assert set(bounded_bundle.isolation_forests.keys()) == {"WR", "SR"}
+    assert len(bounded_explainer.explainers) == 2
+    assert set(bounded_explainer.explainers.keys()) == {"WR", "SR"}
+    assert len(bounded_explainer.anomaly_explainers) == 2
+    assert set(bounded_explainer.anomaly_explainers.keys()) == {"WR", "SR"}
+
+    # touching WR makes it most-recently-used so loading ER evicts SR instead of WR
+    _ = bounded_bundle.lgb_models["WR"]
+    _ = bounded_bundle.lgb_models["ER"]
+    assert set(bounded_bundle.lgb_models.keys()) == {"WR", "ER"}

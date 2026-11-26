@@ -34,9 +34,12 @@ class AnomalySHAPExplainer:
         self.anomaly_feature_columns = getattr(
             self.bundle, "anomaly_feature_columns", self.bundle.feature_columns
         )
-        self.explainers: Dict[str, shap.TreeExplainer] = LazyDict(self._build_tree_explainer)
+        max_cached = getattr(self.bundle, "max_cached_regions", None)
+        self.explainers: Dict[str, shap.TreeExplainer] = LazyDict(
+            self._build_tree_explainer, max_entries=max_cached
+        )
         self.anomaly_explainers: Dict[str, shap.TreeExplainer] = LazyDict(
-            self._build_isolation_explainer
+            self._build_isolation_explainer, max_entries=max_cached
         )
 
     def _build_tree_explainer(self, region: str) -> shap.TreeExplainer:
