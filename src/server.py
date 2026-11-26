@@ -1,0 +1,265 @@
+import os
+import sys
+
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+from typing import Sequence
+import streamlit as st
+from starlette.middleware import Middleware
+from starlette.requests import Request
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from starlette.routing import Route
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+STATIC_DIR = os.path.join(root_dir, "static")
+ROBOTS_PATH = os.path.join(STATIC_DIR, "robots.txt")
+FAVICON_PATH = os.path.join(STATIC_DIR, "favicon.png")
+DRIFT_REPORT_PATH = os.path.join(STATIC_DIR, "reports", "drift_report.html")
+
+SEO_TITLE = "grid-telemetry-engine | Mahesh Kakde"
+SEO_DESCRIPTION = (
+    "Multi-horizon probabilistic load forecasting, dual-trigger fault sentinel, "
+    "and automated statistical drift monitoring across India's National Power Grid."
+)
+
+ALLOWED_EXACT_PATHS = {
+    "/",
+    "/app",
+    "/robots.txt",
+    "/favicon.png",
+    "/favicon.ico",
+    "/reports/drift_report.html",
+    "/health",
+    "/healthz",
+}
+
+ALLOWED_PREFIXES = (
+    "/_stcore/",
+    "/static/",
+    "/media/",
+    "/component/",
+    "/app/static/",
+)
+
+SECURITY_HEADERS: Sequence[tuple[bytes, bytes]] = (
+    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"SAMEORIGIN"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+    (
+        b"content-security-policy",
+        b"default-src 'self'; "
+        b"script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        b"style-src 'self' 'unsafe-inline'; "
+        b"img-src 'self' data: blob:; "
+        b"font-src 'self' data:; "
+        b"connect-src 'self' ws: wss:; "
+        b"frame-ancestors 'self'; "
+        b"base-uri 'self'; "
+        b"object-src 'none'",
+    ),
+)
+
+NOT_FOUND_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found | grid-telemetry-engine</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .error-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 56px 36px;
+            text-align: center;
+            max-width: 520px;
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+        }
+        .error-code { font-size: 88px; font-weight: 800; line-height: 1; margin-bottom: 8px; letter-spacing: -0.04em; }
+        .error-title { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+        .error-desc { font-size: 14.5px; color: #64748b; line-height: 1.6; margin-bottom: 32px; }
+        .actions { display: flex; gap: 16px; justify-content: center; }
+        .btn-home {
+            background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 28px; border-radius: 6px;
+        }
+        .btn-home:hover { background-color: #1d4ed8; }
+        .btn-portfolio {
+            background-color: #ffffff; color: #0f172a; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 28px; border-radius: 6px; border: 1px solid #cbd5e1;
+        }
+        .btn-portfolio:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-code">404</div>
+        <div class="error-title">Page Not Found</div>
+        <div class="error-desc">The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.</div>
+        <div class="actions">
+            <a href="/" class="btn-home">Home</a>
+            <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+def _inject_seo_head(html_bytes: bytes) -> bytes:
+    html_text = html_bytes.decode("utf-8", errors="ignore")
+    if "<title>Streamlit</title>" in html_text:
+        replacement = (
+            f"<title>{SEO_TITLE}</title>\n"
+            f'    <meta name="description" content="{SEO_DESCRIPTION}" />'
+        )
+        html_text = html_text.replace("<title>Streamlit</title>", replacement, 1)
+    return html_text.encode("utf-8")
+
+
+class RouteAndSecurityMiddleware:
+    # enforces http security headers, injects server-side seo meta on /, and returns http 404 for unknown routes
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    @staticmethod
+    def _is_allowed_path(path: str) -> bool:
+        if path in ALLOWED_EXACT_PATHS:
+            return True
+        return any(path.startswith(prefix) for prefix in ALLOWED_PREFIXES)
+
+    @staticmethod
+    def _apply_security_headers(headers: list[tuple[bytes, bytes]]) -> list[tuple[bytes, bytes]]:
+        existing_keys = {k.lower() for k, _ in headers}
+        for key, val in SECURITY_HEADERS:
+            if key not in existing_keys:
+                headers.append((key, val))
+        return headers
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "/")
+        method = scope.get("method", "GET").upper()
+
+        if not self._is_allowed_path(path):
+            async def send_404(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    headers = self._apply_security_headers(list(message.get("headers", [])))
+                    message = {**message, "headers": headers}
+                await send(message)
+
+            response = HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
+            await response(scope, receive, send_404)
+            return
+
+        if path in {"/", "/app"} and method == "GET":
+            start_message: Message | None = None
+            body_chunks: list[bytes] = []
+
+            async def buffer_and_inject(message: Message) -> None:
+                nonlocal start_message
+                if message["type"] == "http.response.start":
+                    start_message = message
+                elif message["type"] == "http.response.body":
+                    body_chunks.append(message.get("body", b""))
+                    if not message.get("more_body", False):
+                        assert start_message is not None
+                        headers = self._apply_security_headers(list(start_message.get("headers", [])))
+                        content_type = next(
+                            (v.decode("latin-1").lower() for k, v in headers if k.lower() == b"content-type"),
+                            "",
+                        )
+                        raw_body = b"".join(body_chunks)
+                        if "text/html" in content_type:
+                            raw_body = _inject_seo_head(raw_body)
+                            headers = [
+                                (k, v) for k, v in headers if k.lower() != b"content-length"
+                            ]
+                            headers.append((b"content-length", str(len(raw_body)).encode("ascii")))
+                        await send({**start_message, "headers": headers})
+                        await send({"type": "http.response.body", "body": raw_body, "more_body": False})
+
+            await self.app(scope, receive, buffer_and_inject)
+            return
+
+        async def send_with_security_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = self._apply_security_headers(list(message.get("headers", [])))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
+
+
+async def robots_txt(request: Request):
+    if os.path.exists(ROBOTS_PATH):
+        with open(ROBOTS_PATH, "r", encoding="utf-8") as f:
+            return PlainTextResponse(f.read(), media_type="text/plain")
+    return PlainTextResponse("User-agent: *\nAllow: /\n", media_type="text/plain")
+
+
+async def favicon_png(request: Request):
+    if os.path.exists(FAVICON_PATH):
+        return FileResponse(FAVICON_PATH, media_type="image/png")
+    return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
+
+
+async def drift_report_html(request: Request):
+    region = request.query_params.get("region", "ALL_INDIA").upper()
+    db_url = os.environ.get("SUPABASE_DB_URL")
+    if db_url:
+        try:
+            import psycopg2
+            conn = psycopg2.connect(db_url, connect_timeout=3)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
+                        (region,),
+                    )
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        return HTMLResponse(content=row[0], media_type="text/html")
+            finally:
+                conn.close()
+        except Exception:
+            pass
+
+    if os.path.exists(DRIFT_REPORT_PATH):
+        return FileResponse(DRIFT_REPORT_PATH, media_type="text/html")
+    return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
+
+
+async def health_json(request: Request):
+    return JSONResponse({"status": "ok", "service": "grid-telemetry-engine"})
+
+
+app = st.App(
+    os.path.join(root_dir, "src", "ui", "app.py"),
+    routes=[
+        Route("/robots.txt", robots_txt, methods=["GET", "HEAD"]),
+        Route("/favicon.png", favicon_png, methods=["GET", "HEAD"]),
+        Route("/favicon.ico", favicon_png, methods=["GET", "HEAD"]),
+        Route("/reports/drift_report.html", drift_report_html, methods=["GET", "HEAD"]),
+        Route("/health", health_json, methods=["GET", "HEAD"]),
+    ],
+    middleware=[Middleware(RouteAndSecurityMiddleware)],
+)
