@@ -94,3 +94,36 @@ def test_precomputed_loader_nonexistent_region():
     assert load_precomputed_forecasts("NONEXISTENT_GRID") is None
     assert load_precomputed_anomaly("NONEXISTENT_GRID") is None
     assert load_precomputed_drift("NONEXISTENT_GRID") is None
+
+
+def test_precompute_region_guards_partial_post_warmup_drift(monkeypatch):
+    import polars as pl
+    from datetime import datetime, timezone, timedelta
+
+    t0 = datetime(2026, 11, 19, 6, 0, tzinfo=timezone.utc)
+    partial_live = pl.DataFrame([
+        {
+            "timestamp_utc": t0 + timedelta(hours=i),
+            "region": "NER",
+            "demand_mw": 2400.0 + (i % 24) * 30.0,
+            "frequency_hz": 50.0,
+            "temperature_2m": 22.0,
+            "relative_humidity_2m": 70.0,
+            "surface_solar_radiation": 150.0 if 6 <= ((t0 + timedelta(hours=i)).hour) <= 18 else 0.0,
+            "wind_speed_100m": 3.5,
+        }
+        for i in range(171)
+    ])
+    monkeypatch.setattr(
+        "src.models.infer_and_detect.fetch_live_or_baseline_history",
+        lambda *args, **kwargs: (partial_live, "supabase_live"),
+    )
+
+    bundle = ModelArtifactsBundle()
+    explainer = AnomalySHAPExplainer(bundle)
+    payload = precompute_region("NER", bundle, explainer, use_live_weather=False)
+    drift = payload["drift_summary"]
+    assert drift["observation_hours"] == 168
+    assert drift["window_source"] == "baseline_fallback"
+    assert drift["feature_metrics"]["sin_hour_k1"]["score"] == 0.0
+    assert drift["drift_alarm"] is False

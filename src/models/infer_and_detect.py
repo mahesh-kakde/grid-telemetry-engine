@@ -485,7 +485,7 @@ def backfill_forecast_actuals(db_url: str) -> int:
 def run_inference_and_detection() -> Dict[str, Any]:
     # batch execution runner invoked by scheduled etl pipeline
     from src.models.explainers import AnomalySHAPExplainer, persist_anomaly_events_to_supabase
-    from src.monitoring.drift_check import evaluate_feature_drift
+    from src.monitoring.drift_check import evaluate_feature_drift, select_drift_observation_window
 
     logger.info("initializing batch forecasting and anomaly detection engine...")
     bundle = ModelArtifactsBundle()
@@ -551,7 +551,11 @@ def run_inference_and_detection() -> Dict[str, Any]:
                 })
 
             baseline_ref = bundle.reference_baselines[region]
-            drift_res = evaluate_feature_drift(baseline_ref, ref_pd)
+            live_feat_df = None if feat_pl.is_empty() else ref_pd
+            drift_obs_df, _ = select_drift_observation_window(
+                live_feat_df, baseline_ref, window_hours=168
+            )
+            drift_res = evaluate_feature_drift(baseline_ref, drift_obs_df)
             widened = bool(drift_res.get("drift_alarm", False))
             wx_map = fetch_weather_forecast_map(region, forecast_days=4)
             forecasts = generate_72h_multi_step_forecast(

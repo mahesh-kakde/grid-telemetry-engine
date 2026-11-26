@@ -219,3 +219,20 @@ def test_weather_elasticity_and_ist_diurnal_peak():
     ]
     recs_hot = fetch_live_grid_records(GridRegion.NR, t_peak, t_peak, weather_records=hot_wx)
     assert recs_hot[0].demand_mw > by_ts_cool[t_peak]
+
+
+def test_run_ingestion_pipeline_requests_14_day_backfill(monkeypatch):
+    from src.ingestion import fetch_telemetry as ft
+
+    monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
+    captured_past_days = []
+
+    def fake_fetch_weather(lat, lon, region, past_days=7, forecast_days=1):
+        captured_past_days.append(past_days)
+        return []
+
+    monkeypatch.setattr(ft, "fetch_weather_with_retry", fake_fetch_weather)
+    payload = ft.run_ingestion_pipeline()
+    assert captured_past_days == [14] * len(GridRegion)
+    # 337 hours per region * 6 regions = 2022 records (168h warmup + 169h post-warmup)
+    assert len(payload.grid_records) == 337 * len(GridRegion)

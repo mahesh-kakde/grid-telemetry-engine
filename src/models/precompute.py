@@ -174,6 +174,7 @@ def precompute_region(
     from src.monitoring.drift_check import (
         evaluate_feature_drift,
         build_html_drift_report,
+        select_drift_observation_window,
     )
 
     logger.info(f"precomputing telemetry artifacts for region: {region}")
@@ -190,14 +191,19 @@ def precompute_region(
     feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True)
     curr_feat_df = ref_df.copy() if feat_pl.is_empty() else feat_pl.to_pandas()
 
-    # 1. statistical drift evaluation (monitors 12 physical/diurnal covariates)
-    curr_window = curr_feat_df.tail(168).copy()
+    # 1. statistical drift evaluation (requires full 168h post-warmup window across 12 covariates)
+    live_feat_df = None if feat_pl.is_empty() else curr_feat_df
+    curr_window, drift_window_source = select_drift_observation_window(
+        live_feat_df, ref_df, window_hours=168
+    )
     drift = evaluate_feature_drift(ref_df, curr_window, feature_cols=None)
     widened = bool(drift["drift_alarm"])
     generated_at = datetime.now(timezone.utc).isoformat()
 
     drift_summary = {
         "region": region,
+        "observation_hours": int(drift["observation_hours"]),
+        "window_source": drift_window_source,
         "drift_alarm": widened,
         "drift_ratio": float(drift["drift_ratio"]),
         "drifted_features": int(drift["drifted_features"]),

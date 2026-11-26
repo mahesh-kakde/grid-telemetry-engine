@@ -2,7 +2,7 @@ import os
 import json
 import html
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
@@ -229,6 +229,7 @@ def evaluate_feature_drift(
     drift_alarm = drift_ratio > DRIFT_ALARM_THRESHOLD
 
     return {
+        "observation_hours": int(len(curr_df)),
         "total_features": total_features,
         "drifted_features": drifted_features,
         "drift_ratio": drift_ratio,
@@ -237,6 +238,22 @@ def evaluate_feature_drift(
         "recommended_quantile_alpha": [0.05, 0.50, 0.95] if drift_alarm else [0.10, 0.50, 0.90],
         "feature_metrics": metrics,
     }
+
+
+def select_drift_observation_window(
+    feat_df: Optional[pd.DataFrame],
+    ref_df: pd.DataFrame,
+    window_hours: int = 168,
+) -> Tuple[pd.DataFrame, str]:
+    # requires a full post-warmup observation window before running distribution tests
+    if feat_df is not None and len(feat_df) >= window_hours:
+        return feat_df.tail(window_hours).copy(), "live_window"
+    avail = 0 if feat_df is None else len(feat_df)
+    logger.warning(
+        f"insufficient post-warmup rows ({avail} < {window_hours}) for drift audit; "
+        "falling back to reference baseline tail"
+    )
+    return ref_df.tail(window_hours).copy(), "baseline_fallback"
 
 
 def build_html_drift_report(
@@ -253,6 +270,12 @@ def build_html_drift_report(
     drift_ratio = float(drift_summary.get("drift_ratio", 0.0))
     drift_alarm = bool(drift_summary.get("drift_alarm", False))
     alphas = html.escape(str(drift_summary.get("recommended_quantile_alpha", [0.10, 0.50, 0.90])))
+    obs_hours = int(drift_summary.get("observation_hours", 168))
+    obs_label = (
+        "Trailing 7-Day (168h)"
+        if obs_hours == 168
+        else html.escape(f"Trailing {obs_hours}h Window")
+    )
 
     if drift_alarm:
         notice_class = "notice-alarm"
@@ -580,7 +603,7 @@ def build_html_drift_report(
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Observation Window</span>
-                    <span class="meta-val">Trailing 7-Day (168h)</span>
+                    <span class="meta-val">{obs_label}</span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">Audit Generated</span>
@@ -686,13 +709,17 @@ def fetch_trailing_telemetry_window(
         hours=window_hours + 168,
         db_url=db_url,
     )
-    if pl_df is not None and len(pl_df) >= 168:
+    ref_df = load_reference_baseline(region)
+    live_feat_df = None
+    if pl_df is not None and len(pl_df) >= window_hours + 168:
         feat_df = compute_telemetry_features(pl_df, drop_nulls_flag=True)
         if not feat_df.is_empty():
-            return feat_df.tail(window_hours).to_pandas()
+            live_feat_df = feat_df.to_pandas()
 
-    ref_df = load_reference_baseline(region)
-    return ref_df.tail(window_hours).copy()
+    selected_df, _ = select_drift_observation_window(
+        live_feat_df, ref_df, window_hours=window_hours
+    )
+    return selected_df
 
 
 def run_drift_monitoring_pipeline(

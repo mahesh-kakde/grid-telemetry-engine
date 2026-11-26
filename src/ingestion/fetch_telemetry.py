@@ -345,7 +345,8 @@ def run_ingestion_pipeline() -> TelemetryPayload:
     logger.info(f"initializing telemetry ingestion batch: {batch_id}")
 
     now_utc = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    start_utc = now_utc - timedelta(hours=168)
+    # fetch 14 days (336h) so 168h feature warmup leaves a full 168h post-warmup window
+    start_utc = now_utc - timedelta(hours=336)
 
     all_grid_records: List[RawGridRecord] = []
     all_weather_records: List[RawWeatherRecord] = []
@@ -354,8 +355,8 @@ def run_ingestion_pipeline() -> TelemetryPayload:
         logger.info(f"harvesting telemetry for region: {region.value}")
         lat, lon = REGIONAL_COORDINATES[region.value]
 
-        # 1. pull live weather across 7+ days lookback for 168h rolling lags
-        weather = fetch_weather_with_retry(lat, lon, region, past_days=7, forecast_days=1)
+        # 1. pull live weather across 14 days lookback for 168h warmup + 168h drift window
+        weather = fetch_weather_with_retry(lat, lon, region, past_days=14, forecast_days=1)
         all_weather_records.extend(weather)
 
         # 2. generate ist-aligned, weather-elastic simulated grid records
