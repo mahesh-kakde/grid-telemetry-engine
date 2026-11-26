@@ -51,6 +51,6 @@ USER appuser
 EXPOSE 7860 10000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${PORT:-10000}/_stcore/health" || exit 1
+    CMD curl -fsS "http://127.0.0.1:${PORT:-10000}/health" || exit 1
 
 CMD ["./start.sh"]

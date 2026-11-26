@@ -53,17 +53,11 @@ jobs:
           ARTIFACTS_PATH: "artifacts"
         run: python -m src.models.infer_and_detect
 
-      - name: Run Statistical Covariate Drift Evaluation
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          RENDER_TRIGGER_URL: ${{ secrets.RENDER_TRIGGER_URL }}
-          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
-        run: python -m src.monitoring.drift_check
-
-      - name: Publish Live Dashboard Snapshots to Supabase
+      - name: Evaluate Drift & Publish Live Dashboard Snapshots to Supabase
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           ARTIFACTS_PATH: "artifacts"
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
         run: python -m src.models.precompute
 
       - name: Prune Expired Database Records (90-Day Retention)

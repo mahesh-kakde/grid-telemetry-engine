@@ -332,11 +332,45 @@ def persist_precomputed_snapshots_to_supabase(
         conn.close()
 
 
+def _dispatch_drift_alert_webhook(
+    snapshots: List[Dict[str, Any]],
+    alert_webhook_url: Optional[str] = None,
+) -> None:
+    # notifies optional ops webhook when any region triggers statistical covariate drift
+    webhook_url = alert_webhook_url or os.environ.get("ALERT_WEBHOOK_URL")
+    if not webhook_url:
+        return
+    drifted_regions = [
+        {
+            "region": snap["region"],
+            "drift_ratio": snap["drift_summary"]["drift_ratio"],
+            "drifted_features": snap["drift_summary"]["drifted_features"],
+            "recommended_quantile_alpha": snap["drift_summary"]["recommended_quantile_alpha"],
+        }
+        for snap in snapshots
+        if snap.get("drift_summary", {}).get("drift_alarm")
+    ]
+    if not drifted_regions:
+        return
+    try:
+        import requests
+
+        res = requests.post(
+            webhook_url,
+            json={"event": "dataset_drift_alert", "regions": drifted_regions},
+            timeout=10,
+        )
+        logger.info(f"dispatched consolidated drift alert webhook: status code {res.status_code}")
+    except Exception as exc:
+        logger.warning(f"failed to dispatch consolidated drift webhook: {exc}")
+
+
 def precompute_all(
     output_dir: str = DEFAULT_PRECOMPUTED_DIR,
     regions: Optional[List[str]] = None,
     db_url: Optional[str] = None,
     use_live_weather: Optional[bool] = None,
+    alert_webhook_url: Optional[str] = None,
 ) -> Dict[str, str]:
     # executes batch precomputations across all designated regions
     from src.models.load_artifacts import ModelArtifactsBundle, load_feature_columns
@@ -392,6 +426,7 @@ def precompute_all(
     if target_db:
         persist_precomputed_snapshots_to_supabase(snapshots_for_db, target_db)
 
+    _dispatch_drift_alert_webhook(snapshots_for_db, alert_webhook_url=alert_webhook_url)
     logger.info(f"batch precomputation complete for {len(saved_paths)} regions")
     return saved_paths
 

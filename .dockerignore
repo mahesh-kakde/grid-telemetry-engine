@@ -12,3 +12,6 @@ notebooks/
 tests/
 *.log
 audit_report.md
+requirements-dev.txt
+.coverage
+htmlcov/
