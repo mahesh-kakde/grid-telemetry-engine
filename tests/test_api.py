@@ -46,7 +46,8 @@ def test_rest_api_endpoints_and_cors():
         assert res_404.status_code == 404
 
 
-def test_asgi_server_security_headers_routes_and_404():
+def test_asgi_server_security_headers_routes_and_404(monkeypatch):
+    monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
     from src.server import app
 
     with TestClient(app) as client:
@@ -71,11 +72,19 @@ def test_asgi_server_security_headers_routes_and_404():
         res_asset = client.get(asset_path)
         assert res_asset.status_code == 200
         assert len(res_asset.content) > 100
+        assert "max-age=86400" in res_asset.headers.get("cache-control", "")
         assert "immutable" not in res_asset.headers.get("cache-control", "").lower()
 
-        res_health = client.get("/health")
-        assert res_health.status_code == 200
-        assert res_health.json()["status"] == "ok"
+        # html spa fallback under /static/* must never be cached as an immutable/24h static asset
+        res_static_fallback = client.get("/static/robots.txt")
+        assert "no-store" in res_static_fallback.headers.get("cache-control", "")
+
+        for health_path in ("/health", "/healthz"):
+            res_health = client.get(health_path)
+            assert res_health.status_code == 200
+            health_json = res_health.json()
+            assert health_json["status"] == "ok"
+            assert health_json["artifacts_ready"] is True
 
         res_robots = client.get("/robots.txt")
         assert res_robots.status_code == 200
@@ -87,6 +96,13 @@ def test_asgi_server_security_headers_routes_and_404():
         res_report = client.get("/reports/drift_report.html")
         assert res_report.status_code == 200
         assert "Statistical Drift Diagnostic Report" in res_report.text
+
+        res_report_nr = client.get("/reports/drift_report.html?region=NR")
+        assert res_report_nr.status_code == 200
+        assert "NR — Northern Region" in res_report_nr.text
+
+        res_report_invalid = client.get("/reports/drift_report.html?region=../src")
+        assert res_report_invalid.status_code == 404
 
         res_404 = client.get("/nonexistent-route-audit-check")
         assert res_404.status_code == 404
@@ -121,3 +137,39 @@ def test_security_middleware_handles_upstream_gzip_html():
         assert res.headers.get("content-encoding") is None
         assert f"<title>{SEO_TITLE}</title>" in res.text
         assert "./assets-v2/static/js/app.js" in res.text
+
+
+def test_server_drift_db_fallback_and_health_readiness(monkeypatch):
+    from unittest.mock import MagicMock, patch
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.routing import Route
+    from src import server
+
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_cursor.fetchone.return_value = ("<html><body>DB NR Report</body></html>",)
+
+    test_srv = Starlette(
+        routes=[
+            Route("/reports/drift_report.html", server.drift_report_html, methods=["GET", "HEAD"]),
+            Route("/health", server.health_json, methods=["GET", "HEAD"]),
+            Route("/healthz", server.health_json, methods=["GET", "HEAD"]),
+        ],
+        middleware=[Middleware(server.RouteAndSecurityMiddleware)],
+    )
+
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://mock:mock@localhost:5432/mock")
+    with TestClient(test_srv) as client:
+        with patch("psycopg2.connect", return_value=mock_conn):
+            res_db = client.get("/reports/drift_report.html?region=NR")
+            assert res_db.status_code == 200
+            assert "DB NR Report" in res_db.text
+            mock_conn.close.assert_called_once()
+
+        with patch.object(server, "validate_artifacts_presence", return_value=False):
+            res_unhealthy = client.get("/healthz")
+            assert res_unhealthy.status_code == 503
+            assert res_unhealthy.json()["status"] == "unhealthy"
+            assert res_unhealthy.json()["artifacts_ready"] is False

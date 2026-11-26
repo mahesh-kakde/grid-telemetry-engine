@@ -1,4 +1,5 @@
 import gzip
+import logging
 import os
 import sys
 
@@ -6,13 +7,19 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from typing import Sequence
+from typing import Optional, Sequence
 import streamlit as st
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.routing import Route
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from src.models.load_artifacts import REGIONS, validate_artifacts_presence
+
+logger = logging.getLogger(__name__)
+VALID_REGIONS = set(REGIONS)
 
 STATIC_DIR = os.path.join(root_dir, "static")
 ROBOTS_PATH = os.path.join(STATIC_DIR, "robots.txt")
@@ -249,7 +256,16 @@ class RouteAndSecurityMiddleware:
             if message["type"] == "http.response.start":
                 headers = self._apply_security_headers(list(message.get("headers", [])))
                 if is_static_asset:
-                    headers = self._set_header(headers, b"cache-control", b"public, max-age=86400")
+                    status_code = int(message.get("status", 200))
+                    content_type = next(
+                        (v.decode("latin-1").lower() for k, v in headers if k.lower() == b"content-type"),
+                        "",
+                    )
+                    # only cache actual static asset payloads, never html spa fallbacks
+                    if status_code == 200 and "text/html" not in content_type:
+                        headers = self._set_header(headers, b"cache-control", b"public, max-age=86400")
+                    else:
+                        headers = self._set_header(headers, b"cache-control", b"no-cache, no-store, must-revalidate")
                 message = {**message, "headers": headers}
             await send(message)
 
@@ -269,34 +285,64 @@ async def favicon_png(request: Request):
     return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
 
 
+def _fetch_drift_report_from_db(region: str, db_url: str) -> Optional[str]:
+    import psycopg2
+
+    conn = psycopg2.connect(db_url, connect_timeout=3)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
+                (region,),
+            )
+            row = cur.fetchone()
+            return row[0] if row and row[0] else None
+    finally:
+        conn.close()
+
+
 async def drift_report_html(request: Request):
     region = request.query_params.get("region", "ALL_INDIA").upper()
+    if region not in VALID_REGIONS:
+        return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
+
     db_url = os.environ.get("SUPABASE_DB_URL")
     if db_url:
         try:
-            import psycopg2
-            conn = psycopg2.connect(db_url, connect_timeout=3)
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
-                        (region,),
-                    )
-                    row = cur.fetchone()
-                    if row and row[0]:
-                        return HTMLResponse(content=row[0], media_type="text/html")
-            finally:
-                conn.close()
-        except Exception:
-            pass
+            html_content = await run_in_threadpool(_fetch_drift_report_from_db, region, db_url)
+            if html_content:
+                return HTMLResponse(content=html_content, media_type="text/html")
+        except Exception as exc:
+            logger.warning(f"failed to load drift report from supabase for {region}: {exc}")
 
+    regional_report_path = (
+        DRIFT_REPORT_PATH
+        if region == "ALL_INDIA"
+        else os.path.join(STATIC_DIR, "reports", f"drift_report_{region}.html")
+    )
+    if os.path.exists(regional_report_path):
+        return FileResponse(regional_report_path, media_type="text/html")
     if os.path.exists(DRIFT_REPORT_PATH):
         return FileResponse(DRIFT_REPORT_PATH, media_type="text/html")
     return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
 
 
 async def health_json(request: Request):
-    return JSONResponse({"status": "ok", "service": "grid-telemetry-engine"})
+    try:
+        artifacts_ready = await run_in_threadpool(validate_artifacts_presence)
+    except Exception as exc:
+        logger.warning(f"health check artifact validation failed: {exc}")
+        artifacts_ready = False
+
+    status_code = 200 if artifacts_ready else 503
+    return JSONResponse(
+        {
+            "status": "ok" if artifacts_ready else "unhealthy",
+            "service": "grid-telemetry-engine",
+            "artifacts_ready": artifacts_ready,
+        },
+        status_code=status_code,
+    )
 
 
 app = st.App(
@@ -307,6 +353,7 @@ app = st.App(
         Route("/favicon.ico", favicon_png, methods=["GET", "HEAD"]),
         Route("/reports/drift_report.html", drift_report_html, methods=["GET", "HEAD"]),
         Route("/health", health_json, methods=["GET", "HEAD"]),
+        Route("/healthz", health_json, methods=["GET", "HEAD"]),
     ],
     middleware=[Middleware(RouteAndSecurityMiddleware)],
 )
