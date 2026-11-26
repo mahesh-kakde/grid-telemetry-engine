@@ -188,3 +188,131 @@ def test_server_drift_db_fallback_and_health_readiness(monkeypatch):
             assert res_unhealthy.status_code == 503
             assert res_unhealthy.json()["status"] == "unhealthy"
             assert res_unhealthy.json()["artifacts_ready"] is False
+
+
+def test_rest_api_auth_rate_limit_headers_and_widened_parity(monkeypatch):
+    from unittest.mock import patch
+    from src.api import main as api_main
+    from src.models import infer_and_detect, precompute as precompute_mod
+
+    monkeypatch.setenv("API_AUTH_TOKEN", "test-secret-token-123")
+    monkeypatch.setenv("API_COMPUTE_RATE_LIMIT_RPM", "20")
+    monkeypatch.setenv("API_RATE_LIMIT_RPM", "30")
+
+    with TestClient(api_main.app) as client:
+        # health probes stay open without credentials and still carry security headers
+        for probe in ("/health", "/healthz"):
+            res_probe = client.get(probe)
+            assert res_probe.status_code == 200
+            assert res_probe.json()["artifacts_ready"] is True
+            assert res_probe.headers.get("x-content-type-options") == "nosniff"
+            assert res_probe.headers.get("x-frame-options") == "SAMEORIGIN"
+            assert "max-age=" in res_probe.headers.get("strict-transport-security", "")
+            assert res_probe.headers.get("cache-control") == "no-store"
+
+        # unauthenticated or invalid credentials are rejected cleanly with 401
+        res_no_auth = client.get("/regions")
+        assert res_no_auth.status_code == 401
+        assert res_no_auth.headers.get("www-authenticate") == "Bearer"
+        assert res_no_auth.headers.get("x-content-type-options") == "nosniff"
+
+        res_bad_auth = client.post(
+            "/forecast",
+            json={"region": "ALL_INDIA", "lookback_hours": 168},
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        assert res_bad_auth.status_code == 401
+
+        # valid Bearer or X-API-Key succeeds
+        bearer_headers = {"Authorization": "Bearer test-secret-token-123"}
+        key_headers = {"X-API-Key": "test-secret-token-123"}
+        assert client.get("/regions", headers=bearer_headers).status_code == 200
+        assert client.get("/drift/report?region=NR", headers=key_headers).status_code == 200
+        assert client.get("/drift/report?region=INVALID", headers=key_headers).status_code == 400
+
+        # invalid extreme or negative demand fails pydantic validation cleanly
+        res_neg = client.post(
+            "/anomalies",
+            json={"region": "ALL_INDIA", "actual_demand_mw": -50.0},
+            headers=bearer_headers,
+        )
+        assert res_neg.status_code == 422
+
+        # widened=True vs widened=False CQR parity on POST /anomalies matching predict_quantiles(..., widened=...)
+        cal = api_main.app_state["bundle"].quantile_calibration["ALL_INDIA"]
+        expected_half_delta = float(cal["cqr_margin_90"]) - float(cal["cqr_margin_80"])
+
+        with patch.object(precompute_mod, "load_precomputed_data", return_value={"widened": False}):
+            res_w_false = client.post(
+                "/anomalies",
+                json={"region": "ALL_INDIA", "actual_demand_mw": 150000.0},
+                headers=bearer_headers,
+            )
+            assert res_w_false.status_code == 200
+            body_false = res_w_false.json()
+            assert body_false["widened"] is False
+
+        with patch.object(precompute_mod, "load_precomputed_data", return_value={"widened": True}):
+            res_w_true = client.post(
+                "/anomalies",
+                json={"region": "ALL_INDIA", "actual_demand_mw": 150000.0},
+                headers=bearer_headers,
+            )
+            assert res_w_true.status_code == 200
+            body_true = res_w_true.json()
+            assert body_true["widened"] is True
+
+        width_false = body_false["predicted_p90_mw"] - body_false["predicted_p10_mw"]
+        width_true = body_true["predicted_p90_mw"] - body_true["predicted_p10_mw"]
+        if expected_half_delta > 0:
+            assert width_true > width_false
+            assert body_true["predicted_p10_mw"] <= body_false["predicted_p10_mw"]
+            assert body_true["predicted_p90_mw"] > body_false["predicted_p90_mw"]
+            # parity check: widened margin delta equals cqr_margin_90 - cqr_margin_80 up to quantile sorting
+            assert expected_half_delta - 0.1 <= (width_true - width_false) <= (2.0 * expected_half_delta) + 0.1
+
+        # repeated uncached lookback_hours=169 or >240 coalesce onto in-memory live forecast TTL cache
+        orig_gen = infer_and_detect.generate_72h_multi_step_forecast
+        with patch.object(api_main, "generate_72h_multi_step_forecast", wraps=orig_gen) as spy_gen:
+            res_169_a = client.post(
+                "/forecast",
+                json={"region": "NR", "lookback_hours": 169},
+                headers=key_headers,
+            )
+            res_169_b = client.post(
+                "/forecast",
+                json={"region": "NR", "lookback_hours": 169},
+                headers=key_headers,
+            )
+            assert res_169_a.status_code == 200
+            assert res_169_b.status_code == 200
+            assert spy_gen.call_count == 1
+
+            # lookback values above 240 clamp to MAX_INFERENCE_LOOKBACK_HOURS (240) cleanly
+            assert client.post(
+                "/forecast",
+                json={"region": "NR", "lookback_hours": 300},
+                headers=key_headers,
+            ).status_code == 200
+            assert client.post(
+                "/forecast",
+                json={"region": "NR", "lookback_hours": 480},
+                headers=key_headers,
+            ).status_code == 200
+            assert spy_gen.call_count == 2
+
+        # compute rate limit enforcement returns 429 + Retry-After + security headers
+        api_main.rate_limiter.reset()
+        monkeypatch.setenv("API_COMPUTE_RATE_LIMIT_RPM", "2")
+        assert client.post(
+            "/forecast", json={"region": "ALL_INDIA", "lookback_hours": 168}, headers=key_headers
+        ).status_code == 200
+        assert client.post(
+            "/forecast", json={"region": "ALL_INDIA", "lookback_hours": 168}, headers=key_headers
+        ).status_code == 200
+        res_429 = client.post(
+            "/forecast", json={"region": "ALL_INDIA", "lookback_hours": 168}, headers=key_headers
+        )
+        assert res_429.status_code == 429
+        assert int(res_429.headers["retry-after"]) >= 1
+        assert res_429.headers.get("x-content-type-options") == "nosniff"
