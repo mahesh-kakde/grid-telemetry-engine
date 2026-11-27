@@ -33,6 +33,8 @@ def format_region_option(region_code: str) -> str:
     return REGION_SHORT_LABELS.get(region_code, region_code)
 
 
+NOT_FOUND_PAGE_TITLE = "404 Not Found | grid-telemetry-engine"
+
 FAVICON_SVG_DATA_URI = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
     "%3Crect x='1' y='1' width='30' height='30' rx='7' fill='%23ffffff' stroke='%23d2d2d7' stroke-width='1.2'/%3E"
@@ -53,7 +55,7 @@ def render_not_found_html(favicon_href: Optional[str] = None) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found - National Power Grid Telemetry</title>{favicon_tag}
+    <title>{NOT_FOUND_PAGE_TITLE}</title>{favicon_tag}
     <style>
         :root {{
             --bg-canvas: #f5f5f7;

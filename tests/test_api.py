@@ -59,6 +59,7 @@ def test_rest_api_endpoints_and_cors():
 
         res_404 = client.get("/nonexistent-api-route")
         assert res_404.status_code == 404
+        assert "<title>404 Not Found | grid-telemetry-engine</title>" in res_404.text
         assert '<a href="/" class="btn-home">' in res_404.text
         assert "<main" in res_404.text
 
@@ -134,6 +135,7 @@ def test_asgi_server_security_headers_routes_and_404(monkeypatch):
 
         res_404 = client.get("/nonexistent-route-audit-check")
         assert res_404.status_code == 404
+        assert "<title>404 Not Found | grid-telemetry-engine</title>" in res_404.text
         assert "Page Not Found" in res_404.text
         assert "<main" in res_404.text
         assert "<h1" in res_404.text

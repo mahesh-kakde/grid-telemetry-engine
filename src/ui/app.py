@@ -37,6 +37,7 @@ from src.ui.components import (
     build_shap_driver_cards_html,
 )
 from src.ui.helpers import (
+    NOT_FOUND_PAGE_TITLE,
     REGION_FULL_NAMES,
     evaluate_snapshot_freshness,
     format_region_option,
@@ -62,7 +63,7 @@ if hasattr(st, "context") and getattr(st.context, "url", None):
         pass
 
 app_page_title = (
-    "404 - Page Not Found | grid-telemetry-engine"
+    NOT_FOUND_PAGE_TITLE
     if is_404
     else "grid-telemetry-engine | Mahesh Kakde"
 )

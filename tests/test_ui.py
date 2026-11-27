@@ -175,6 +175,7 @@ def test_ui_helpers_notices_accessibility_and_report_mobile_css():
     from src.ui.helpers import render_not_found_html
 
     not_found_html = render_not_found_html("/favicon.png")
+    assert "<title>404 Not Found | grid-telemetry-engine</title>" in not_found_html
     assert "National Power Grid Telemetry" in not_found_html
     assert "border-radius: var(--radius-card)" in not_found_html
     assert "999px" not in not_found_html
@@ -225,3 +226,19 @@ def test_ui_helpers_notices_accessibility_and_report_mobile_css():
         local_snap = load_precomputed_data("ALL_INDIA", prefer_supabase=False)
         assert local_snap is not None and local_snap["snapshot_source"] == "local_snapshot"
         spy_db.assert_not_called()
+
+
+def test_streamlit_404_page_title_and_layout():
+    from unittest.mock import patch
+    import streamlit as st
+
+    at = AppTest.from_file(APP_PATH, default_timeout=30)
+    at.query_params["page"] = "404"
+    with patch("streamlit.set_page_config", wraps=st.set_page_config) as spy_page_config:
+        at.run()
+
+    assert not at.exception
+    assert spy_page_config.call_args.kwargs["page_title"] == "404 Not Found | grid-telemetry-engine"
+    rendered = "\n".join(el.value for el in at.markdown)
+    assert "Error 404" in rendered
+    assert "Page Not Found" in rendered
