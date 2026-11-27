@@ -33,66 +33,232 @@ def format_region_option(region_code: str) -> str:
     return REGION_SHORT_LABELS.get(region_code, region_code)
 
 
+FAVICON_SVG_DATA_URI = (
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+    "%3Crect x='1' y='1' width='30' height='30' rx='7' fill='%23ffffff' stroke='%23d2d2d7' stroke-width='1.2'/%3E"
+    "%3Cpolygon points='5,19.5 11.5,16 18.5,9.5 26.5,11.2 26.5,19.8 18.5,18 11.5,23 5,24.5' fill='%230066cc' fill-opacity='0.22'/%3E"
+    "%3Cpolyline points='5,22 11.5,19.5 18.5,13.8 26.5,15.5' fill='none' stroke='%230066cc' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E"
+    "%3Ccircle cx='18.5' cy='13.8' r='2.4' fill='%23b91c1c'/%3E%3C/svg%3E"
+)
+
+
 def render_not_found_html(favicon_href: Optional[str] = None) -> str:
-    """Render shared accessible 404 HTML page for ASGI/API routes."""
-    favicon_tag = (
-        f'\n    <link rel="icon" type="image/png" href="{html.escape(favicon_href, quote=True)}">'
-        if favicon_href
-        else ""
-    )
+    """Render shared accessible 404 HTML page matching the dashboard light design system."""
+    if favicon_href:
+        favicon_tag = f'\n    <link rel="icon" type="image/png" href="{html.escape(favicon_href, quote=True)}">'
+    else:
+        favicon_tag = f'\n    <link rel="icon" type="image/svg+xml" href="{FAVICON_SVG_DATA_URI}">'
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found | grid-telemetry-engine</title>{favicon_tag}
+    <title>404 Not Found - National Power Grid Telemetry</title>{favicon_tag}
     <style>
+        :root {{
+            --bg-canvas: #f5f5f7;
+            --bg-surface: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #515154;
+            --text-muted: #6e6e73;
+            --accent-blue: #0066cc;
+            --accent-blue-hover: #0055b3;
+            --border-hairline: #d2d2d7;
+            --radius-card: 16px;
+            --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+        }}
+        * {{
+            box-sizing: border-box;
+        }}
         body {{
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
-            background-color: #f5f5f7;
-            color: #1d1d1f;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }}
+        .site-header {{
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-hairline);
+        }}
+        .site-header-inner {{
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }}
+        .brand-title {{
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }}
+        .status-label {{
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }}
+        .page-main {{
+            flex: 1 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            padding: 16px;
+            padding: 36px 24px;
         }}
         .error-card {{
-            background-color: #ffffff;
-            border: 1px solid #d2d2d7;
-            border-radius: 18px;
-            padding: 52px 40px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-card);
+            padding: 48px 40px;
             text-align: center;
             max-width: 500px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            box-shadow: var(--shadow-card);
         }}
-        .error-code {{ font-size: 76px; font-weight: 700; line-height: 1; margin-bottom: 10px; letter-spacing: -0.04em; color: #1d1d1f; }}
-        .error-title {{ font-size: 22px; font-weight: 650; color: #1d1d1f; margin: 0 0 10px 0; }}
-        .error-desc {{ font-size: 14.5px; color: #515154; line-height: 1.55; margin-bottom: 28px; }}
-        .actions {{ display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }}
+        .error-code {{
+            font-size: 72px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 10px;
+            letter-spacing: -0.04em;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary);
+        }}
+        .error-title {{
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+            line-height: 1.25;
+        }}
+        .error-desc {{
+            font-size: 14.5px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            margin: 0 0 28px 0;
+        }}
+        .actions {{
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }}
         .btn-home {{
-            background-color: #0066cc; color: #ffffff; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 26px; border-radius: 999px;
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 10px 22px;
+            border-radius: 10px;
+            border: 1px solid var(--accent-blue);
+            transition: background-color 0.15s ease;
         }}
-        .btn-home:hover {{ background-color: #0055b3; }}
+        .btn-home:hover {{
+            background-color: var(--accent-blue-hover);
+            border-color: var(--accent-blue-hover);
+        }}
         .btn-portfolio {{
-            background-color: #ffffff; color: #1d1d1f; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 26px; border-radius: 999px; border: 1px solid #d2d2d7;
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 10px 22px;
+            border-radius: 10px;
+            border: 1px solid var(--border-hairline);
+            transition: background-color 0.15s ease;
         }}
-        .btn-portfolio:hover {{ background-color: #f5f5f7; }}
+        .btn-portfolio:hover {{
+            background-color: #f2f2f7;
+        }}
+        .site-footer {{
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-hairline);
+            margin-top: auto;
+        }}
+        .site-footer-inner {{
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--text-muted);
+        }}
+        .site-footer a {{
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        .site-footer a:hover {{
+            text-decoration: underline;
+        }}
+        @media (max-width: 640px) {{
+            .site-header-inner,
+            .site-footer-inner {{
+                padding: 12px 16px;
+            }}
+            .page-main {{
+                padding: 24px 16px;
+            }}
+            .error-card {{
+                padding: 36px 24px;
+            }}
+            .actions {{
+                flex-direction: column;
+            }}
+            .btn-home,
+            .btn-portfolio {{
+                width: 100%;
+            }}
+        }}
     </style>
 </head>
 <body>
-    <main class="error-card">
-        <div class="error-code" aria-hidden="true">404</div>
-        <h1 class="error-title">Page Not Found</h1>
-        <div class="error-desc">The requested page or route does not exist or has been moved.</div>
-        <div class="actions">
-            <a href="/" class="btn-home">Return to Dashboard</a>
-            <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="brand-title">National Power Grid Telemetry</div>
+            <div class="status-label">Error 404</div>
         </div>
+    </header>
+
+    <main class="page-main">
+        <section class="error-card">
+            <div class="error-code" aria-hidden="true">404</div>
+            <h1 class="error-title">Page Not Found</h1>
+            <p class="error-desc">The requested page or route does not exist or has been moved.</p>
+            <div class="actions">
+                <a href="/" class="btn-home">Return to Dashboard</a>
+                <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
+            </div>
+        </section>
     </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a></span>
+            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+    </footer>
 </body>
 </html>"""
 

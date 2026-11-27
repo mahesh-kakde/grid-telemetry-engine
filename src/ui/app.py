@@ -79,25 +79,39 @@ st.markdown(get_app_css(), unsafe_allow_html=True)
 if is_404:
     st.markdown(
         """
-        <main style="max-width: 500px; margin: 4rem auto; background: #ffffff; border: 1px solid #d2d2d7;
-                     border-radius: 18px; padding: 48px 36px; text-align: center;
-                     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);">
-            <div style="font-size: 72px; font-weight: 700; line-height: 1; margin-bottom: 10px;" aria-hidden="true">404</div>
-            <h1 style="font-size: 22px !important; margin-bottom: 10px !important;">Page Not Found</h1>
-            <p style="font-size: 14px; color: #515154; line-height: 1.55; margin-bottom: 26px;">
+        <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 95; background: #ffffff;
+                       border-bottom: 1px solid #d2d2d7;">
+            <div style="max-width: 1240px; margin: 0 auto; padding: 14px 32px; display: flex;
+                        justify-content: space-between; align-items: center; gap: 16px;">
+                <span style="font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: #1d1d1f;">
+                    National Power Grid Telemetry
+                </span>
+                <span style="font-size: 13.5px; font-weight: 500; color: #515154;">Error 404</span>
+            </div>
+        </header>
+        <main style="max-width: 500px; margin: 3rem auto; background: #ffffff; border: 1px solid #d2d2d7;
+                     border-radius: 16px; padding: 48px 40px; text-align: center;
+                     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);">
+            <div style="font-size: 72px; font-weight: 700; line-height: 1; margin-bottom: 10px;
+                        letter-spacing: -0.04em; font-variant-numeric: tabular-nums;" aria-hidden="true">404</div>
+            <h1 style="font-size: 24px !important; font-weight: 700 !important; letter-spacing: -0.02em;
+                       margin: 0 0 8px 0 !important; color: #1d1d1f;">Page Not Found</h1>
+            <p style="font-size: 14.5px; color: #515154; line-height: 1.55; margin: 0 0 28px 0;">
                 The requested page or route does not exist or has been moved.
             </p>
-            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <a href="/" target="_self" style="background: #0066cc; color: #ffffff; text-decoration: none;
-                   font-weight: 600; font-size: 13.5px; padding: 10px 24px; border-radius: 999px;">Return to Dashboard</a>
+                   font-weight: 600; font-size: 13.5px; padding: 10px 22px; border-radius: 10px;
+                   border: 1px solid #0066cc;">Return to Dashboard</a>
                 <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer"
                    style="background: #ffffff; color: #1d1d1f; text-decoration: none; font-weight: 600;
-                   font-size: 13.5px; padding: 10px 24px; border-radius: 999px; border: 1px solid #d2d2d7;">Portfolio</a>
+                   font-size: 13.5px; padding: 10px 22px; border-radius: 10px; border: 1px solid #d2d2d7;">Portfolio</a>
             </div>
         </main>
         """,
         unsafe_allow_html=True,
     )
+    st.markdown(build_footer_html(), unsafe_allow_html=True)
     st.stop()
 
 

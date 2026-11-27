@@ -168,8 +168,18 @@ def test_ui_helpers_notices_accessibility_and_report_mobile_css():
     assert "--bg-canvas: #f5f5f7" in report_html
     assert "Statistical Drift Criteria" in report_html
     assert "https://github.com/mahesh-kakde/grid-telemetry-engine" in report_html
+    assert "26.5,11.2" in report_html
     assert "v2.0.0" not in report_html
     assert "\n            .container {{" not in report_html and ".container {" not in report_html
+
+    from src.ui.helpers import render_not_found_html
+
+    not_found_html = render_not_found_html("/favicon.png")
+    assert "National Power Grid Telemetry" in not_found_html
+    assert "border-radius: var(--radius-card)" in not_found_html
+    assert "999px" not in not_found_html
+    assert "https://github.com/mahesh-kakde/grid-telemetry-engine" in not_found_html
+    assert "data:image/svg+xml" in render_not_found_html()
 
     from src.models.precompute import load_all_snapshots_from_supabase
     from src.server import _inject_seo_head
