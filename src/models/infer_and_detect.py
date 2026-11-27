@@ -24,7 +24,8 @@ from src.features.build_features import (
     get_indian_holidays,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+from src.logging_config import configure_logging
+
 logger = logging.getLogger(__name__)
 
 MODEL_VERSION = "2.0.0"
@@ -646,7 +647,7 @@ def run_inference_and_detection() -> Dict[str, Any]:
             ref_pd = feat_pl.to_pandas()
 
         baseline_ref = bundle.reference_baselines[region]
-        live_feat_df = None if feat_pl.is_empty() else ref_pd
+        live_feat_df = ref_pd if (source_tag == "supabase_live" and not feat_pl.is_empty()) else None
         drift_obs_df, _ = select_drift_observation_window(
             live_feat_df, baseline_ref, window_hours=168
         )
@@ -726,4 +727,5 @@ def run_inference_and_detection() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
+    configure_logging()
     run_inference_and_detection()

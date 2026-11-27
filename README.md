@@ -91,7 +91,7 @@ flowchart TD
 
 ## Conformal Quantile Forecasting & Observation-Aware Sentinel
 
-- **Conformal Quantile Regression (`CQR`):** 18 LightGBM quantile boosters (`0.10, 0.50, 0.90`) are calibrated with held-out regional `cqr_margin_80` / `cqr_margin_90` offsets in `artifacts/models/quantile_calibration.json`, followed by isotonic sorting (`p10 <= p50 <= p90`).
+- **Conformal Quantile Regression (`CQR`):** 18 LightGBM quantile boosters (`0.10, 0.50, 0.90`) are calibrated with held-out regional `cqr_margin_80` / `cqr_margin_90` offsets in `artifacts/models/quantile_calibration.json`, reconciled bottom-up for `ALL_INDIA` (`NR..NER` sum conservation), sorted monotonically (`p10 <= p50 <= p90`), and SHA-256 verified via `artifacts/models/artifact_checksums.json`.
 - **9-Feature Observation-Aware Isolation Forest:** Structural surprise (Trigger A) evaluates instantaneous observed state (`demand_mw`, `demand_delta_1h`, `demand_delta_24h`, `demand_zscore_24h`, ambient weather, and diurnal harmonics) rather than stale lags.
 - **Consensus Gate (`Alert = Trigger A AND Trigger B`):** Combines Isolation Forest outlier detection with empirical `1.5 * (p90 - p10)` envelope breach checks.
 - **Path-Dependent SHAP Explainability:** Decomposes forecasts into exact Megawatt feature attributions via `shap.TreeExplainer(booster)`.
@@ -125,7 +125,7 @@ grid-telemetry-engine/
 |   |-- feature_columns.json          # 26-feature LightGBM input contract
 |   |-- anomaly_feature_columns.json  # 9-feature Isolation Forest input contract
 |   |-- baselines/                    # 30-day regional reference baselines (.parquet)
-|   |-- models/                       # 18 LightGBM boosters, 6 Isolation Forests, CQR calibration
+|   |-- models/                       # 18 LightGBM boosters, 6 Isolation Forests, CQR & SHA-256 checksums
 |   \-- precomputed/                  # Bundled fallback JSON snapshots per region
 |-- notebooks/
 |   \-- training_pipeline.ipynb       # Offline Kaggle model training & CQR calibration notebook
@@ -134,8 +134,9 @@ grid-telemetry-engine/
 |   |-- migrate_v2.sql                # Additive non-destructive v2 schema migration
 |   \-- cleanup_retention.sql         # 90-day storage pruning routines
 |-- src/
+|   |-- logging_config.py             # Shared entrypoint logging configuration
 |   |-- server.py                     # Production ASGI wrapper (st.App + headers + routes + 404)
-|   |-- api/main.py                   # Optional developer REST service
+|   |-- api/main.py                   # Optional local developer REST service
 |   |-- features/build_features.py    # Polars hourly-upsampled causal feature pipeline
 |   |-- ingestion/
 |   |   |-- fetch_telemetry.py        # Open-Meteo client & IST weather-elastic simulation
@@ -143,18 +144,22 @@ grid-telemetry-engine/
 |   |   \-- cleanup.py                # 90-day database retention runner
 |   |-- models/
 |   |   |-- explainers.py             # Path-dependent SHAP TreeExplainer & Supabase persistence
-|   |   |-- infer_and_detect.py       # CQR forecasting, anomaly engine, forecast backfill
-|   |   |-- load_artifacts.py         # Artifact loaders & ModelArtifactsBundle
+|   |   |-- infer_and_detect.py       # CQR forecasting, ALL_INDIA reconciliation, anomaly & backfill
+|   |   |-- load_artifacts.py         # Artifact loaders, SHA-256 verification & ModelArtifactsBundle
 |   |   \-- precompute.py             # Live Supabase & local JSON snapshot publisher
-|   |-- monitoring/drift_check.py     # Normalized Wasserstein + KS covariate drift monitor
-|   \-- ui/app.py                     # Streamlit operational dashboard (v2.0.0)
+|   |-- monitoring/drift_check.py     # Norm. Wasserstein + KS & TVD + Chi-square drift monitor
+|   \-- ui/
+|       |-- app.py                    # Streamlit operational dashboard (v2.0.0)
+|       \-- helpers.py                # Freshness evaluation, ARIA tooltips & shared 404 template
 |-- static/                           # Favicon, robots.txt, and standalone drift HTML reports
 |-- tests/                            # Automated unit, API, ASGI, drift, and UI AppTest suite
 |-- .dockerignore                     # Excludes git/tests/notebooks from image context
 |-- Dockerfile                        # Multi-stage non-root production image (python:3.12-slim)
+|-- pyproject.toml                    # Package metadata, pytest pythonpath, and ruff config
 |-- start.sh                          # Single-process uvicorn entrypoint for src.server:app
 |-- render.yaml                       # Render Free tier blueprint (oregon)
-|-- requirements.txt                  # Runtime & test dependencies
+|-- requirements.txt                  # Bounded runtime dependencies
+|-- requirements-dev.txt              # Development lint, test, and audit dependencies
 |-- LICENSE                           # MIT License
 \-- README.md
 ```

@@ -10,7 +10,6 @@ import lightgbm as lgb
 import joblib
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]

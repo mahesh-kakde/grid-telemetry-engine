@@ -59,6 +59,8 @@ def test_rest_api_endpoints_and_cors():
 
         res_404 = client.get("/nonexistent-api-route")
         assert res_404.status_code == 404
+        assert '<a href="/" class="btn-home">' in res_404.text
+        assert "<main" in res_404.text
 
         for bad_json in (
             '{"region":"NR","actual_demand_mw":NaN}',
@@ -371,3 +373,17 @@ def test_rest_api_auth_rate_limit_headers_and_widened_parity(monkeypatch):
         assert res_429.status_code == 429
         assert int(res_429.headers["retry-after"]) >= 1
         assert res_429.headers.get("x-content-type-options") == "nosniff"
+
+
+def test_library_imports_do_not_configure_root_logging():
+    import subprocess
+    import sys
+
+    code = (
+        "import logging, src.ingestion.cleanup, src.ingestion.fetch_telemetry, "
+        "src.models.load_artifacts, src.models.explainers, src.models.infer_and_detect, "
+        "src.models.precompute, src.monitoring.drift_check, src.server, src.api.main; "
+        "assert len(logging.getLogger().handlers) == 0, logging.getLogger().handlers"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], check=False, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr or proc.stdout

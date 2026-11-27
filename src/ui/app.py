@@ -1,9 +1,10 @@
+import importlib.util
 import os
 import sys
 
-# ensure project root is present in sys.path when running standalone streamlit commands
+# only inject repo root when invoked directly via `streamlit run src/ui/app.py` without package install
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if root_dir not in sys.path:
+if importlib.util.find_spec("src") is None and root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from datetime import datetime, timezone

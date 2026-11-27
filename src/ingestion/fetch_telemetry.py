@@ -23,7 +23,8 @@ from src.ingestion.schemas import (
     TelemetryPayload,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+from src.logging_config import configure_logging
+
 logger = logging.getLogger(__name__)
 
 # regional coordinates for meteorological centroids
@@ -482,4 +483,5 @@ def run_ingestion_pipeline() -> TelemetryPayload:
 
 
 if __name__ == "__main__":
+    configure_logging()
     run_ingestion_pipeline()

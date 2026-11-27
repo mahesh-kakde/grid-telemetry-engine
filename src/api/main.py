@@ -1,11 +1,4 @@
 import os
-import sys
-
-# ensure project root is present in sys.path
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
-
 import logging
 import hmac
 import math
@@ -24,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.logging_config import configure_logging
 from src.models import precompute as precompute_mod
 from src.models.load_artifacts import (
     ModelArtifactsBundle,
@@ -46,9 +40,10 @@ from src.monitoring.drift_check import (
     DEFAULT_REPORT_PATH,
     fetch_trailing_telemetry_window,
 )
+from src.ui.helpers import render_not_found_html
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+NOT_FOUND_HTML = render_not_found_html()
 
 STATIC_REPORTS_DIR = os.path.dirname(DEFAULT_REPORT_PATH)
 COMPUTE_RATE_PATHS = frozenset({"/forecast", "/anomalies", "/drift"})
@@ -232,6 +227,7 @@ def _set_cached_live_forecast(cache_key: Tuple[str, int, bool], payload: Dict[st
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     rate_limiter.reset()
     with _LIVE_CACHE_LOCK:
         _LIVE_FORECAST_CACHE.clear()
@@ -323,60 +319,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(404)
 async def custom_404_handler(request, exc):
     return HTMLResponse(
-        content="""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found | grid-telemetry-engine</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .error-card {
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 56px 36px;
-            text-align: center;
-            max-width: 520px;
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
-        }
-        .error-code { font-size: 88px; font-weight: 800; line-height: 1; margin-bottom: 8px; letter-spacing: -0.04em; }
-        .error-title { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
-        .error-desc { font-size: 14.5px; color: #64748b; line-height: 1.6; margin-bottom: 32px; }
-        .actions { display: flex; gap: 16px; justify-content: center; }
-        .btn-home {
-            background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 28px; border-radius: 6px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
-        }
-        .btn-home:hover { background-color: #1d4ed8; }
-        .btn-portfolio {
-            background-color: #ffffff; color: #0f172a; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 28px; border-radius: 6px; border: 1px solid #cbd5e1;
-        }
-        .btn-portfolio:hover { background-color: #f8fafc; }
-    </style>
-</head>
-<body>
-    <main class="error-card">
-        <div class="error-code" aria-hidden="true">404</div>
-        <h1 class="error-title">Page Not Found</h1>
-        <div class="error-desc">The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.</div>
-        <div class="actions">
-            <a href="https://grid.maheshkakde.com" class="btn-home">Home</a>
-            <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
-        </div>
-    </main>
-</body>
-</html>""",
+        content=NOT_FOUND_HTML,
         status_code=404,
     )
 

@@ -9,12 +9,12 @@ import pandas as pd
 from scipy.stats import chi2_contingency, ks_2samp, wasserstein_distance
 import requests
 
+from src.logging_config import configure_logging
 from src.models.load_artifacts import (
     load_reference_baseline,
     REGIONS,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 CYCLICAL_FEATURES = [
@@ -814,6 +814,7 @@ def run_drift_monitoring_pipeline(
 
 
 if __name__ == "__main__":
+    configure_logging()
     db_url = os.environ.get("SUPABASE_DB_URL")
     trigger_url = os.environ.get("RENDER_TRIGGER_URL") or os.environ.get("ALERT_WEBHOOK_URL")
     all_results = {}

@@ -1,15 +1,13 @@
 import os
-import sys
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 import pandas as pd
 
-# ensure project root is present in sys.path
+from src.logging_config import configure_logging
+
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
 
 REGIONS = ["ALL_INDIA", "NR", "WR", "SR", "ER", "NER"]
 MODEL_VERSION = "2.0.0"
@@ -24,7 +22,6 @@ except ImportError:
     execute_values = None
     Json = None
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -192,8 +189,8 @@ def precompute_region(
     feat_pl = compute_telemetry_features(df_history, drop_nulls_flag=True, calendar_tz=cal_tz)
     curr_feat_df = ref_df.copy() if feat_pl.is_empty() else feat_pl.to_pandas()
 
-    # 1. statistical drift evaluation (requires full 168h post-warmup window across 12 covariates)
-    live_feat_df = None if feat_pl.is_empty() else curr_feat_df
+    # 1. statistical drift evaluation (requires full 168h post-warmup live window across 12 covariates)
+    live_feat_df = curr_feat_df if (source_tag == "supabase_live" and not feat_pl.is_empty()) else None
     curr_window, drift_window_source = select_drift_observation_window(
         live_feat_df, ref_df, window_hours=168
     )
@@ -447,6 +444,7 @@ def precompute_all(
 
 if __name__ == "__main__":
     import argparse
+    configure_logging()
     parser = argparse.ArgumentParser(description="batch precompute forecasts, anomaly states, and drift metrics")
     parser.add_argument("--output-dir", default=DEFAULT_PRECOMPUTED_DIR, help="directory for serialized artifacts")
     parser.add_argument("--regions", nargs="*", default=None, help="target regional grid codes")

@@ -73,10 +73,12 @@ def test_precompute_single_region_runner(tmp_path):
     payload = precompute_region("NER", bundle, explainer)
 
     assert payload["region"] == "NER"
+    assert payload["data_source"] == "baseline_fallback"
     assert len(payload["forecasts"]) == 72
     assert "nominal_anomaly" in payload
     assert len(payload["nominal_anomaly"]["anomaly_shap_features"]) == 3
     assert "drift_summary" in payload
+    assert payload["drift_summary"]["window_source"] == "baseline_fallback"
 
     # write to temp path and test loader with custom output_dir
     temp_dir = str(tmp_path)

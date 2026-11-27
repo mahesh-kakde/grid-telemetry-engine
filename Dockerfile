@@ -23,6 +23,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
     STREAMLIT_SERVER_HEADLESS="true" \
     ARTIFACTS_PATH="/app/artifacts"
 

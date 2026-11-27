@@ -8,7 +8,8 @@ try:
 except ImportError:
     psycopg2 = None
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+from src.logging_config import configure_logging
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_RETENTION_DAYS = 90
@@ -117,6 +118,7 @@ def prune_expired_records(
 
 if __name__ == "__main__":
     import argparse
+    configure_logging()
     parser = argparse.ArgumentParser(description="enforce rolling retention pruning on supabase postgresql")
     parser.add_argument(
         "--retention-days",
