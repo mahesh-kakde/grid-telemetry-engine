@@ -125,6 +125,40 @@ def test_asgi_server_security_headers_routes_and_404(monkeypatch):
         assert "<main" in res_404.text
         assert "<h1" in res_404.text
 
+        for head_path in ("/", "/app"):
+            res_head = client.head(head_path)
+            assert res_head.status_code == 200
+            assert "no-store" in res_head.headers.get("cache-control", "")
+
+
+def test_security_middleware_blocks_raw_path_traversal():
+    import asyncio
+    from src.server import RouteAndSecurityMiddleware
+
+    async def upstream(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok", "more_body": False})
+
+    mw = RouteAndSecurityMiddleware(upstream)
+
+    async def probe(path: str, raw_path: bytes) -> int:
+        sent = []
+        scope = {"type": "http", "method": "GET", "path": path, "raw_path": raw_path, "headers": []}
+
+        async def recv():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(msg):
+            sent.append(msg)
+
+        await mw(scope, recv, send)
+        return int(sent[0]["status"])
+
+    assert asyncio.run(probe("/static/../src/server.py", b"/static/../src/server.py")) == 404
+    assert asyncio.run(probe("/assets-v2/static/..%2f..%2fetc/passwd", b"/assets-v2/static/..%2f..%2fetc/passwd")) == 404
+    assert asyncio.run(probe("/static/%2e%2e/server.py", b"/static/%2e%2e/server.py")) == 404
+    assert asyncio.run(probe("/static/js/app.js", b"/static/js/app.js")) == 200
+
 
 def test_security_middleware_handles_upstream_gzip_html():
     import gzip

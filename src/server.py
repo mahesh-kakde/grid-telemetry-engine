@@ -11,6 +11,7 @@ if root_dir not in sys.path:
 
 from collections import OrderedDict
 from typing import Optional, Sequence, Tuple
+from urllib.parse import unquote
 import streamlit as st
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
@@ -154,7 +155,22 @@ class RouteAndSecurityMiddleware:
         self.app = app
 
     @staticmethod
-    def _is_allowed_path(path: str) -> bool:
+    def _has_unsafe_segments(path: str, raw_path: bytes = b"") -> bool:
+        candidates = [path, unquote(path)]
+        if raw_path:
+            raw_str = raw_path.decode("latin-1", errors="ignore")
+            candidates.extend([raw_str, unquote(raw_str)])
+        for cand in candidates:
+            if "\x00" in cand or "\\" in cand:
+                return True
+            if any(seg in (".", "..") for seg in cand.split("/")):
+                return True
+        return False
+
+    @staticmethod
+    def _is_allowed_path(path: str, raw_path: bytes = b"") -> bool:
+        if RouteAndSecurityMiddleware._has_unsafe_segments(path, raw_path):
+            return False
         if path in ALLOWED_EXACT_PATHS:
             return True
         return any(path.startswith(prefix) for prefix in ALLOWED_PREFIXES)
@@ -185,9 +201,10 @@ class RouteAndSecurityMiddleware:
             return
 
         path = scope.get("path", "/")
+        raw_path = scope.get("raw_path", b"")
         method = scope.get("method", "GET").upper()
 
-        if not self._is_allowed_path(path):
+        if not self._is_allowed_path(path, raw_path):
             async def send_404(message: Message) -> None:
                 if message["type"] == "http.response.start":
                     headers = self._apply_security_headers(list(message.get("headers", [])))
@@ -258,7 +275,9 @@ class RouteAndSecurityMiddleware:
         async def send_with_security_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = self._apply_security_headers(list(message.get("headers", [])))
-                if is_static_asset:
+                if path in {"/", "/app"}:
+                    headers = self._set_header(headers, b"cache-control", b"no-cache, no-store, must-revalidate")
+                elif is_static_asset:
                     status_code = int(message.get("status", 200))
                     content_type = next(
                         (v.decode("latin-1").lower() for k, v in headers if k.lower() == b"content-type"),
