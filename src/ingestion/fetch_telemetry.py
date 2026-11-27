@@ -213,17 +213,25 @@ def apply_gap_mitigation(
 
     sorted_records = sorted(records, key=lambda r: (r.region.value, r.timestamp_utc))
     repaired: List[RawGridRecord] = [sorted_records[0]]
+    repaired_by_key: Dict[Tuple[GridRegion, datetime], RawGridRecord] = {
+        (sorted_records[0].region, sorted_records[0].timestamp_utc): sorted_records[0]
+    }
+
+    def _append_repaired(rec: RawGridRecord) -> None:
+        repaired.append(rec)
+        repaired_by_key[(rec.region, rec.timestamp_utc)] = rec
 
     for i in range(1, len(sorted_records)):
         prev = repaired[-1]
         curr = sorted_records[i]
         if curr.region != prev.region:
-            repaired.append(curr)
+            _append_repaired(curr)
             continue
 
         elapsed_sec = (curr.timestamp_utc - prev.timestamp_utc).total_seconds()
         if elapsed_sec == 0:
             repaired[-1] = curr
+            repaired_by_key[(curr.region, curr.timestamp_utc)] = curr
             continue
 
         diff_hours = int(elapsed_sec // 3600)
@@ -236,7 +244,7 @@ def apply_gap_mitigation(
                 for h in range(1, diff_hours):
                     interp_time = prev.timestamp_utc + timedelta(hours=h)
                     interp_demand = round(prev.demand_mw + step_demand * h, 2)
-                    repaired.append(
+                    _append_repaired(
                         RawGridRecord(
                             timestamp_utc=interp_time,
                             region=prev.region,
@@ -245,17 +253,13 @@ def apply_gap_mitigation(
                         )
                     )
             elif gap <= 6:
-                # forward fill from identical diurnal cycle 24 hours prior
+                # forward fill from identical diurnal cycle 24 hours prior within the same region
                 for h in range(1, diff_hours):
                     fill_time = prev.timestamp_utc + timedelta(hours=h)
-                    # locate t - 24h record if available in history
                     prior_target = fill_time - timedelta(hours=24)
-                    prior_record = next(
-                        (r for r in repaired if r.timestamp_utc == prior_target),
-                        None,
-                    )
+                    prior_record = repaired_by_key.get((prev.region, prior_target))
                     fill_demand = prior_record.demand_mw if prior_record else prev.demand_mw
-                    repaired.append(
+                    _append_repaired(
                         RawGridRecord(
                             timestamp_utc=fill_time,
                             region=prev.region,
@@ -269,7 +273,7 @@ def apply_gap_mitigation(
                     prev.region.value,
                 )
 
-        repaired.append(curr)
+        _append_repaired(curr)
     return repaired
 
 

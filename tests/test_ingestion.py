@@ -251,6 +251,24 @@ def test_gap_mitigation_deduplicates_timestamps_and_isolates_regions():
     assert mitigated[1].region == GridRegion.WR
 
 
+def test_gap_mitigation_diurnal_fill_isolates_regions():
+    t0 = datetime(2026, 5, 1, 0, 0, tzinfo=timezone.utc)
+    # ER (sorted before WR) has 15,000 MW at t0+1h; WR has no t0+1h record and a 4h gap at t0+25h..28h
+    er_prior = RawGridRecord(timestamp_utc=t0 + timedelta(hours=1), region=GridRegion.ER, demand_mw=15000.0)
+    wr_before = RawGridRecord(timestamp_utc=t0 + timedelta(hours=24), region=GridRegion.WR, demand_mw=45000.0)
+    wr_after = RawGridRecord(timestamp_utc=t0 + timedelta(hours=29), region=GridRegion.WR, demand_mw=46000.0)
+
+    mitigated = apply_gap_mitigation([er_prior, wr_before, wr_after])
+    wr_25 = next(r for r in mitigated if r.region == GridRegion.WR and r.timestamp_utc == t0 + timedelta(hours=25))
+    assert wr_25.demand_mw == 45000.0
+
+    # when WR does have its own t-24h record alongside ER at the same hour, WR uses WR's own prior value
+    wr_prior = RawGridRecord(timestamp_utc=t0 + timedelta(hours=1), region=GridRegion.WR, demand_mw=44200.0)
+    mitigated_own = apply_gap_mitigation([er_prior, wr_prior, wr_before, wr_after])
+    wr_25_own = next(r for r in mitigated_own if r.region == GridRegion.WR and r.timestamp_utc == t0 + timedelta(hours=25))
+    assert wr_25_own.demand_mw == 44200.0
+
+
 def test_partial_weather_failure_skips_corrupt_overwrite_and_conserves_sum(monkeypatch):
     from src.ingestion import fetch_telemetry as ft
 
