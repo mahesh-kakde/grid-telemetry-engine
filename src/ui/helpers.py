@@ -5,10 +5,32 @@ from typing import Any, Dict, Optional
 
 
 SNAPSHOT_SOURCE_LABELS = {
-    "supabase_live": "Live Supabase Telemetry Cache",
+    "supabase_live": "Live Supabase Cache",
     "local_snapshot": "Bundled Snapshot",
     "local_runtime_fallback": "Local Runtime Fallback",
 }
+
+REGION_SHORT_LABELS = {
+    "ALL_INDIA": "All India",
+    "NR": "NR - North",
+    "WR": "WR - West",
+    "SR": "SR - South",
+    "ER": "ER - East",
+    "NER": "NER - Northeast",
+}
+
+REGION_FULL_NAMES = {
+    "ALL_INDIA": "All India",
+    "NR": "NR — Northern Region",
+    "WR": "WR — Western Region",
+    "SR": "SR — Southern Region",
+    "ER": "ER — Eastern Region",
+    "NER": "NER — North Eastern Region",
+}
+
+
+def format_region_option(region_code: str) -> str:
+    return REGION_SHORT_LABELS.get(region_code, region_code)
 
 
 def render_not_found_html(favicon_href: Optional[str] = None) -> str:
@@ -27,46 +49,47 @@ def render_not_found_html(favicon_href: Optional[str] = None) -> str:
     <style>
         body {{
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            padding: 16px;
         }}
         .error-card {{
             background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 56px 36px;
+            border: 1px solid #d2d2d7;
+            border-radius: 18px;
+            padding: 52px 40px;
             text-align: center;
-            max-width: 520px;
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+            max-width: 500px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
         }}
-        .error-code {{ font-size: 88px; font-weight: 800; line-height: 1; margin-bottom: 8px; letter-spacing: -0.04em; }}
-        .error-title {{ font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }}
-        .error-desc {{ font-size: 14.5px; color: #475569; line-height: 1.6; margin-bottom: 32px; }}
-        .actions {{ display: flex; gap: 16px; justify-content: center; }}
+        .error-code {{ font-size: 76px; font-weight: 700; line-height: 1; margin-bottom: 10px; letter-spacing: -0.04em; color: #1d1d1f; }}
+        .error-title {{ font-size: 22px; font-weight: 650; color: #1d1d1f; margin: 0 0 10px 0; }}
+        .error-desc {{ font-size: 14.5px; color: #515154; line-height: 1.55; margin-bottom: 28px; }}
+        .actions {{ display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }}
         .btn-home {{
-            background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 28px; border-radius: 6px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+            background-color: #0066cc; color: #ffffff; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 26px; border-radius: 999px;
         }}
-        .btn-home:hover {{ background-color: #1d4ed8; }}
+        .btn-home:hover {{ background-color: #0055b3; }}
         .btn-portfolio {{
-            background-color: #ffffff; color: #0f172a; text-decoration: none; font-weight: 600;
-            font-size: 14px; padding: 10px 28px; border-radius: 6px; border: 1px solid #cbd5e1;
+            background-color: #ffffff; color: #1d1d1f; text-decoration: none; font-weight: 600;
+            font-size: 14px; padding: 10px 26px; border-radius: 999px; border: 1px solid #d2d2d7;
         }}
-        .btn-portfolio:hover {{ background-color: #f8fafc; }}
+        .btn-portfolio:hover {{ background-color: #f5f5f7; }}
     </style>
 </head>
 <body>
     <main class="error-card">
         <div class="error-code" aria-hidden="true">404</div>
         <h1 class="error-title">Page Not Found</h1>
-        <div class="error-desc">The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.</div>
+        <div class="error-desc">The requested page or route does not exist or has been moved.</div>
         <div class="actions">
-            <a href="/" class="btn-home">Home</a>
+            <a href="/" class="btn-home">Return to Dashboard</a>
             <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
         </div>
     </main>
@@ -119,16 +142,16 @@ def evaluate_snapshot_freshness(
     warning_message: Optional[str] = None
     if is_degraded_fallback and is_stale and age_hours is not None:
         warning_message = (
-            f"Degraded Snapshot Fallback: Live Supabase cache unavailable; serving {src_label} "
+            f"Live Supabase cache unavailable; serving {src_label.lower()} "
             f"generated {age_hours:.1f}h ago ({gen_str})."
         )
     elif is_degraded_fallback:
         warning_message = (
-            f"Degraded Snapshot Fallback: Live Supabase cache unavailable; serving {src_label} ({gen_str})."
+            f"Live Supabase cache unavailable; serving {src_label.lower()} ({gen_str})."
         )
     elif is_stale and age_hours is not None:
         warning_message = (
-            f"Snapshot Freshness Notice: Active {src_label.lower()} is {age_hours:.1f}h old "
+            f"Active {src_label.lower()} is {age_hours:.1f}h old "
             f"(exceeds {stale_after_hours:.0f}h cron window; refreshed {gen_str})."
         )
 
