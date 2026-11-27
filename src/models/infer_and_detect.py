@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_VERSION = "2.0.0"
 IST_OFFSET = timedelta(hours=5, minutes=30)
+SUB_REGIONS = ["NR", "WR", "SR", "ER", "NER"]
 
 
 def enforce_quantile_monotonicity(
@@ -468,6 +469,63 @@ def generate_72h_multi_step_forecast(
     return forecasts
 
 
+def _normalize_forecast_ts_key(ts_val: Any) -> str:
+    if isinstance(ts_val, datetime):
+        dt = ts_val if ts_val.tzinfo is not None else ts_val.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0).isoformat()
+    parsed = pd.to_datetime(ts_val, utc=True)
+    return parsed.floor("h").isoformat()
+
+
+def reconcile_all_india_forecasts(
+    all_india_forecasts: List[Dict[str, Any]],
+    regional_forecasts: Dict[str, List[Dict[str, Any]]],
+    round_digits: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Reconciles ALL_INDIA 72h p50 forecasts to sum(5 RLDCs) while preserving CQR uncertainty spread."""
+    if not all_india_forecasts or any(reg not in regional_forecasts for reg in SUB_REGIONS):
+        return all_india_forecasts
+
+    sub_by_ts = {
+        reg: {_normalize_forecast_ts_key(fc["target_timestamp_utc"]): fc for fc in regional_forecasts[reg]}
+        for reg in SUB_REGIONS
+    }
+
+    reconciled: List[Dict[str, Any]] = []
+    for fc in all_india_forecasts:
+        ts_key = _normalize_forecast_ts_key(fc["target_timestamp_utc"])
+        if any(ts_key not in sub_by_ts[reg] for reg in SUB_REGIONS):
+            reconciled.append(dict(fc))
+            continue
+
+        p50_sum = sum(float(sub_by_ts[reg][ts_key]["forecast_p50"]) for reg in SUB_REGIONS)
+        p10_ai = float(fc["forecast_p10"])
+        p50_ai = float(fc["forecast_p50"])
+        p90_ai = float(fc["forecast_p90"])
+        delta = p50_sum - p50_ai
+
+        p10_adj = max(0.0, p10_ai + delta)
+        p90_adj = p90_ai + delta
+        p10_m, p50_m, p90_m = enforce_quantile_monotonicity(
+            np.array([p10_adj], dtype=float),
+            np.array([p50_sum], dtype=float),
+            np.array([p90_adj], dtype=float),
+        )
+        p10_out, p50_out, p90_out = float(p10_m[0]), float(p50_m[0]), float(p90_m[0])
+        if round_digits is not None:
+            p10_out = round(p10_out, round_digits)
+            p50_out = round(p50_out, round_digits)
+            p90_out = round(p90_out, round_digits)
+
+        updated = dict(fc)
+        updated["forecast_p10"] = p10_out
+        updated["forecast_p50"] = p50_out
+        updated["forecast_p90"] = p90_out
+        reconciled.append(updated)
+
+    return reconciled
+
+
 def persist_forecasts_to_supabase(
     forecasts: List[Dict[str, Any]],
     db_url: str,
@@ -570,7 +628,7 @@ def run_inference_and_detection() -> Dict[str, Any]:
     db_url = os.environ.get("SUPABASE_DB_URL")
 
     results: Dict[str, Any] = {}
-    all_forecasts: List[Dict[str, Any]] = []
+    forecasts_by_region: Dict[str, List[Dict[str, Any]]] = {}
     all_anomaly_events: List[Dict[str, Any]] = []
 
     for region in REGIONS:
@@ -647,9 +705,16 @@ def run_inference_and_detection() -> Dict[str, Any]:
                 widened=widened,
                 weather_forecast_map=wx_map,
             )
-            all_forecasts.extend(forecasts)
+            forecasts_by_region[region] = forecasts
 
     if db_url:
+        if "ALL_INDIA" in forecasts_by_region and all(r in forecasts_by_region for r in SUB_REGIONS):
+            forecasts_by_region["ALL_INDIA"] = reconcile_all_india_forecasts(
+                forecasts_by_region["ALL_INDIA"], forecasts_by_region
+            )
+        all_forecasts = [
+            fc for reg in REGIONS for fc in forecasts_by_region.get(reg, [])
+        ]
         logger.info("persisting anomaly events and 72h forecasts to supabase...")
         persist_anomaly_events_to_supabase(all_anomaly_events, db_url)
         persist_forecasts_to_supabase(all_forecasts, db_url)

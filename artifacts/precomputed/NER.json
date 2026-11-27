@@ -1,7 +1,7 @@
 {
   "region": "NER",
   "model_version": "2.0.0",
-  "generated_at": "2026-11-27T03:39:11.270426+00:00",
+  "generated_at": "2026-11-27T03:49:40.165266+00:00",
   "data_source": "baseline_fallback",
   "widened": false,
   "forecasts": [

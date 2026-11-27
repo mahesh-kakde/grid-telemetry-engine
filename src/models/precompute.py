@@ -376,6 +376,7 @@ def precompute_all(
     # executes batch precomputations across all designated regions
     from src.models.load_artifacts import ModelArtifactsBundle, load_feature_columns
     from src.models.explainers import AnomalySHAPExplainer
+    from src.models.infer_and_detect import SUB_REGIONS, reconcile_all_india_forecasts
 
     os.makedirs(output_dir, exist_ok=True)
     target_regions = regions or REGIONS
@@ -387,10 +388,10 @@ def precompute_all(
     feature_cols = load_feature_columns()
 
     saved_paths: Dict[str, str] = {}
-    snapshots_for_db: List[Dict[str, Any]] = []
+    snapshots_by_region: Dict[str, Dict[str, Any]] = {}
 
     for region in target_regions:
-        full_snap = precompute_region(
+        snapshots_by_region[region] = precompute_region(
             region,
             bundle,
             explainer,
@@ -398,6 +399,18 @@ def precompute_all(
             db_url=target_db,
             use_live_weather=use_live_weather,
         )
+
+    if "ALL_INDIA" in snapshots_by_region and all(r in snapshots_by_region for r in SUB_REGIONS):
+        sub_forecasts = {r: snapshots_by_region[r]["forecasts"] for r in SUB_REGIONS}
+        snapshots_by_region["ALL_INDIA"]["forecasts"] = reconcile_all_india_forecasts(
+            snapshots_by_region["ALL_INDIA"]["forecasts"],
+            sub_forecasts,
+            round_digits=2,
+        )
+
+    snapshots_for_db: List[Dict[str, Any]] = []
+    for region in target_regions:
+        full_snap = snapshots_by_region[region]
         snapshots_for_db.append(full_snap)
 
         json_payload = {k: v for k, v in full_snap.items() if k != "drift_report_html"}

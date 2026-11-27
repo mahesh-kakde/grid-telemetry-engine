@@ -452,3 +452,43 @@ def test_run_inference_and_detection_uses_widened_cqr_and_if_shap(artifacts_bund
     # top_shap_features must contain observation-aware isolation forest features
     anom_cols = set(artifacts_bundle.anomaly_feature_columns)
     assert all(d["feature"] in anom_cols for d in latest_anom["top_shap_features"])
+
+
+def test_reconcile_all_india_forecasts_conserves_regional_sum():
+    from src.models.infer_and_detect import SUB_REGIONS, reconcile_all_india_forecasts
+
+    t0 = datetime(2026, 11, 27, 1, 0, tzinfo=timezone.utc)
+    regional_forecasts = {}
+    for idx, reg in enumerate(SUB_REGIONS):
+        base = 10000.0 * (idx + 1)
+        regional_forecasts[reg] = [
+            {
+                "target_timestamp_utc": t0 + timedelta(hours=h),
+                "region": reg,
+                "forecast_p10": base - 500.0,
+                "forecast_p50": base + h * 10.0,
+                "forecast_p90": base + 500.0 + h * 10.0,
+            }
+            for h in range(72)
+        ]
+
+    # simulate standalone ALL_INDIA forecast drifting away from sum(5 RLDCs)
+    ai_raw = [
+        {
+            "target_timestamp_utc": t0 + timedelta(hours=h),
+            "region": "ALL_INDIA",
+            "forecast_p10": 130000.0,
+            "forecast_p50": 135000.0,
+            "forecast_p90": 142000.0,
+        }
+        for h in range(72)
+    ]
+
+    reconciled = reconcile_all_india_forecasts(ai_raw, regional_forecasts, round_digits=2)
+    assert len(reconciled) == 72
+    for h in range(72):
+        expected_sum = sum(regional_forecasts[reg][h]["forecast_p50"] for reg in SUB_REGIONS)
+        assert reconciled[h]["forecast_p50"] == pytest.approx(expected_sum, abs=0.05)
+        assert reconciled[h]["forecast_p10"] <= reconciled[h]["forecast_p50"] <= reconciled[h]["forecast_p90"]
+        # CQR interval width around reconciled p50 preserves ALL_INDIA spread (12,000 MW)
+        assert (reconciled[h]["forecast_p90"] - reconciled[h]["forecast_p10"]) == pytest.approx(12000.0, abs=0.05)

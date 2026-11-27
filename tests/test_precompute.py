@@ -89,6 +89,17 @@ def test_precompute_single_region_runner(tmp_path):
     assert len(loaded_fc) == 72
 
 
+def test_precomputed_all_india_conserves_regional_forecast_sum():
+    from src.models.infer_and_detect import SUB_REGIONS
+
+    ai_fc = load_precomputed_forecasts("ALL_INDIA")
+    sub_fcs = {reg: load_precomputed_forecasts(reg) for reg in SUB_REGIONS}
+    assert ai_fc is not None and len(ai_fc) == 72
+    for h in range(72):
+        sub_sum = sum(sub_fcs[reg][h]["forecast_p50"] for reg in SUB_REGIONS)
+        assert abs(ai_fc[h]["forecast_p50"] - sub_sum) <= 0.10
+
+
 def test_precomputed_loader_nonexistent_region():
     # asserts graceful None return for invalid or nonexistent region
     assert load_precomputed_data("NONEXISTENT_GRID") is None
