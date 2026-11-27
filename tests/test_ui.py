@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from streamlit.testing.v1 import AppTest
 
 APP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "ui", "app.py"))
@@ -10,32 +11,97 @@ def test_streamlit_app_renders_and_handles_region_and_shock():
     assert not at.exception
 
     markdown_text = "\n".join(el.value for el in at.markdown)
-    # verify calibrated simulation disclosure and no stale hardcoded 215,500 MW
-    assert "Simulation Disclosure:" in markdown_text
+    assert "Simulation Note:" in markdown_text
     assert "215,500 MW" not in markdown_text
+    assert "National Power Grid Telemetry" in markdown_text
+    assert "Demand Forecast (All India)" in markdown_text
+    assert "Regional Overview:" not in markdown_text
+    assert "National Grid" not in markdown_text
+    assert "Created by" in markdown_text
+    assert "GitHub" in markdown_text
+    assert "v2.0.0" not in markdown_text
+    assert "·" not in markdown_text
+    assert "notice-pill" not in markdown_text
 
-    # switch sidebar selectbox to Northern Region (NR)
-    at.selectbox[0].set_value("NR").run()
+    # switch region to NER on Forecast and verify Baseline Note appears cleanly even at 0 of 12 shifted
+    at.segmented_control(key="region_control").set_value("NER - Northeast").run()
+    assert not at.exception
+    ner_text = "\n".join(el.value for el in at.markdown)
+    assert "Baseline Note:" in ner_text
+    assert "0 of 12 features shifted" in ner_text
+
+    # switch region via top region control to Northern Region (NR) and toggle horizon
+    at.segmented_control(key="region_control").set_value("NR - North").run()
     assert not at.exception
     nr_text = "\n".join(el.value for el in at.markdown)
     assert "NR — Northern Region" in nr_text
+    assert "December 2024 winter" in nr_text
 
-    # trigger severe grid shock radio option and verify CRITICAL GRID FAULT
-    shock_radio = next(r for r in at.radio if "Normal Grid Operations (Standard Baseline)" in r.options)
-    shock_radio.set_value("Simulate Severe Grid Shock (Extreme Load Surge)").run()
+    at.segmented_control(key="horizon_ctrl_NR").set_value(72).run()
+    assert not at.exception
+    assert len(at.expander) == 0
+    assert "Hourly Forecast Table (Next 72h)" in "\n".join(el.value for el in at.markdown)
+
+    # navigate via global header to Anomaly Check and test surge + custom load
+    at.segmented_control(key="nav_control").set_value("Anomaly Check").run()
+    assert not at.exception
+    assert "Anomaly Check (NR — Northern Region)" in "\n".join(el.value for el in at.markdown)
+
+    at.segmented_control(key="scenario_ctrl_NR").set_value("Surge Test").run()
     assert not at.exception
     shock_markdown = "\n".join(el.value for el in at.markdown)
-    assert "CRITICAL GRID FAULT" in shock_markdown
-    assert "Envelope Breached" in shock_markdown
-    assert "Increases fault surprise by" in shock_markdown
+    assert "Anomaly Alert" in shock_markdown
+    assert "Breached" in shock_markdown
+    assert "Increases anomaly risk" in shock_markdown
     assert 'role="button"' in shock_markdown
-    assert 'aria-label=' in shock_markdown
+    assert "aria-label=" in shock_markdown
+
+    at.segmented_control(key="scenario_ctrl_NR").set_value("Custom Load").run()
+    assert not at.exception
+    assert len(at.number_input) == 1
+    assert at.number_input[0].max == 350_000.0
+
+    # navigate to Model Health and Info for Nerds via header nav
+    at.segmented_control(key="nav_control").set_value("Model Health").run()
+    assert not at.exception
+    assert len(at.expander) == 0
+    mh_text = "\n".join(el.value for el in at.markdown)
+    assert "Model Health (NR — Northern Region)" in mh_text
+    assert "Feature Drift Breakdown" in mh_text
+    assert "Statistical Drift Criteria" in mh_text
+
+    at.segmented_control(key="nav_control").set_value("Info for Nerds").run()
+    assert not at.exception
+    assert len(at.expander) == 0
+    nerds_text = "\n".join(el.value for el in at.markdown)
+    assert "Info for Nerds" in nerds_text
+    assert "Precomputed DB Snapshots" in nerds_text
+    assert "How the Pipeline Works" in nerds_text
+    assert "Core Decision & Calibration Formulas" in nerds_text
+    assert "Engineering Highlights" in nerds_text
+    assert "System Stack Summary" in nerds_text
+    assert "https://github.com/mahesh-kakde/grid-telemetry-engine/blob/main/README.md" in nerds_text
+    assert "README.md" in nerds_text
 
 
-def test_ui_helpers_freshness_accessibility_and_report_mobile_css():
-    from datetime import datetime, timedelta, timezone
-    from src.ui.helpers import evaluate_snapshot_freshness, format_info_tip
+def test_ui_helpers_notices_accessibility_and_report_mobile_css():
     from src.monitoring.drift_check import build_html_drift_report
+    from src.ui.components import build_notices_html
+    from src.ui.helpers import evaluate_snapshot_freshness, format_info_tip, format_region_option
+    from src.ui.styles import get_app_css
+
+    assert format_region_option("ALL_INDIA") == "All India"
+    assert format_region_option("NR") == "NR - North"
+
+    from src.ui.components import build_footer_html
+    footer_html = build_footer_html("2.0.0")
+    assert "Created by" in footer_html
+    assert "GitHub" in footer_html
+    assert "https://github.com/mahesh-kakde/grid-telemetry-engine" in footer_html
+    assert "Repository" not in footer_html
+    assert "v2.0.0" not in footer_html
+    assert "https://github.com/mahesh-kakde'" not in footer_html
+    assert "·" not in footer_html
 
     tip_html = format_info_tip('Check <script> "quote"', tip_right=True)
     assert 'role="button"' in tip_html
@@ -62,18 +128,26 @@ def test_ui_helpers_freshness_accessibility_and_report_mobile_css():
     )
     assert stale_degraded["is_stale"] is True
     assert stale_degraded["is_degraded_fallback"] is True
-    assert "Degraded Snapshot Fallback" in (stale_degraded["warning_message"] or "")
+    assert "Live Supabase cache unavailable" in (stale_degraded["warning_message"] or "")
 
-    with open(APP_PATH, "r", encoding="utf-8") as f:
-        app_src = f.read()
-    assert ".info-tip:focus-visible::after" in app_src
-    assert ".info-tip:focus::after" in app_src
-    assert "y=-0.24" in app_src
-    assert "rgba(248, 250, 252, 0.92)" in app_src
-    assert ".app-footer" in app_src
-    assert "left: 300px;" not in app_src
-    assert "color: #475569;" in app_src
-    assert '<a href="/" class="btn-home"' in app_src
+    # verify seasonal drift advisory notice explains winter baseline widening clearly
+    advisory_html = build_notices_html(
+        fresh,
+        {"drift_alarm": True, "drifted_features": 5, "total_features": 12},
+        widened=True,
+    )
+    assert "Baseline Advisory:" in advisory_html
+    assert "December 2024 winter baseline" in advisory_html
+    assert "90% CQR" in advisory_html
+    assert "notice-pill" not in advisory_html
+    assert "·" not in advisory_html
+
+    css_src = get_app_css()
+    assert ".info-tip:focus-visible::after" in css_src
+    assert ".info-tip:focus::after" in css_src
+    assert "tabular-nums" in css_src
+    assert ".app-footer" in css_src
+    assert "left: 300px;" not in css_src
 
     report_html = build_html_drift_report(
         {
@@ -90,4 +164,54 @@ def test_ui_helpers_freshness_accessibility_and_report_mobile_css():
     )
     assert ".report-container" in report_html
     assert ".metric-grid, .meta-bar" in report_html
+    assert "December 2024 winter" in report_html
+    assert "--bg-canvas: #f5f5f7" in report_html
+    assert "Statistical Drift Criteria" in report_html
+    assert "https://github.com/mahesh-kakde/grid-telemetry-engine" in report_html
+    assert "v2.0.0" not in report_html
     assert "\n            .container {{" not in report_html and ".container {" not in report_html
+
+    from src.models.precompute import load_all_snapshots_from_supabase
+    from src.server import _inject_seo_head
+    from src.ui.components import build_dashboard_skeleton_html, build_operation_loading_html
+
+    skel_html = build_dashboard_skeleton_html("NR — Northern <script>Region")
+    assert "role='status'" in skel_html
+    assert "aria-live='polite'" in skel_html
+    assert "<script>" not in skel_html
+
+    op_html = build_operation_loading_html("Evaluating <Load>", "Running Isolation Forest")
+    assert "role='status'" in op_html
+    assert "Evaluating &lt;Load&gt;" in op_html
+
+    assert "[data-testid=\"stSpinner\"]" in css_src
+    assert "prefers-reduced-motion" in css_src
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr)) !important;" in css_src
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr)) !important;" in css_src
+    assert "border-width: 1px !important;" in css_src
+    assert 'button[data-variant="segmented_control"]' in css_src
+    assert ".footer-author" in css_src
+    assert ".st-key-global_header_shell" in css_src
+    assert ".st-key-nav_control" in css_src
+    assert "pointer-events: none !important;" in css_src
+    assert "flex-direction: column !important;" in css_src
+    assert "stHeaderActionElements" in css_src
+    assert ":has(.chart-mobile-hint)" in css_src
+    assert "div[data-testid=\"stElementContainer\"]:has(h3)" in css_src
+    assert "font-size: 17.5px !important;" in css_src
+    assert ".details-card" in css_src
+    assert ".formula-box" in css_src
+    assert ".readme-cta" in css_src
+    assert 'div.stPlotlyChart[data-testid="stPlotlyChart"]' in css_src
+
+    injected = _inject_seo_head(b"<html><head><title>Streamlit</title></head><body><div id=\"root\"></div></body></html>").decode("utf-8")
+    assert "telemetry-boot-shell" in injected
+    assert 'id="telemetry-boot-style"' in injected
+    from unittest.mock import patch
+    from src.models.precompute import load_precomputed_data
+
+    assert load_all_snapshots_from_supabase(db_url="") == {}
+    with patch("src.models.precompute.load_snapshot_from_supabase") as spy_db:
+        local_snap = load_precomputed_data("ALL_INDIA", prefer_supabase=False)
+        assert local_snap is not None and local_snap["snapshot_source"] == "local_snapshot"
+        spy_db.assert_not_called()
