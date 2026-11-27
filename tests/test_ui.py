@@ -70,6 +70,10 @@ def test_ui_helpers_freshness_accessibility_and_report_mobile_css():
     assert ".info-tip:focus::after" in app_src
     assert "y=-0.24" in app_src
     assert "rgba(248, 250, 252, 0.92)" in app_src
+    assert ".app-footer" in app_src
+    assert "left: 300px;" not in app_src
+    assert "color: #475569;" in app_src
+    assert '<a href="/" class="btn-home"' in app_src
 
     report_html = build_html_drift_report(
         {

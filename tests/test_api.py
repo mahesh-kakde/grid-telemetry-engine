@@ -122,6 +122,8 @@ def test_asgi_server_security_headers_routes_and_404(monkeypatch):
         res_404 = client.get("/nonexistent-route-audit-check")
         assert res_404.status_code == 404
         assert "Page Not Found" in res_404.text
+        assert "<main" in res_404.text
+        assert "<h1" in res_404.text
 
 
 def test_security_middleware_handles_upstream_gzip_html():

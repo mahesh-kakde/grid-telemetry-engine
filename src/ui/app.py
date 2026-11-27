@@ -220,18 +220,18 @@ if is_404:
             }
         }
         </style>
-        <div class="error-container">
-            <div class="error-code">404</div>
-            <div class="error-title">Page Not Found</div>
+        <main class="error-container">
+            <div class="error-code" aria-hidden="true">404</div>
+            <h1 class="error-title">Page Not Found</h1>
             <div class="error-description">
                 The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.
             </div>
             <div class="error-actions">
-                <a href="https://grid.maheshkakde.com" class="btn-home" target="_self">Home</a>
+                <a href="/" class="btn-home" target="_self">Home</a>
                 <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
             </div>
-        </div>
-        <div class="fixed-footer-404">
+        </main>
+        <footer class="fixed-footer-404">
             <div>
                 Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a>
                 <span style="margin: 0 4px; color: #cbd5e1;">·</span>
@@ -240,10 +240,7 @@ if is_404:
             <div>
                 <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">Repository</a>
             </div>
-        </div>
-        <script>
-            document.title = "404 - Page Not Found | grid-telemetry-engine";
-        </script>
+        </footer>
         """,
         unsafe_allow_html=True,
     )
@@ -270,7 +267,7 @@ st.markdown(
     }
     .block-container {
         padding-top: 1.25rem !important;
-        padding-bottom: 4rem !important;
+        padding-bottom: 1.5rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
         max-width: 100% !important;
@@ -470,7 +467,7 @@ st.markdown(
         border-radius: 50%;
         background-color: #f1f5f9;
         border: 1px solid #cbd5e1;
-        color: #64748b;
+        color: #475569;
         font-size: 10px;
         font-weight: 600;
         margin-left: 6px;
@@ -560,42 +557,31 @@ st.markdown(
         right: 2px !important;
         transform: none !important;
     }
-    /* fixed footer */
-    .fixed-footer {
-        position: fixed;
-        bottom: 0;
-        left: 300px;
-        width: calc(100% - 300px);
-        background-color: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(8px);
+    /* non-overlapping flow footer aligned naturally with active viewport/sidebar width */
+    .app-footer {
+        margin-top: 2rem;
+        padding: 12px 0 4px 0;
         border-top: 1px solid #e2e8f0;
-        padding: 6px 1.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         font-size: 12px;
-        color: #64748b;
-        z-index: 99999;
-        box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.02);
-        white-space: nowrap;
-        box-sizing: border-box;
+        color: #475569;
+        flex-wrap: wrap;
+        gap: 8px;
     }
-    .stApp:has([data-testid="stSidebar"][aria-expanded="false"]) .fixed-footer {
-        left: 0 !important;
-        width: 100% !important;
-    }
-    .fixed-footer a {
+    .app-footer a {
         color: #2563eb;
         text-decoration: none;
         font-weight: 500;
     }
-    .fixed-footer a:hover {
+    .app-footer a:hover {
         text-decoration: underline;
         color: #1d4ed8;
     }
     .footer-sep {
         margin: 0 8px;
-        color: #cbd5e1;
+        color: #94a3b8;
     }
     /* mobile chart hint badge (hidden on desktop) */
     .chart-mobile-hint {
@@ -636,7 +622,7 @@ st.markdown(
         /* container padding */
         .block-container {
             padding-top: 2.5rem !important;
-            padding-bottom: 4.5rem !important;
+            padding-bottom: 1.5rem !important;
             padding-left: 0.85rem !important;
             padding-right: 0.85rem !important;
             max-width: 100% !important;
@@ -778,20 +764,11 @@ st.markdown(
             transform: none !important;
         }
 
-        /* fixed footer mobile alignment: left & right spaced */
-        .fixed-footer {
-            left: 0 !important;
-            width: 100% !important;
-            padding: 5px 12px !important;
+        /* flow footer mobile alignment */
+        .app-footer {
             font-size: 11px !important;
-            display: flex !important;
-            flex-direction: row !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            white-space: nowrap !important;
-            height: 32px !important;
-            box-sizing: border-box !important;
-            overflow: hidden !important;
+            padding: 10px 0 4px 0 !important;
+            margin-top: 1.5rem !important;
         }
 
         /* mobile chart hint badge */
@@ -836,19 +813,6 @@ st.markdown(
             min-width: 100% !important;
         }
 
-        .fixed-footer {
-            left: 0 !important;
-            width: 100% !important;
-            flex-direction: row !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            white-space: nowrap !important;
-            padding: 4px 10px !important;
-            font-size: 10px !important;
-            height: 30px !important;
-            box-sizing: border-box !important;
-            overflow: hidden !important;
-        }
         .footer-sep {
             margin: 0 4px !important;
         }
@@ -896,23 +860,6 @@ st.markdown(
         font-size: 13.5px !important;
     }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# persistent fixed footer rendered immediately on initial load
-st.markdown(
-    """
-    <div class="fixed-footer">
-        <div>
-            Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a>
-            <span class="footer-sep">·</span>
-            <a href="https://github.com/mahesh-kakde" target="_blank" rel="noopener noreferrer">GitHub</a>
-        </div>
-        <div>
-            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">Repository</a>
-        </div>
-    </div>
     """,
     unsafe_allow_html=True,
 )
@@ -1318,12 +1265,12 @@ def get_drift_metrics_dataframe(region: str) -> pd.DataFrame:
         status_txt = "SHIFT DETECTED" if m["drift_detected"] else "STABLE (NOMINAL)"
         metrics_records.append({
             "Parameter": f"{friendly_title} ({f_name})",
-            "Description": friendly_desc,
-            "Statistical Audit Test": test_type,
-            "Observed Metric": stat_val,
-            "P-Value / Score": p_or_thresh,
-            "Threshold": thresh_val,
             "Status": status_txt,
+            "Observed Metric": stat_val,
+            "Threshold": thresh_val,
+            "P-Value / Score": p_or_thresh,
+            "Statistical Audit Test": test_type,
+            "Description": friendly_desc,
         })
     return pd.DataFrame(metrics_records)
 
@@ -1910,8 +1857,22 @@ with tab_drift:
         unsafe_allow_html=True,
     )
     st.caption("Continuous physical metrics use normalized Wasserstein + Kolmogorov-Smirnov (W1/std >= 0.50, p < 0.01); cyclical harmonics use 1D Wasserstein; discrete calendar indicators use TVD + Chi-Square.")
+    st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
     df_metrics = get_drift_metrics_dataframe(selected_region)
-    st.dataframe(df_metrics, width="stretch")
+    st.dataframe(
+        df_metrics,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Parameter": st.column_config.TextColumn("Parameter", width="medium"),
+            "Status": st.column_config.TextColumn("Status", width="small"),
+            "Observed Metric": st.column_config.TextColumn("Observed Metric", width="small"),
+            "Threshold": st.column_config.TextColumn("Threshold", width="small"),
+            "P-Value / Score": st.column_config.TextColumn("P-Value / Score", width="small"),
+            "Statistical Audit Test": st.column_config.TextColumn("Audit Test", width="medium"),
+            "Description": st.column_config.TextColumn("Description", width="large"),
+        },
+    )
 
     st.markdown("---")
     st.markdown(
@@ -2054,3 +2015,19 @@ with tab_system:
         - **Repository Documentation:** Explore the full system specification and optional developer API reference in [README.md](https://github.com/mahesh-kakde/grid-telemetry-engine#readme).
         """
     )
+
+st.markdown(
+    """
+    <footer class="app-footer">
+        <div>
+            Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a>
+            <span class="footer-sep">·</span>
+            <a href="https://github.com/mahesh-kakde" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div>
+            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">Repository</a>
+        </div>
+    </footer>
+    """,
+    unsafe_allow_html=True,
+)

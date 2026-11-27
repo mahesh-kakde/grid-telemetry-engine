@@ -120,15 +120,15 @@ NOT_FOUND_HTML = """<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <div class="error-card">
-        <div class="error-code">404</div>
-        <div class="error-title">Page Not Found</div>
+    <main class="error-card">
+        <div class="error-code" aria-hidden="true">404</div>
+        <h1 class="error-title">Page Not Found</h1>
         <div class="error-desc">The power grid telemetry dispatch route or resource you are looking for does not exist or has been moved.</div>
         <div class="actions">
             <a href="/" class="btn-home">Home</a>
             <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
         </div>
-    </div>
+    </main>
 </body>
 </html>"""
 
