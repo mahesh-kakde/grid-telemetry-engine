@@ -187,7 +187,7 @@ def fetch_telemetry_window_from_db(
     """
     conn = None
     try:
-        conn = psycopg2.connect(target_db)
+        conn = psycopg2.connect(target_db, connect_timeout=5)
         with conn.cursor() as cur:
             cur.execute(query, (region, hours))
             rows = cur.fetchall()
@@ -569,7 +569,7 @@ def persist_forecasts_to_supabase(
     """
 
     try:
-        conn = psycopg2.connect(db_url)
+        conn = psycopg2.connect(db_url, connect_timeout=10)
     except Exception as exc:
         logger.error(
             f"failed to connect to supabase database: {exc}. "
@@ -605,7 +605,7 @@ def backfill_forecast_actuals(db_url: str) -> int:
           AND mf.target_timestamp_utc = rt.timestamp_utc
           AND mf.actual_demand_mw IS NULL;
     """
-    conn = psycopg2.connect(db_url)
+    conn = psycopg2.connect(db_url, connect_timeout=10)
     try:
         with conn.cursor() as cur:
             cur.execute(sql)

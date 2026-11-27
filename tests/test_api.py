@@ -176,12 +176,18 @@ def test_server_drift_db_fallback_and_health_readiness(monkeypatch):
     )
 
     monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://mock:mock@localhost:5432/mock")
+    server._clear_drift_report_cache()
     with TestClient(test_srv) as client:
-        with patch("psycopg2.connect", return_value=mock_conn):
+        with patch("psycopg2.connect", return_value=mock_conn) as mock_connect:
             res_db = client.get("/reports/drift_report.html?region=NR")
             assert res_db.status_code == 200
             assert "DB NR Report" in res_db.text
             mock_conn.close.assert_called_once()
+            # repeated request within ttl must hit in-memory cache instead of opening a new db session
+            res_db_cached = client.get("/reports/drift_report.html?region=NR")
+            assert res_db_cached.status_code == 200
+            assert "DB NR Report" in res_db_cached.text
+            assert mock_connect.call_count == 1
 
         with patch.object(server, "validate_artifacts_presence", return_value=False):
             res_unhealthy = client.get("/healthz")

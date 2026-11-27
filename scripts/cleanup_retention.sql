@@ -1,6 +1,6 @@
 -- automated database retention cleanup procedure
 -- enforces 90-day rolling window across physical telemetry, forecasts, and anomalies
--- caps relational database storage to < 3 mb (< 0.15% of supabase 2 gb free tier)
+-- keeps relational database footprint well within supabase 500 mb free tier
 
 do $$
 declare

@@ -16,7 +16,9 @@ DEFAULT_RETENTION_DAYS = 90
 
 def calculate_cutoff_timestamp(retention_days: int = DEFAULT_RETENTION_DAYS) -> datetime:
     # computes utc cutoff timestamp relative to current wall clock
-    return datetime.now(timezone.utc) - timedelta(days=retention_days)
+    if int(retention_days) < 1:
+        raise ValueError(f"retention_days must be at least 1, got {retention_days}")
+    return datetime.now(timezone.utc) - timedelta(days=int(retention_days))
 
 
 def prune_expired_records(
@@ -25,6 +27,7 @@ def prune_expired_records(
     dry_run: bool = False,
 ) -> Dict[str, Any]:
     # deletes records older than retention_days from telemetry, forecasts, and anomalies
+    cutoff_ts = calculate_cutoff_timestamp(retention_days)
     resolved_db_url = db_url or os.environ.get("SUPABASE_DB_URL")
     if not resolved_db_url:
         logger.info("no supabase db url provided or configured; skipping retention pruning")
@@ -41,13 +44,12 @@ def prune_expired_records(
     if psycopg2 is None:
         raise ImportError("psycopg2 is required for database operations. install psycopg2-binary.")
 
-    cutoff_ts = calculate_cutoff_timestamp(retention_days)
     logger.info(
         f"{'dry-run: evaluating' if dry_run else 'executing'} database retention cleanup "
         f"(retention: {retention_days} days, cutoff: {cutoff_ts.isoformat()})..."
     )
 
-    conn = psycopg2.connect(resolved_db_url)
+    conn = psycopg2.connect(resolved_db_url, connect_timeout=10)
     try:
         with conn.cursor() as cur:
             if dry_run:

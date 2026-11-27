@@ -43,7 +43,7 @@ def load_snapshot_from_supabase(
         return None
     conn = None
     try:
-        conn = psycopg2.connect(target_db)
+        conn = psycopg2.connect(target_db, connect_timeout=5)
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -82,7 +82,7 @@ def load_drift_report_html_from_supabase(
         return None
     conn = None
     try:
-        conn = psycopg2.connect(target_db)
+        conn = psycopg2.connect(target_db, connect_timeout=5)
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
@@ -322,7 +322,7 @@ def persist_precomputed_snapshots_to_supabase(
             updated_at = now();
     """
 
-    conn = psycopg2.connect(db_url)
+    conn = psycopg2.connect(db_url, connect_timeout=10)
     try:
         with conn.cursor() as cur:
             execute_values(cur, upsert_sql, rows)

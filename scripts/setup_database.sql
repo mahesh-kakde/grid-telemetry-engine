@@ -19,6 +19,9 @@ create table if not exists regional_telemetry (
 create index if not exists idx_telemetry_region_time
 on regional_telemetry (region, timestamp_utc desc);
 
+create index if not exists idx_telemetry_timestamp
+on regional_telemetry (timestamp_utc);
+
 alter table regional_telemetry enable row level security;
 
 -- 2. forecast output repository (preserves per-run forecast vintages)
@@ -37,6 +40,13 @@ create table if not exists model_forecasts (
 
 create index if not exists idx_forecasts_lookup
 on model_forecasts (region, forecast_generated_at desc, target_timestamp_utc asc);
+
+create index if not exists idx_forecasts_target_timestamp
+on model_forecasts (target_timestamp_utc);
+
+create index if not exists idx_forecasts_unbackfilled
+on model_forecasts (region, target_timestamp_utc)
+where actual_demand_mw is null;
 
 alter table model_forecasts enable row level security;
 
@@ -59,6 +69,9 @@ create table if not exists telemetry_anomalies (
 
 create index if not exists idx_anomalies_region_time
 on telemetry_anomalies (region, timestamp_utc desc);
+
+create index if not exists idx_anomalies_timestamp
+on telemetry_anomalies (timestamp_utc);
 
 alter table telemetry_anomalies enable row level security;
 

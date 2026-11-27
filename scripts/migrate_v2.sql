@@ -51,6 +51,19 @@ begin
     end if;
 end $$;
 
+create index if not exists idx_telemetry_timestamp
+on regional_telemetry (timestamp_utc);
+
+create index if not exists idx_forecasts_target_timestamp
+on model_forecasts (target_timestamp_utc);
+
+create index if not exists idx_forecasts_unbackfilled
+on model_forecasts (region, target_timestamp_utc)
+where actual_demand_mw is null;
+
+create index if not exists idx_anomalies_timestamp
+on telemetry_anomalies (timestamp_utc);
+
 -- 4. create live precomputed snapshot table for decoupled cron-to-ui serving
 create table if not exists precomputed_snapshots (
     region varchar(10) primary key,

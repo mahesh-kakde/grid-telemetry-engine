@@ -329,7 +329,7 @@ def persist_telemetry_to_supabase(
     """
 
     try:
-        conn = psycopg2.connect(db_url)
+        conn = psycopg2.connect(db_url, connect_timeout=10)
     except Exception as exc:
         logger.error(
             f"failed to connect to supabase database: {exc}. "

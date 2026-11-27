@@ -2,12 +2,15 @@ import gzip
 import logging
 import os
 import sys
+import threading
+import time
 
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from typing import Optional, Sequence
+from collections import OrderedDict
+from typing import Optional, Sequence, Tuple
 import streamlit as st
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
@@ -285,18 +288,63 @@ async def favicon_png(request: Request):
     return HTMLResponse(content=NOT_FOUND_HTML, status_code=404)
 
 
+DRIFT_REPORT_CACHE_TTL_SEC = 300.0
+DRIFT_REPORT_CACHE_MAX_ENTRIES = 12
+_DRIFT_CACHE_LOCK = threading.Lock()
+_DRIFT_REPORT_CACHE: "OrderedDict[Tuple[str, str], Tuple[float, str]]" = OrderedDict()
+
+
+def _clear_drift_report_cache() -> None:
+    with _DRIFT_CACHE_LOCK:
+        _DRIFT_REPORT_CACHE.clear()
+
+
+def _get_cached_drift_report(region: str, db_url: str) -> Optional[str]:
+    key = (region, db_url)
+    now = time.monotonic()
+    with _DRIFT_CACHE_LOCK:
+        entry = _DRIFT_REPORT_CACHE.get(key)
+        if entry is None:
+            return None
+        expires_at, html_body = entry
+        if now >= expires_at:
+            _DRIFT_REPORT_CACHE.pop(key, None)
+            return None
+        _DRIFT_REPORT_CACHE.move_to_end(key)
+        return html_body
+
+
+def _set_cached_drift_report(region: str, db_url: str, html_body: str) -> None:
+    key = (region, db_url)
+    expires_at = time.monotonic() + DRIFT_REPORT_CACHE_TTL_SEC
+    with _DRIFT_CACHE_LOCK:
+        if key in _DRIFT_REPORT_CACHE:
+            _DRIFT_REPORT_CACHE.move_to_end(key)
+        elif len(_DRIFT_REPORT_CACHE) >= DRIFT_REPORT_CACHE_MAX_ENTRIES:
+            _DRIFT_REPORT_CACHE.popitem(last=False)
+        _DRIFT_REPORT_CACHE[key] = (expires_at, html_body)
+
+
 def _fetch_drift_report_from_db(region: str, db_url: str) -> Optional[str]:
+    cached = _get_cached_drift_report(region, db_url)
+    if cached is not None:
+        return cached
+
     import psycopg2
 
     conn = psycopg2.connect(db_url, connect_timeout=3)
     try:
         with conn.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = 5000;")
             cur.execute(
                 "SELECT drift_report_html FROM precomputed_snapshots WHERE region = %s;",
                 (region,),
             )
             row = cur.fetchone()
-            return row[0] if row and row[0] else None
+            html_body = row[0] if row and row[0] else None
+            if html_body:
+                _set_cached_drift_report(region, db_url, html_body)
+            return html_body
     finally:
         conn.close()
 

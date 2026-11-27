@@ -23,6 +23,19 @@ def test_cleanup_cutoff_calculation():
     assert abs(diff_30.total_seconds() - 30 * 86400) < 2
 
 
+def test_cleanup_rejects_non_positive_retention_days():
+    import pytest
+
+    for invalid_days in (0, -5):
+        with pytest.raises(ValueError):
+            calculate_cutoff_timestamp(retention_days=invalid_days)
+        with pytest.raises(ValueError):
+            prune_expired_records(
+                db_url="postgresql://mock:mock@localhost:5432/mock_db",
+                retention_days=invalid_days,
+            )
+
+
 def test_cleanup_skipped_when_no_db_url(monkeypatch):
     # asserts graceful skipped status when database url is unconfigured
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)

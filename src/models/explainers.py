@@ -211,7 +211,7 @@ def persist_anomaly_events_to_supabase(
             top_shap_features = EXCLUDED.top_shap_features;
     """
 
-    conn = psycopg2.connect(db_url)
+    conn = psycopg2.connect(db_url, connect_timeout=10)
     try:
         with conn.cursor() as cur:
             execute_values(cur, upsert_sql, rows)
