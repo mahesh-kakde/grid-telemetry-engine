@@ -100,7 +100,7 @@ flowchart TD
 
 ## Covariate Drift Observability
 
-- **Monitored 12-Feature Physical/Diurnal Contract:** Continuous metrics use normalized 1D Wasserstein distance (`W1 / std >= 0.50`) gated by two-sample Kolmogorov-Smirnov significance (`p < 0.01`), while cyclical/calendar variables use 1D Wasserstein distance (`W1 >= 0.15`).
+- **Monitored 12-Feature Physical/Diurnal Contract:** Continuous metrics use normalized 1D Wasserstein distance (`W1 / std >= 0.50`) gated by two-sample Kolmogorov-Smirnov significance (`p < 0.01`), cyclical harmonics use 1D Wasserstein distance (`W1 >= 0.15`), and discrete calendar indicators (`day_of_week`, `is_holiday`) use Total Variation Distance (`TVD >= 0.15`) gated by Chi-square significance (`p < 0.01`).
 - **Dynamic Uncertainty Widening:** If `> 30%` of monitored covariates drift, `drift_alarm` engages and forecast generation automatically widens from `[0.10, 0.50, 0.90]` (80% CQR) to widened `90%` (`cqr_margin_90`) intervals.
 
 ---

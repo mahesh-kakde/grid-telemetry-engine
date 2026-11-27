@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
-from scipy.stats import ks_2samp, wasserstein_distance
+from scipy.stats import chi2_contingency, ks_2samp, wasserstein_distance
 import requests
 
 from src.models.load_artifacts import (
@@ -18,13 +18,15 @@ from src.models.load_artifacts import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-CYCLICAL_CATEGORICAL_FEATURES = [
+CYCLICAL_FEATURES = [
     "sin_hour_k1",
     "cos_hour_k1",
     "sin_hour_k2",
     "cos_hour_k2",
     "sin_doy",
     "cos_doy",
+]
+CATEGORICAL_FEATURES = [
     "day_of_week",
     "is_holiday",
 ]
@@ -46,6 +48,7 @@ DRIFT_ALARM_THRESHOLD = 0.30
 KS_PVALUE_THRESHOLD = 0.01
 WASSERSTEIN_NORM_THRESHOLD = 0.50
 WASSERSTEIN_THRESHOLD = 0.15
+TVD_THRESHOLD = 0.15
 DEFAULT_REPORT_PATH = os.path.join("static", "reports", "drift_report.html")
 REGION_NAMES = {
     "ALL_INDIA": "ALL_INDIA — National Grid",
@@ -188,13 +191,40 @@ FEATURE_METADATA: Dict[str, Dict[str, str]] = {
 }
 
 
+def _evaluate_categorical_drift(u: np.ndarray, v: np.ndarray) -> Dict[str, Any]:
+    """Evaluates discrete calendar indicator drift via Total Variation Distance gated by Chi-square significance."""
+    cats = sorted(set(u.tolist()) | set(v.tolist()))
+    counts = [(int(np.sum(u == c)), int(np.sum(v == c))) for c in cats]
+    active = [(cu, cv) for cu, cv in counts if (cu + cv) > 0]
+    if len(active) < 2:
+        return {
+            "test": "tvd_chi2",
+            "statistic": 0.0,
+            "p_value": 1.0,
+            "threshold": TVD_THRESHOLD,
+            "drift_detected": False,
+        }
+    c_u = np.array([pair[0] for pair in active], dtype=float)
+    c_v = np.array([pair[1] for pair in active], dtype=float)
+    tvd = 0.5 * float(np.sum(np.abs(c_u / len(u) - c_v / len(v))))
+    _, p_val, _, _ = chi2_contingency([c_u, c_v])
+    is_drifted = bool(tvd >= TVD_THRESHOLD and p_val < KS_PVALUE_THRESHOLD)
+    return {
+        "test": "tvd_chi2",
+        "statistic": round(tvd, 4),
+        "p_value": round(float(p_val), 6),
+        "threshold": TVD_THRESHOLD,
+        "drift_detected": is_drifted,
+    }
+
+
 def evaluate_feature_drift(
     ref_df: pd.DataFrame,
     curr_df: pd.DataFrame,
     feature_cols: Optional[List[str]] = None,
     target_col: str = "demand_mw",
 ) -> Dict[str, Any]:
-    # evaluates normalized wasserstein + ks on physical features and wasserstein on cyclical features
+    # evaluates normalized wasserstein + ks on physical features, wasserstein on cyclical harmonics, and tvd + chi2 on discrete calendar indicators
     if feature_cols is None:
         eval_cols = [c for c in MONITORED_DRIFT_FEATURES if c in ref_df.columns and c in curr_df.columns]
     else:
@@ -211,7 +241,7 @@ def evaluate_feature_drift(
         if len(u) == 0 or len(v) == 0:
             continue
 
-        if col in CYCLICAL_CATEGORICAL_FEATURES:
+        if col in CYCLICAL_FEATURES:
             w_score = float(wasserstein_distance(u, v))
             is_drifted = bool(w_score >= WASSERSTEIN_THRESHOLD)
             metrics[col] = {
@@ -220,6 +250,8 @@ def evaluate_feature_drift(
                 "threshold": WASSERSTEIN_THRESHOLD,
                 "drift_detected": is_drifted,
             }
+        elif col in CATEGORICAL_FEATURES:
+            metrics[col] = _evaluate_categorical_drift(u, v)
         else:
             ref_std = float(np.std(u))
             w_raw = float(wasserstein_distance(u, v))
@@ -317,6 +349,8 @@ def build_html_drift_report(
         test_type = metric_info.get("test", "unknown")
         if test_type == "wasserstein_ks":
             test_label = "Norm. Wasserstein + KS"
+        elif test_type == "tvd_chi2":
+            test_label = "TVD + Chi-Square"
         elif test_type == "kolmogorov_smirnov":
             test_label = "Kolmogorov-Smirnov"
         else:
@@ -654,7 +688,7 @@ def build_html_drift_report(
 
         <div class="section-header">
             <h2>Feature-by-Feature Statistical Drift Audit</h2>
-            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics and calendar indicators use 1D Wasserstein distance (threshold W1 &ge; 0.15).</div>
+            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.15); discrete calendar indicators use Total Variation Distance (TVD &ge; 0.15 gated by Chi-square p &lt; 0.01).</div>
         </div>
         
         <div class="table-wrap">

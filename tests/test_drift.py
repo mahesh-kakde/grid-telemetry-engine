@@ -1,5 +1,5 @@
 import numpy as np
-from src.models.load_artifacts import load_reference_baseline
+from src.models.load_artifacts import REGIONS, load_reference_baseline
 from src.monitoring.drift_check import (
     evaluate_feature_drift,
     build_html_drift_report,
@@ -7,14 +7,44 @@ from src.monitoring.drift_check import (
 
 
 def test_nominal_baseline_tail_does_not_false_alarm():
+    for region in REGIONS:
+        ref_df = load_reference_baseline(region)
+        curr_df = ref_df.tail(168).copy()
+        summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=None)
+
+        assert summary["total_features"] == 12
+        assert summary["drift_alarm"] is False
+        assert summary["drift_ratio"] <= 0.30
+        assert summary["recommended_quantile_alpha"] == [0.10, 0.50, 0.90]
+        dow_metric = summary["feature_metrics"]["day_of_week"]
+        assert dow_metric["test"] == "tvd_chi2"
+        assert dow_metric["drift_detected"] is False
+        assert dow_metric["statistic"] < 0.15
+
+    ner_ref = load_reference_baseline("NER")
+    ner_summary = evaluate_feature_drift(ner_ref, ner_ref.tail(168).copy(), feature_cols=None)
+    assert ner_summary["drifted_features"] == 0
+
+
+def test_categorical_weekday_dropout_triggers_tvd_chi2_drift():
+    import pandas as pd
+
     ref_df = load_reference_baseline("ALL_INDIA")
     curr_df = ref_df.tail(168).copy()
-    summary = evaluate_feature_drift(ref_df, curr_df, feature_cols=None)
 
-    assert summary["total_features"] == 12
-    assert summary["drift_alarm"] is False
-    assert summary["drift_ratio"] <= 0.30
-    assert summary["recommended_quantile_alpha"] == [0.10, 0.50, 0.90]
+    # missing weekend observations (only mon..fri) must trip discrete tvd+chi2 gate
+    curr_weekdays = curr_df.copy()
+    curr_weekdays["day_of_week"] = np.tile([1, 2, 3, 4, 5], 34)[:168]
+    wk_summary = evaluate_feature_drift(ref_df, curr_weekdays, feature_cols=None)
+    assert wk_summary["feature_metrics"]["day_of_week"]["test"] == "tvd_chi2"
+    assert wk_summary["feature_metrics"]["day_of_week"]["drift_detected"] is True
+    assert wk_summary["feature_metrics"]["day_of_week"]["p_value"] < 0.01
+
+    # degenerate single-category column must return clean non-drift without chi2 zero-sum error
+    zero_ref = pd.DataFrame({"is_holiday": np.zeros(100)})
+    zero_curr = pd.DataFrame({"is_holiday": np.zeros(50)})
+    zero_summary = evaluate_feature_drift(zero_ref, zero_curr, feature_cols=["is_holiday"])
+    assert zero_summary["feature_metrics"]["is_holiday"]["drift_detected"] is False
 
 
 def test_severe_regime_shift_triggers_drift_alarm_and_widening():

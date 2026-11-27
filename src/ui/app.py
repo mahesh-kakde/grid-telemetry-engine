@@ -1306,6 +1306,8 @@ def get_drift_metrics_dataframe(region: str) -> pd.DataFrame:
         t_code = m.get("test", "")
         if t_code == "wasserstein_ks":
             test_type = "Norm. Wasserstein + KS"
+        elif t_code == "tvd_chi2":
+            test_type = "TVD + Chi-Square"
         elif t_code == "kolmogorov_smirnov":
             test_type = "Kolmogorov-Smirnov"
         else:
@@ -1902,12 +1904,12 @@ with tab_drift:
     st.markdown(
         f"""
         <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-            Feature-by-Feature Distribution Audit (Trailing 7-Day Telemetry vs 30-Day Baseline) {format_info_tip("Normalized 1D Wasserstein distance (W1/std >= 0.50 gated by KS p < 0.01) for continuous physical metrics and 1D Wasserstein distance (W1 >= 0.15) for cyclical harmonics.")}
+            Feature-by-Feature Distribution Audit (Trailing 7-Day Telemetry vs 30-Day Baseline) {format_info_tip("Normalized 1D Wasserstein distance (W1/std >= 0.50 gated by KS p < 0.01) for continuous physical metrics, 1D Wasserstein distance (W1 >= 0.15) for cyclical harmonics, and TVD + Chi-Square (TVD >= 0.15, p < 0.01) for discrete calendar indicators.")}
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.caption("Continuous physical metrics use normalized Wasserstein + Kolmogorov-Smirnov gating (W1/std >= 0.50 and p < 0.01); cyclical harmonics use 1D Wasserstein distance.")
+    st.caption("Continuous physical metrics use normalized Wasserstein + Kolmogorov-Smirnov (W1/std >= 0.50, p < 0.01); cyclical harmonics use 1D Wasserstein; discrete calendar indicators use TVD + Chi-Square.")
     df_metrics = get_drift_metrics_dataframe(selected_region)
     st.dataframe(df_metrics, width="stretch")
 
@@ -2035,7 +2037,7 @@ with tab_system:
         **Normalized Covariate Drift Monitoring:**
         Every 6 hours, trailing 7-day telemetry covariates are audited against each region's 30-day reference distribution across 12 physical and diurnal variables:
         - **Continuous Physical Features:** Normalized 1D Wasserstein distance (`W1 / std >= 0.50`) gated by two-sample Kolmogorov-Smirnov significance (`p < 0.01`).
-        - **Cyclical & Calendar Indicators:** 1D Wasserstein distance (`W1 >= 0.15`).
+        - **Cyclical Harmonics & Calendar Indicators:** `1D` Wasserstein distance (`W1 >= 0.15`) for diurnal harmonics and Total Variation Distance (`TVD >= 0.15`, Chi-square `p < 0.01`) for discrete calendar indicators.
         - **Dynamic Reserve Widening:** When drifted covariates exceed `30%`, `drift_alarm` engages and forecast generation automatically switches from standard `80%` conformal intervals to widened `90%` (`cqr_margin_90`) reserve bounds.
         """
     )
