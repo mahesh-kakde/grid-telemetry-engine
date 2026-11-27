@@ -1,4 +1,6 @@
 import gc
+import hashlib
+import hmac
 import os
 import json
 import logging
@@ -118,15 +120,45 @@ def load_lgb_booster(
     return booster
 
 
+def load_artifact_checksums(artifacts_dir: Optional[str] = None) -> Dict[str, str]:
+    # loads optional sha-256 integrity manifest for serialized model artifacts
+    path = os.path.join(get_artifacts_dir(artifacts_dir), "models", "artifact_checksums.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _compute_file_sha256(file_path: str) -> str:
+    hasher = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def verify_artifact_checksum(file_path: str, expected_hex: str) -> bool:
+    actual_hex = _compute_file_sha256(file_path)
+    return hmac.compare_digest(actual_hex.lower(), expected_hex.strip().lower())
+
+
 def load_isolation_forest(
     region: str,
     artifacts_dir: Optional[str] = None,
 ) -> Any:
-    # deserializes calibrated isolation forest model for specified region
+    # deserializes calibrated isolation forest model after verifying sha-256 manifest if present
     reg_dir = get_artifacts_dir(artifacts_dir)
-    model_path = os.path.join(reg_dir, "models", f"isolation_forest_{region}.joblib")
+    filename = f"isolation_forest_{region}.joblib"
+    model_path = os.path.join(reg_dir, "models", filename)
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"isolation forest model not found: {model_path}")
+
+    checksums = load_artifact_checksums(reg_dir)
+    if checksums:
+        expected_hex = checksums.get(filename)
+        if not expected_hex or not verify_artifact_checksum(model_path, expected_hex):
+            raise ValueError(f"sha-256 integrity verification failed for {filename}")
+
     return joblib.load(model_path)
 
 
@@ -261,6 +293,7 @@ def validate_artifacts_presence(artifacts_dir: Optional[str] = None) -> bool:
     cal_path = os.path.join(reg_dir, "models", "quantile_calibration.json")
     if not os.path.exists(cal_path):
         return False
+    checksums = load_artifact_checksums(reg_dir)
     registry = load_model_registry(reg_dir)
     for region in REGIONS:
         if region not in registry:
@@ -271,7 +304,11 @@ def validate_artifacts_presence(artifacts_dir: Optional[str] = None) -> bool:
             m_path = os.path.join(reg_dir, "models", registry[region][q])
             if not os.path.exists(m_path):
                 return False
-        if not os.path.exists(os.path.join(reg_dir, "models", f"isolation_forest_{region}.joblib")):
+        iso_name = f"isolation_forest_{region}.joblib"
+        iso_path = os.path.join(reg_dir, "models", iso_name)
+        if not os.path.exists(iso_path):
+            return False
+        if checksums and (iso_name not in checksums or not verify_artifact_checksum(iso_path, checksums[iso_name])):
             return False
         if not os.path.exists(os.path.join(reg_dir, "baselines", f"reference_baseline_{region}.parquet")):
             return False

@@ -10,7 +10,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from collections import OrderedDict
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence
 from urllib.parse import unquote
 import streamlit as st
 from starlette.concurrency import run_in_threadpool
@@ -310,7 +310,7 @@ async def favicon_png(request: Request):
 DRIFT_REPORT_CACHE_TTL_SEC = 300.0
 DRIFT_REPORT_CACHE_MAX_ENTRIES = 12
 _DRIFT_CACHE_LOCK = threading.Lock()
-_DRIFT_REPORT_CACHE: "OrderedDict[Tuple[str, str], Tuple[float, str]]" = OrderedDict()
+_DRIFT_REPORT_CACHE: "OrderedDict[tuple[str, str], tuple[float, str]]" = OrderedDict()
 
 
 def _clear_drift_report_cache() -> None:

@@ -492,3 +492,28 @@ def test_reconcile_all_india_forecasts_conserves_regional_sum():
         assert reconciled[h]["forecast_p10"] <= reconciled[h]["forecast_p50"] <= reconciled[h]["forecast_p90"]
         # CQR interval width around reconciled p50 preserves ALL_INDIA spread (12,000 MW)
         assert (reconciled[h]["forecast_p90"] - reconciled[h]["forecast_p10"]) == pytest.approx(12000.0, abs=0.05)
+
+
+def test_isolation_forest_checksum_verification_rejects_tampering(tmp_path, monkeypatch):
+    import json
+    import os
+    import shutil
+    from src.models import load_artifacts as la
+
+    models_dir = tmp_path / "models"
+    models_dir.mkdir(parents=True)
+    src_iso = os.path.join(la.get_artifacts_dir(), "models", "isolation_forest_NER.joblib")
+    dst_iso = models_dir / "isolation_forest_NER.joblib"
+    shutil.copy2(src_iso, dst_iso)
+    (models_dir / "artifact_checksums.json").write_text(
+        json.dumps({"isolation_forest_NER.joblib": "0" * 64}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        la.joblib,
+        "load",
+        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("joblib.load must not execute on bad checksum")),
+    )
+    with pytest.raises(ValueError, match="sha-256 integrity verification failed"):
+        la.load_isolation_forest("NER", artifacts_dir=str(tmp_path))

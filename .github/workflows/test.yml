@@ -46,7 +46,7 @@ jobs:
 
       - name: Static Lint & Syntax Gates
         run: |
-          ruff check --select E9,F63,F7,F82 src tests
+          ruff check --select E9,F401,F601,F63,F7,F811,F82 src tests
           python -m compileall -q src tests
 
       - name: Execute Pytest & PostgreSQL Integration Suite

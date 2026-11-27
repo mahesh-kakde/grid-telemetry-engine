@@ -11,7 +11,6 @@ import requests
 
 from src.models.load_artifacts import (
     load_reference_baseline,
-    load_feature_columns,
     REGIONS,
 )
 
