@@ -89,7 +89,7 @@ def fetch_weather_with_retry(
         "longitude": lon,
         "past_days": past_days,
         "forecast_days": forecast_days,
-        "hourly": "temperature_2m,relative_humidity_2m,shortwave_radiation_instant,wind_speed_100m",
+        "hourly": "temperature_2m,relative_humidity_2m,shortwave_radiation,wind_speed_100m",
         "timezone": "UTC",
     }
     records: List[RawWeatherRecord] = []
@@ -103,14 +103,21 @@ def fetch_weather_with_retry(
                 times = data.get("time", [])
                 temps = data.get("temperature_2m", [])
                 rhs = data.get("relative_humidity_2m", [])
-                solars = data.get("shortwave_radiation_instant", data.get("surface_solar_radiation", []))
+                solars = data.get("shortwave_radiation", data.get("shortwave_radiation_instant", []))
                 winds = data.get("wind_speed_100m", [])
+                null_fields = 0
 
                 for i in range(len(times)):
-                    t_val = temps[i] if i < len(temps) and temps[i] is not None else 25.0
-                    rh_val = rhs[i] if i < len(rhs) and rhs[i] is not None else 50.0
-                    sol_val = solars[i] if i < len(solars) and solars[i] is not None else 0.0
-                    wind_val = winds[i] if i < len(winds) and winds[i] is not None else 5.0
+                    raw_t = temps[i] if i < len(temps) else None
+                    raw_rh = rhs[i] if i < len(rhs) else None
+                    raw_sol = solars[i] if i < len(solars) else None
+                    raw_wind = winds[i] if i < len(winds) else None
+                    null_fields += sum(v is None for v in (raw_t, raw_rh, raw_sol, raw_wind))
+
+                    t_val = raw_t if raw_t is not None else 25.0
+                    rh_val = raw_rh if raw_rh is not None else 50.0
+                    sol_val = raw_sol if raw_sol is not None else 0.0
+                    wind_val = raw_wind if raw_wind is not None else 5.0
                     record = RawWeatherRecord(
                         timestamp_utc=times[i],
                         region=region,
@@ -120,6 +127,11 @@ def fetch_weather_with_retry(
                         wind_speed_100m=float(wind_val),
                     )
                     records.append(record)
+                if null_fields > 0:
+                    logger.warning(
+                        f"open-meteo returned {null_fields} null weather value(s) for {region.value}; "
+                        "applied default fallback values"
+                    )
                 return records
             logger.warning(f"open-meteo responded with status {resp.status_code}: {resp.text[:100]}")
             if 400 <= resp.status_code < 500 and resp.status_code != 429:
@@ -416,7 +428,7 @@ def run_ingestion_pipeline() -> TelemetryPayload:
 
         # 1. pull live weather across 14 days lookback for 168h warmup + 168h drift window
         weather = fetch_weather_with_retry(lat, lon, region, past_days=14, forecast_days=1)
-        if not weather:
+        if len(weather) < 168:
             failed_weather_regions.add(region.value)
         all_weather_records.extend(weather)
 

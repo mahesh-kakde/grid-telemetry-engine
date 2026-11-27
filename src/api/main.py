@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -32,6 +33,7 @@ from src.models.load_artifacts import (
     validate_artifacts_presence,
 )
 from src.models.infer_and_detect import (
+    fetch_weather_forecast_map,
     generate_72h_multi_step_forecast,
     predict_quantiles,
     detect_structural_anomalies,
@@ -300,6 +302,24 @@ async def security_and_rate_limit_middleware(request: Request, call_next):
     return _apply_security_headers(response)
 
 
+def _sanitize_validation_value(val: Any) -> Any:
+    if isinstance(val, float) and not math.isfinite(val):
+        return str(val)
+    if isinstance(val, dict):
+        return {k: _sanitize_validation_value(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return [_sanitize_validation_value(item) for item in val]
+    return val
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": _sanitize_validation_value(exc.errors())},
+    )
+
+
 @app.exception_handler(404)
 async def custom_404_handler(request, exc):
     return HTMLResponse(
@@ -426,6 +446,7 @@ def generate_forecast(req: ForecastRequest) -> Dict[str, Any]:
             "model_version": MODEL_VERSION,
             "forecast_generated_at": precomputed.get("generated_at", datetime.now(timezone.utc).isoformat()),
             "forecast_horizon_hours": len(precomputed["forecasts"]),
+            "effective_lookback_hours": 168,
             "widened": widened,
             "forecasts": precomputed["forecasts"],
         }
@@ -452,11 +473,17 @@ def generate_forecast(req: ForecastRequest) -> Dict[str, Any]:
             lookback_hours=effective_lookback,
             bundle=bundle,
         )
+        wx_map = (
+            fetch_weather_forecast_map(req.region, forecast_days=4)
+            if os.environ.get("SUPABASE_DB_URL")
+            else None
+        )
         forecast_records = generate_72h_multi_step_forecast(
             df_history,
             req.region,
             bundle,
             widened=widened,
+            weather_forecast_map=wx_map,
         )
 
     serialized_forecasts = [
@@ -476,6 +503,7 @@ def generate_forecast(req: ForecastRequest) -> Dict[str, Any]:
         "model_version": MODEL_VERSION,
         "forecast_generated_at": datetime.now(timezone.utc).isoformat(),
         "forecast_horizon_hours": len(serialized_forecasts),
+        "effective_lookback_hours": effective_lookback,
         "widened": widened,
         "forecasts": serialized_forecasts,
     }

@@ -303,12 +303,12 @@ def test_partial_weather_failure_skips_corrupt_overwrite_and_conserves_sum(monke
     sub_sum = sum(by_reg_ts[sample_ts][r] for r in ["NR", "WR", "SR", "ER", "NER"])
     assert abs(by_reg_ts[sample_ts]["ALL_INDIA"] - sub_sum) <= 0.05
 
-    # case 2: NR weather fails -> NR and ALL_INDIA excluded from DB persistence
+    # case 2: NR weather fails (or returns truncated <168h payload) -> NR and ALL_INDIA excluded from DB persistence
     persisted_partial = {}
     monkeypatch.setattr(
         ft,
         "fetch_weather_with_retry",
-        lambda lat, lon, reg, **kw: [] if reg == GridRegion.NR else build_wx(reg, 30.0),
+        lambda lat, lon, reg, **kw: build_wx(reg, 30.0)[:10] if reg == GridRegion.NR else build_wx(reg, 30.0),
     )
     monkeypatch.setattr(
         ft,

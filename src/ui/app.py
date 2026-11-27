@@ -1921,7 +1921,7 @@ with tab_system:
         """
         **How Data Enters the Engine:**
         Every 6 hours, an automated GitHub Actions cron workflow (`15 */6 * * *`) executes ingestion and batch inference:
-        - **Exogenous Meteorological Feed:** Pulls live hourly ambient `temperature_2m`, `relative_humidity_2m`, `shortwave_radiation_instant`, and `wind_speed_100m` from the Open-Meteo Forecast API across regional grid centroids.
+        - **Exogenous Meteorological Feed:** Pulls live hourly ambient `temperature_2m`, `relative_humidity_2m`, `shortwave_radiation`, and `wind_speed_100m` from the Open-Meteo Forecast API across regional grid centroids.
         - **Weather-Elastic Grid Simulation:** Evaluates an IST-aligned diurnal load profile calibrated to POSOCO Dec 2024 regional baselines with empirical cooling/heating degree elasticity, solar behind-the-meter offset, and Indian statutory holiday calendars (explicitly non-SCADA simulation).
 
         **At-the-Door Data Hygiene:**

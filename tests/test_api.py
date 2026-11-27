@@ -60,6 +60,17 @@ def test_rest_api_endpoints_and_cors():
         res_404 = client.get("/nonexistent-api-route")
         assert res_404.status_code == 404
 
+        for bad_json in (
+            '{"region":"NR","actual_demand_mw":NaN}',
+            '{"region":"NR","actual_demand_mw":Infinity}',
+        ):
+            res_nan = client.post(
+                "/anomalies",
+                content=bad_json,
+                headers={"Content-Type": "application/json"},
+            )
+            assert res_nan.status_code == 422
+
 
 def test_asgi_server_security_headers_routes_and_404(monkeypatch):
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
@@ -331,11 +342,13 @@ def test_rest_api_auth_rate_limit_headers_and_widened_parity(monkeypatch):
             assert spy_gen.call_count == 1
 
             # lookback values above 240 clamp to MAX_INFERENCE_LOOKBACK_HOURS (240) cleanly
-            assert client.post(
+            res_300 = client.post(
                 "/forecast",
                 json={"region": "NR", "lookback_hours": 300},
                 headers=key_headers,
-            ).status_code == 200
+            )
+            assert res_300.status_code == 200
+            assert res_300.json()["effective_lookback_hours"] == 240
             assert client.post(
                 "/forecast",
                 json={"region": "NR", "lookback_hours": 480},

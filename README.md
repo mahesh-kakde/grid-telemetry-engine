@@ -75,7 +75,7 @@ flowchart TD
 ## Automated Ingestion & Boundary Validation
 
 - **6-Hour GitHub Actions Pipeline:** Runs `src.ingestion.fetch_telemetry`, `src.models.infer_and_detect`, `src.monitoring.drift_check`, `src.models.precompute`, and `src.ingestion.cleanup` on `15 */6 * * *`.
-- **Open-Meteo Meteorological Feed:** Pulls live hourly `temperature_2m`, `relative_humidity_2m`, `shortwave_radiation_instant`, and `wind_speed_100m` per regional centroid (`past_days=7` for full lag history and `forecast_days=4` for 72h exogenous rollouts).
+- **Open-Meteo Meteorological Feed:** Pulls live hourly `temperature_2m`, `relative_humidity_2m`, `shortwave_radiation`, and `wind_speed_100m` per regional centroid (`past_days=14` for full lag/drift history and `forecast_days=4` for 72h exogenous rollouts).
 - **Pydantic v2 Schema Contracts:** Enforces non-negative regional capacity bounds (`0 - 350,000 MW`), standard frequency limits (`47.5 - 52.5 Hz`), and UTC timestamp normalization.
 - **Temporal Gap Mitigation:** Short drops (`<= 3h`) use linear interpolation, `4-6h` drops use 24h diurnal backfill, and `> 6h` drops trigger `ALERT_WEBHOOK_URL`.
 
