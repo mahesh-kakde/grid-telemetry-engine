@@ -30,8 +30,8 @@ DRIFT_REPORT_PATH = os.path.join(STATIC_DIR, "reports", "drift_report.html")
 
 SEO_TITLE = "grid-telemetry-engine | Mahesh Kakde"
 SEO_DESCRIPTION = (
-    "Multi-horizon probabilistic load forecasting, dual-trigger fault sentinel, "
-    "and automated statistical drift monitoring across India's National Power Grid."
+    "72-hour probabilistic electricity demand forecasting, dual-trigger anomaly detection, "
+    "and feature drift tracking across India's power grid."
 )
 
 ALLOWED_EXACT_PATHS = {
@@ -78,6 +78,126 @@ SECURITY_HEADERS: Sequence[tuple[bytes, bytes]] = (
 NOT_FOUND_HTML = render_not_found_html(favicon_href="/favicon.png")
 
 
+_BOOT_STYLE = """<style id="telemetry-boot-style">
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f7;
+        color: #1d1d1f;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+      }
+      #telemetry-boot-shell {
+        max-width: 1380px;
+        margin: 0 auto;
+        padding: 28px clamp(16px, 3vw, 44px);
+        box-sizing: border-box;
+      }
+      .boot-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+      .boot-title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        margin: 0 0 6px 0;
+      }
+      .boot-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        color: #515154;
+        background: #ffffff;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 6px 12px;
+      }
+      .boot-track {
+        height: 3px;
+        background: #e5e5ea;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 18px;
+      }
+      .boot-fill {
+        width: 38%;
+        height: 100%;
+        background: #0066cc;
+        border-radius: 999px;
+        animation: boot-slide 1.35s ease-in-out infinite;
+      }
+      .boot-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .boot-card {
+        background: #ffffff;
+        border: 1px solid #d2d2d7;
+        border-radius: 16px;
+        padding: 16px 18px;
+        height: 92px;
+        box-sizing: border-box;
+      }
+      .boot-line {
+        background: linear-gradient(90deg, #ececf1 25%, #f5f5f7 50%, #ececf1 75%);
+        background-size: 200% 100%;
+        border-radius: 6px;
+        animation: boot-shimmer 1.4s linear infinite;
+      }
+      .boot-chart {
+        background: #ffffff;
+        border: 1px solid #d2d2d7;
+        border-radius: 16px;
+        height: 320px;
+        padding: 18px;
+        box-sizing: border-box;
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(320%); }
+      }
+      @keyframes boot-shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      @media (max-width: 900px) {
+        .boot-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 540px) {
+        .boot-kpis { grid-template-columns: 1fr; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-fill, .boot-line { animation: none; }
+      }
+    </style>"""
+
+_BOOT_ROOT_HTML = (
+    '<div id="root">'
+    '<div id="telemetry-boot-shell" role="status" aria-live="polite">'
+    '<div class="boot-head">'
+    '<div><div class="boot-title">National Power Grid Telemetry</div></div>'
+    '<div class="boot-status">Loading dashboard...</div>'
+    '</div>'
+    '<div class="boot-track"><div class="boot-fill"></div></div>'
+    '<div class="boot-kpis">'
+    '<div class="boot-card"><div class="boot-line" style="height:11px;width:52%;margin-bottom:12px;"></div><div class="boot-line" style="height:24px;width:72%;"></div></div>'
+    '<div class="boot-card"><div class="boot-line" style="height:11px;width:48%;margin-bottom:12px;"></div><div class="boot-line" style="height:24px;width:68%;"></div></div>'
+    '<div class="boot-card"><div class="boot-line" style="height:11px;width:44%;margin-bottom:12px;"></div><div class="boot-line" style="height:24px;width:58%;"></div></div>'
+    '<div class="boot-card"><div class="boot-line" style="height:11px;width:50%;margin-bottom:12px;"></div><div class="boot-line" style="height:24px;width:62%;"></div></div>'
+    '</div>'
+    '<div class="boot-chart"><div class="boot-line" style="height:14px;width:30%;margin-bottom:18px;"></div><div class="boot-line" style="height:230px;width:100%;border-radius:10px;"></div></div>'
+    '</div>'
+    '</div>'
+)
+
+
 def _inject_seo_head(html_bytes: bytes) -> bytes:
     html_text = html_bytes.decode("utf-8", errors="ignore")
     if "<title>Streamlit</title>" in html_text:
@@ -86,6 +206,10 @@ def _inject_seo_head(html_bytes: bytes) -> bytes:
             f'    <meta name="description" content="{SEO_DESCRIPTION}" />'
         )
         html_text = html_text.replace("<title>Streamlit</title>", replacement, 1)
+    if "</head>" in html_text and "telemetry-boot-style" not in html_text:
+        html_text = html_text.replace("</head>", f"    {_BOOT_STYLE}\n  </head>", 1)
+    if '<div id="root"></div>' in html_text:
+        html_text = html_text.replace('<div id="root"></div>', _BOOT_ROOT_HTML, 1)
     # route bundled static assets through a fresh versioned namespace so old immutable cdn edges cannot poison js imports
     html_text = html_text.replace('"./static/', '"./assets-v2/static/')
     html_text = html_text.replace("'./static/", "'./assets-v2/static/")

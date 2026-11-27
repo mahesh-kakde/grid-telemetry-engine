@@ -69,6 +69,51 @@ def load_snapshot_from_supabase(
             conn.close()
 
 
+def load_all_snapshots_from_supabase(
+    regions: Optional[List[str]] = None,
+    db_url: Optional[str] = None,
+) -> Dict[str, Dict[str, Any]]:
+    # fetches all regional snapshots in one database round-trip to avoid repeated handshakes on region switch
+    target_db = db_url or os.environ.get("SUPABASE_DB_URL")
+    if not target_db or psycopg2 is None:
+        return {}
+    target_regions = list(regions or REGIONS)
+    if not target_regions:
+        return {}
+    conn = None
+    try:
+        conn = psycopg2.connect(target_db, connect_timeout=4)
+        snapshots: Dict[str, Dict[str, Any]] = {}
+        with conn.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = 5000;")
+            cur.execute(
+                """
+                SELECT region, payload, generated_at, model_version
+                FROM precomputed_snapshots
+                WHERE region = ANY(%s);
+                """,
+                (target_regions,),
+            )
+            for reg_code, payload, generated_at, model_version in cur.fetchall():
+                if isinstance(payload, str):
+                    payload = json.loads(payload)
+                if isinstance(payload, dict):
+                    payload.setdefault(
+                        "generated_at",
+                        generated_at.isoformat() if hasattr(generated_at, "isoformat") else str(generated_at),
+                    )
+                    payload.setdefault("model_version", model_version)
+                    payload["snapshot_source"] = "supabase_live"
+                    snapshots[str(reg_code)] = payload
+        return snapshots
+    except Exception as exc:
+        logger.warning(f"failed to batch load regional snapshots from supabase: {exc}")
+        return {}
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def load_drift_report_html_from_supabase(
     region: str = "ALL_INDIA",
     db_url: Optional[str] = None,
@@ -95,11 +140,16 @@ def load_drift_report_html_from_supabase(
             conn.close()
 
 
-def load_precomputed_data(region: str, output_dir: str = DEFAULT_PRECOMPUTED_DIR) -> Optional[Dict[str, Any]]:
-    # reads live supabase snapshot when configured, falling back cleanly to bundled local json
-    live_data = load_snapshot_from_supabase(region)
-    if live_data is not None:
-        return live_data
+def load_precomputed_data(
+    region: str,
+    output_dir: str = DEFAULT_PRECOMPUTED_DIR,
+    prefer_supabase: bool = True,
+) -> Optional[Dict[str, Any]]:
+    # reads live supabase snapshot when requested and configured, falling back cleanly to bundled local json
+    if prefer_supabase:
+        live_data = load_snapshot_from_supabase(region)
+        if live_data is not None:
+            return live_data
 
     path = get_precomputed_path(region, output_dir)
     if not os.path.exists(path):
