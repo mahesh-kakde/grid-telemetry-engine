@@ -299,12 +299,24 @@ def select_drift_observation_window(
     return ref_df.tail(window_hours).copy(), "baseline_fallback"
 
 
+DRIFT_TEST_LABELS = {
+    "wasserstein_ks": "Wasserstein + KS",
+    "tvd_chi2": "TVD + Chi-Square",
+    "kolmogorov_smirnov": "Kolmogorov-Smirnov",
+}
+
+
+def format_drift_test_label(test_code: str) -> str:
+    """Maps internal statistical test identifiers to operator-facing display labels."""
+    return DRIFT_TEST_LABELS.get(test_code, "1D Wasserstein")
+
+
 def build_html_drift_report(
     drift_summary: Dict[str, Any],
     region: str = "ALL_INDIA",
     generated_at: Optional[str] = None,
 ) -> str:
-    # generates standalone html report mirroring dashboard design standards and specifications
+    # generates standalone html report mirroring the Apple-inspired dashboard design tokens
     full_region = html.escape(str(REGION_NAMES.get(region, region)))
     timestamp = html.escape(str(generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")))
 
@@ -322,62 +334,65 @@ def build_html_drift_report(
 
     if drift_alarm:
         notice_class = "notice-alarm"
-        notice_title = "Retraining Advisory Active"
+        notice_title = "Seasonal Drift Advisory"
         notice_desc = (
-            f"Covariate feature drift exceeds the 30.0% alarm threshold "
-            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
-            f"Model recalibration is advised; quantile prediction bounds widened to {alphas}."
+            f"Covariate feature drift exceeds the 30.0% alarm threshold against the December 2024 winter baseline "
+            f"({drifted_features} of {total_features} features shifted, {drift_ratio * 100:.1f}%). "
+            f"Quantile bounds widened automatically to {alphas}; warmer spring/summer weather "
+            f"can trigger this guard intentionally."
         )
     else:
         notice_class = "notice-normal"
-        notice_title = "Distribution Stability Nominal"
+        notice_title = "Winter Reference Baseline (December 2024)"
         notice_desc = (
-            f"Physical and cyclical feature distributions match the 30-day reference baseline. "
-            f"Covariate feature drift is within normal tolerance "
-            f"({drifted_features}/{total_features} features drifted, {drift_ratio * 100:.1f}%). "
-            f"Quantile intervals operating at standard [0.10, 0.50, 0.90]."
+            f"{drifted_features} of {total_features} features shifted ({drift_ratio * 100:.1f}%, within the 30.0% limit). "
+            f"Reference values reflect December 2024 winter conditions (720h); seasonal weather shifts above 30% "
+            f"automatically widen prediction intervals to 90% CQR."
         )
 
-    # assemble table rows for feature-by-feature evaluation
-    table_rows = []
+    # assemble sorted table rows (shifted features first, then alphabetically by label)
     feature_metrics = drift_summary.get("feature_metrics", {})
-    for feat_name, metric_info in feature_metrics.items():
+    sorted_features = sorted(
+        feature_metrics.items(),
+        key=lambda item: (
+            0 if bool(item[1].get("drift_detected", False)) else 1,
+            str(FEATURE_METADATA.get(item[0], {}).get("name", item[0])),
+        ),
+    )
+
+    table_rows = []
+    for feat_name, metric_info in sorted_features:
         safe_feat = html.escape(str(feat_name))
         meta = FEATURE_METADATA.get(feat_name, {"name": feat_name, "desc": "Telemetry parameter"})
         friendly_title = html.escape(str(meta["name"]))
-        test_type = metric_info.get("test", "unknown")
-        if test_type == "wasserstein_ks":
-            test_label = "Norm. Wasserstein + KS"
-        elif test_type == "tvd_chi2":
-            test_label = "TVD + Chi-Square"
-        elif test_type == "kolmogorov_smirnov":
-            test_label = "Kolmogorov-Smirnov"
-        else:
-            test_label = "Wasserstein Distance"
+        test_type = str(metric_info.get("test", "unknown"))
+        test_label = format_drift_test_label(test_type)
         stat_val = float(metric_info.get("statistic", metric_info.get("score", 0.0)))
         thresh_val = float(metric_info.get("threshold", 0.0))
-        p_val_str = f"{metric_info['p_value']:.6f}" if "p_value" in metric_info else "N/A (Wasserstein)"
+        p_val_str = f"{metric_info['p_value']:.6f}" if "p_value" in metric_info else "&mdash;"
         is_drifted = bool(metric_info.get("drift_detected", False))
         status_html = (
-            '<span style="color: #dc2626; font-weight: 600;">Drift Detected</span>'
+            '<span class="status-shifted">Shifted</span>'
             if is_drifted
-            else '<span style="color: #059669; font-weight: 600;">Nominal</span>'
+            else '<span class="status-nominal">Nominal</span>'
         )
 
         table_rows.append(
             f"<tr>"
-            f"<td><code>{safe_feat}</code><br><span style='font-size: 11.5px; color: #64748b; font-weight: 500;'>{friendly_title}</span></td>"
-            f"<td>{test_label}</td>"
-            f"<td>{stat_val:.4f}</td>"
-            f"<td>{thresh_val:.4f}</td>"
-            f"<td>{p_val_str}</td>"
+            f"<td>{friendly_title}</td>"
             f"<td>{status_html}</td>"
+            f"<td class='num'>{stat_val:.4f}</td>"
+            f"<td class='num'>{thresh_val:.4f}</td>"
+            f"<td class='num'>{p_val_str}</td>"
+            f"<td>{test_label}</td>"
+            f"<td><code>{safe_feat}</code></td>"
             f"</tr>"
         )
     table_rows_html = "\n".join(table_rows)
 
-    drift_status_color = "#dc2626" if drift_alarm else "#059669"
-    drift_status_text = "Action Required" if drift_alarm else "Nominal"
+    drift_status_color = "#b91c1c" if drift_alarm else "#15803d"
+    drift_status_text = "Warning" if drift_alarm else "Nominal"
+    interval_desc = "Widened 90% CQR bounds" if drift_alarm else "Standard 80% prediction interval"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -385,333 +400,447 @@ def build_html_drift_report(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistical Drift Diagnostic Report - {full_region}</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpolyline points='4,16 9,16 12,9 15,23 18,11 21,19 23,16 28,16' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230066cc'/%3E%3Cpolyline points='4,16 9,16 12,9 15,23 18,11 21,19 23,16 28,16' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <style>
+        :root {{
+            --bg-canvas: #f5f5f7;
+            --bg-surface: #ffffff;
+            --bg-note: #fbfbfd;
+            --text-primary: #1d1d1f;
+            --text-secondary: #515154;
+            --text-muted: #6e6e73;
+            --accent-blue: #0066cc;
+            --border-hairline: #d2d2d7;
+            --border-subtle: #e5e5ea;
+            --status-ok-fg: #15803d;
+            --status-warn-fg: #92400e;
+            --status-warn-bg: #fffbeb;
+            --status-warn-border: #fcd34d;
+            --status-err-fg: #b91c1c;
+            --radius-card: 16px;
+            --radius-notice: 12px;
+            --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+        }}
         * {{
             box-sizing: border-box;
         }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            line-height: 1.5;
-            padding: 32px 16px;
             margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }}
+        .site-header {{
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-hairline);
+        }}
+        .site-header-inner {{
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }}
+        .brand-title {{
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }}
+        .report-badge {{
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-secondary);
         }}
         .report-container {{
-            max-width: 1040px;
+            flex: 1 0 auto;
+            width: 100%;
+            max-width: 1240px;
             margin: 0 auto;
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 36px 40px;
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
-        }}
-        .header-section {{
-            margin-bottom: 24px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 28px 32px 48px;
         }}
         h1 {{
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 700;
             margin: 0 0 6px 0;
-            color: #0f172a;
+            color: var(--text-primary);
             letter-spacing: -0.02em;
+            line-height: 1.25;
         }}
         .subtitle {{
-            font-size: 13.5px;
-            color: #64748b;
-            margin: 0;
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin: 0 0 20px 0;
+            line-height: 1.5;
         }}
         .meta-bar {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
             gap: 16px;
-            margin-top: 18px;
-            padding: 14px 18px;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            margin-bottom: 16px;
+            padding: 16px 20px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
         }}
         .meta-item {{
             display: flex;
             flex-direction: column;
+            gap: 2px;
         }}
         .meta-label {{
-            font-size: 11px;
-            color: #64748b;
+            font-size: 11.5px;
+            color: var(--text-muted);
             text-transform: uppercase;
             font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
+            letter-spacing: 0.06em;
         }}
         .meta-val {{
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            color: #0f172a;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }}
+        .notice-bar {{
+            padding: 14px 18px;
+            border-radius: var(--radius-notice);
+            font-size: 13.5px;
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }}
+        .notice-normal {{
+            background-color: var(--bg-note);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }}
+        .notice-normal strong {{
+            color: var(--text-primary);
+        }}
+        .notice-alarm {{
+            background-color: var(--status-warn-bg);
+            border: 1px solid var(--status-warn-border);
+            color: var(--status-warn-fg);
         }}
         .metric-grid {{
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-            margin-bottom: 24px;
-        }}
-        @media (max-width: 768px) {{
-            .report-container {{
-                padding: 24px 20px;
-            }}
-            .metric-grid {{
-                grid-template-columns: repeat(2, 1fr);
-            }}
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 8px;
         }}
         .metric-card {{
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px 18px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-card);
+            padding: 18px 20px;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 118px;
         }}
         .metric-label {{
-            font-size: 11px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-            font-weight: 600;
+            font-size: 13.5px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 6px;
         }}
         .metric-value {{
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 4px;
+            color: var(--text-primary);
+            letter-spacing: -0.025em;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.15;
+            margin-bottom: 6px;
         }}
         .metric-desc {{
-            font-size: 11.5px;
-            color: #64748b;
-        }}
-        .notice-card {{
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 28px;
-            border: 1px solid #e2e8f0;
-        }}
-        .notice-normal {{
-            border-left: 4px solid #059669;
-            background-color: #f0fdf4;
-            border-color: #bbf7d0;
-            color: #166534;
-        }}
-        .notice-alarm {{
-            border-left: 4px solid #dc2626;
-            background-color: #fef2f2;
-            border-color: #fecaca;
-            color: #991b1b;
-        }}
-        .notice-title {{
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }}
-        .notice-desc {{
             font-size: 13px;
-            line-height: 1.5;
-            opacity: 0.95;
-        }}
-        .section-header {{
-            margin-bottom: 12px;
+            color: var(--text-secondary);
         }}
         h2 {{
-            font-size: 16px;
+            font-size: 19px;
             font-weight: 700;
-            margin: 0 0 4px 0;
-            color: #0f172a;
-        }}
-        .section-desc {{
-            font-size: 13px;
-            color: #64748b;
-            margin: 0 0 14px 0;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 13px;
-            margin-bottom: 32px;
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            overflow: hidden;
-        }}
-        th {{
-            background-color: #f8fafc;
-            border-bottom: 2px solid #e2e8f0;
-            padding: 11px 16px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #475569;
-        }}
-        td {{
-            border-bottom: 1px solid #f1f5f9;
-            padding: 11px 16px;
-            color: #1e293b;
-            vertical-align: middle;
-        }}
-        tr:last-child td {{
-            border-bottom: none;
-        }}
-        tr:hover td {{
-            background-color: #f8fafc;
-        }}
-        code {{
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            background-color: #f1f5f9;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #0f172a;
-        }}
-        .footer {{
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 12px;
-            color: #64748b;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
+            letter-spacing: -0.015em;
+            margin: 32px 0 8px 0;
+            color: var(--text-primary);
+            line-height: 1.3;
         }}
         .table-wrap {{
             width: 100%;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }}
+        .table-scroll {{
+            width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            margin-bottom: 24px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }}
+        th {{
+            background-color: var(--bg-note);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }}
+        th.num, td.num {{
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }}
+        td {{
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 11px 16px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }}
+        tbody tr:last-child td {{
+            border-bottom: none;
+        }}
+        tbody tr:hover td {{
+            background-color: #fafafc;
+        }}
+        .status-nominal {{
+            color: var(--status-ok-fg);
+            font-weight: 600;
+        }}
+        .status-shifted {{
+            color: var(--status-err-fg);
+            font-weight: 600;
+        }}
+        code {{
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background-color: var(--bg-canvas);
+            padding: 2px 6px;
+            border-radius: 5px;
+            font-size: 12.5px;
+            color: var(--text-primary);
+        }}
+        .details-card {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }}
+        .detail-row {{
+            display: grid;
+            grid-template-columns: minmax(220px, 1.35fr) minmax(260px, 2fr);
+            gap: 16px;
+            padding: 13px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 13.5px;
+            line-height: 1.5;
+            align-items: center;
+        }}
+        .detail-row:last-child {{
+            border-bottom: none;
+        }}
+        .detail-key {{
+            font-weight: 600;
+            color: var(--text-primary);
+        }}
+        .detail-val {{
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }}
+        .site-footer {{
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-hairline);
+            margin-top: auto;
+        }}
+        .site-footer-inner {{
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--text-muted);
+        }}
+        .site-footer a {{
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        .site-footer a:hover {{
+            text-decoration: underline;
+        }}
+        @media (max-width: 900px) {{
+            .metric-grid {{
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }}
         }}
         @media (max-width: 640px) {{
-            body {{
-                padding: 12px 8px;
+            .site-header-inner,
+            .site-footer-inner {{
+                padding: 12px 16px;
             }}
             .report-container {{
-                padding: 18px 14px;
-                border-radius: 8px;
+                padding: 20px 16px 36px;
             }}
-            .header-section h1, h1 {{
-                font-size: 18px;
+            h1 {{
+                font-size: 22px;
             }}
             .metric-grid, .meta-bar {{
                 grid-template-columns: 1fr;
-                gap: 8px;
+                gap: 12px;
+            }}
+            .detail-row {{
+                grid-template-columns: 1fr;
+                gap: 4px;
+                padding: 12px 16px;
             }}
             th, td {{
-                padding: 8px 10px;
-                font-size: 12px;
+                padding: 10px 12px;
+                font-size: 13px;
             }}
         }}
         @media print {{
             body {{
                 background-color: #ffffff;
-                padding: 0;
+            }}
+            .site-header {{
+                position: static;
             }}
             .report-container {{
-                border: none;
-                box-shadow: none;
-                padding: 0;
+                padding: 16px 0;
                 max-width: 100%;
             }}
         }}
     </style>
 </head>
 <body>
-    <div class="report-container">
-        <div class="header-section">
-            <h1>National Power Grid Telemetry & Forecasting Engine</h1>
-            <div class="subtitle">Statistical Covariate & Target Drift Diagnostic Report · Continuous MLOps Reliability Audit</div>
-            
-            <div class="meta-bar">
-                <div class="meta-item">
-                    <span class="meta-label">Regional Grid</span>
-                    <span class="meta-val">{full_region}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">Engine Version</span>
-                    <span class="meta-val">v2.0.0</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">Baseline Window</span>
-                    <span class="meta-val">30-Day Reference (720h)</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">Observation Window</span>
-                    <span class="meta-val">{obs_label}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">Audit Generated</span>
-                    <span class="meta-val">{timestamp}</span>
-                </div>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="brand-title">National Power Grid Telemetry</div>
+            <div class="report-badge">Statistical Drift Diagnostic Report</div>
+        </div>
+    </header>
+
+    <main class="report-container">
+        <h1>Model Health Report ({full_region})</h1>
+        <p class="subtitle">Compares the trailing {obs_hours}-hour telemetry window against the 30-day December 2024 winter baseline across {total_features} monitored features.</p>
+
+        <div class="meta-bar">
+            <div class="meta-item">
+                <span class="meta-label">Regional Grid</span>
+                <span class="meta-val">{full_region}</span>
             </div>
+            <div class="meta-item">
+                <span class="meta-label">Baseline Window</span>
+                <span class="meta-val">30-Day Reference (720h)</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Observation Window</span>
+                <span class="meta-val">{obs_label}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Audit Generated</span>
+                <span class="meta-val">{timestamp}</span>
+            </div>
+        </div>
+
+        <div class="notice-bar {notice_class}">
+            <strong>{notice_title}:</strong> {notice_desc}
         </div>
 
         <div class="metric-grid">
             <div class="metric-card">
-                <div class="metric-label">Total Monitored Features</div>
+                <div class="metric-label">Monitored Features</div>
                 <div class="metric-value">{total_features}</div>
-                <div class="metric-desc">Pydantic physical contract</div>
+                <div class="metric-desc">Physical telemetry contract</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Drifted Features</div>
-                <div class="metric-value" style="color: {drift_status_color};">{drifted_features} <span style="font-size: 14px; font-weight: 500; color: #64748b;">({drift_ratio * 100:.1f}%)</span></div>
-                <div class="metric-desc">Status: <span style="font-weight: 600; color: {drift_status_color};">{drift_status_text}</span></div>
+                <div class="metric-label">Shifted Features</div>
+                <div class="metric-value">{drifted_features} / {total_features}</div>
+                <div class="metric-desc">Alert threshold &gt; 30.0% ({drift_ratio * 100:.1f}% observed)</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Watchdog Threshold</div>
-                <div class="metric-value">30.0%</div>
-                <div class="metric-desc">Maximum allowable shift</div>
+                <div class="metric-label">Drift Status</div>
+                <div class="metric-value" style="color: {drift_status_color};">{drift_status_text}</div>
+                <div class="metric-desc">Maximum tolerance 30.0%</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Recommended Alpha Bounds</div>
-                <div class="metric-value" style="font-size: 18px; font-family: monospace;">{alphas}</div>
-                <div class="metric-desc">Operating safety envelope</div>
+                <div class="metric-label">Active Quantile Alphas</div>
+                <div class="metric-value" style="font-size: 20px;">{alphas}</div>
+                <div class="metric-desc">{interval_desc}</div>
             </div>
         </div>
 
-        <div class="notice-card {notice_class}">
-            <div class="notice-title">{notice_title}</div>
-            <div class="notice-desc">{notice_desc}</div>
-        </div>
-
-        <div class="section-header">
-            <h2>Feature-by-Feature Statistical Drift Audit</h2>
-            <div class="section-desc">Each physical parameter is tested for statistical distribution drift. Continuous physical features use normalized 1D Wasserstein distance (threshold W1/std &ge; 0.50 gated by two-sample KS p &lt; 0.01); cyclical harmonics use 1D Wasserstein distance (threshold W1 &ge; 0.15); discrete calendar indicators use Total Variation Distance (TVD &ge; 0.15 gated by Chi-square p &lt; 0.01).</div>
-        </div>
-        
+        <h2>Feature Drift Breakdown</h2>
         <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Parameter</th>
-                        <th>Audit Test</th>
-                        <th>Observed Metric</th>
-                        <th>Safe Threshold</th>
-                        <th>P-Value / Score</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_rows_html}
-                </tbody>
-            </table>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Status</th>
+                            <th class="num">Observed</th>
+                            <th class="num">Limit</th>
+                            <th class="num">P-Value</th>
+                            <th>Statistical Test</th>
+                            <th>Feature</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {table_rows_html}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="footer">
-            <div>Created by <a href="https://maheshkakde.com" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">Mahesh Kakde</a></div>
+        <h2>Statistical Drift Criteria</h2>
+        <div class="details-card">
+            <div class="detail-row">
+                <div class="detail-key">Continuous Physical Metrics (demand_mw, weather, rolling std)</div>
+                <div class="detail-val">Flagged when normalized 1D Wasserstein distance W&#x2081; / &#x03C3; &ge; 0.50 and two-sample Kolmogorov-Smirnov p &lt; 0.01.</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-key">Cyclical Harmonics (sin_hour_k1, cos_hour_k1)</div>
+                <div class="detail-val">Flagged when unnormalized 1D Wasserstein distance W&#x2081; &ge; 0.15 across the trailing window.</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-key">Discrete Calendar Indicators (day_of_week, is_holiday)</div>
+                <div class="detail-val">Flagged when Total Variation Distance TVD &ge; 0.15 and Chi-square p &lt; 0.01.</div>
+            </div>
         </div>
-    </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>Created by <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer">Mahesh Kakde</a></span>
+            <a href="https://github.com/mahesh-kakde/grid-telemetry-engine" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+    </footer>
 </body>
 </html>"""
 
