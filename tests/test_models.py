@@ -400,3 +400,55 @@ def test_horizon_dependent_cqr_margins_and_ist_calendar_contract(artifacts_bundl
     fc_ist = generate_72h_multi_step_forecast(hist, "NR", contract_bundle, widened=False)
     assert len(fc_ist) == 72
     assert (fc_ist[71]["forecast_p90"] - fc_ist[71]["forecast_p10"]) > (fc_ist[0]["forecast_p90"] - fc_ist[0]["forecast_p10"])
+
+
+def test_run_inference_and_detection_uses_widened_cqr_and_if_shap(artifacts_bundle, monkeypatch):
+    from src.features.build_features import compute_telemetry_features
+    from src.models import explainers as expl_mod
+    from src.models import infer_and_detect as inf
+    from src.monitoring import drift_check as dc
+
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://mock:mock@localhost:5432/mock")
+    monkeypatch.setattr(inf, "REGIONS", ["NR"])
+    hist_nr = inf.build_baseline_history_pl("NR", lookback_hours=360, bundle=artifacts_bundle)
+    monkeypatch.setattr(
+        inf,
+        "fetch_live_or_baseline_history",
+        lambda region, **kw: (hist_nr, "baseline_fallback"),
+    )
+    monkeypatch.setattr(dc, "evaluate_feature_drift", lambda *a, **kw: {"drift_alarm": True})
+    monkeypatch.setattr(inf, "fetch_weather_forecast_map", lambda *a, **kw: {})
+
+    captured_anoms = []
+    captured_forecasts = []
+    monkeypatch.setattr(
+        expl_mod,
+        "persist_anomaly_events_to_supabase",
+        lambda evs, db_url: captured_anoms.extend(evs) or len(evs),
+    )
+    monkeypatch.setattr(
+        inf,
+        "persist_forecasts_to_supabase",
+        lambda fcs, db_url: captured_forecasts.extend(fcs) or len(fcs),
+    )
+    monkeypatch.setattr(inf, "backfill_forecast_actuals", lambda db_url: 0)
+
+    res = inf.run_inference_and_detection()
+    assert res["NR"]["widened"] is True
+    assert len(captured_anoms) >= 1
+    assert len(captured_forecasts) == 72
+
+    latest_anom = captured_anoms[-1]
+    feat_last = compute_telemetry_features(
+        hist_nr, drop_nulls_flag=True, calendar_tz="Asia/Kolkata"
+    ).to_pandas().tail(1)
+    p10_n, _, p90_n = predict_quantiles(feat_last, "NR", artifacts_bundle, widened=False)
+    p10_w, _, p90_w = predict_quantiles(feat_last, "NR", artifacts_bundle, widened=True)
+    # persisted anomaly bounds must match widened 90% margin when drift_alarm is active
+    assert latest_anom["predicted_p90_mw"] - latest_anom["predicted_p10_mw"] == pytest.approx(
+        float(p90_w[0] - p10_w[0]), rel=1e-6
+    )
+    assert (latest_anom["predicted_p90_mw"] - latest_anom["predicted_p10_mw"]) > float(p90_n[0] - p10_n[0])
+    # top_shap_features must contain observation-aware isolation forest features
+    anom_cols = set(artifacts_bundle.anomaly_feature_columns)
+    assert all(d["feature"] in anom_cols for d in latest_anom["top_shap_features"])

@@ -587,11 +587,19 @@ def run_inference_and_detection() -> Dict[str, Any]:
         else:
             ref_pd = feat_pl.to_pandas()
 
+        baseline_ref = bundle.reference_baselines[region]
+        live_feat_df = None if feat_pl.is_empty() else ref_pd
+        drift_obs_df, _ = select_drift_observation_window(
+            live_feat_df, baseline_ref, window_hours=168
+        )
+        drift_res = evaluate_feature_drift(baseline_ref, drift_obs_df)
+        widened = bool(drift_res.get("drift_alarm", False))
+
         eval_window = ref_pd.tail(48).copy()
         X = eval_window[bundle.feature_columns]
         y = eval_window["demand_mw"].to_numpy()
 
-        p10, p50, p90 = predict_quantiles(X, region, bundle)
+        p10, p50, p90 = predict_quantiles(X, region, bundle, widened=widened)
         iso_scores, is_structural, trigger_b = detect_structural_anomalies(
             X, y, p10, p50, p90, region, bundle
         )
@@ -605,6 +613,7 @@ def run_inference_and_detection() -> Dict[str, Any]:
             "records": len(y),
             "anomalies_detected": n_anomalies,
             "mean_demand_p50": float(np.mean(p50)),
+            "widened": widened,
         }
 
         if db_url:
@@ -614,7 +623,9 @@ def run_inference_and_detection() -> Dict[str, Any]:
             for idx_pos in indices_to_persist:
                 row_s = eval_window.iloc[idx_pos]
                 ts_val = row_s.get("timestamp_utc") or datetime.now(timezone.utc)
-                top_shap = explainer.explain_anomaly_point(row_s, region, top_k=3)
+                anomaly_shap = explainer.explain_anomaly_score(
+                    row_s, region, actual_demand_mw=float(y[idx_pos]), top_k=3
+                )
                 all_anomaly_events.append({
                     "timestamp_utc": ts_val,
                     "region": region,
@@ -625,16 +636,9 @@ def run_inference_and_detection() -> Dict[str, Any]:
                     "anomaly_score": float(iso_scores[idx_pos]),
                     "is_structural": bool(is_structural[idx_pos]),
                     "residual_breach": bool(trigger_b[idx_pos]),
-                    "top_shap_features": top_shap,
+                    "top_shap_features": anomaly_shap,
                 })
 
-            baseline_ref = bundle.reference_baselines[region]
-            live_feat_df = None if feat_pl.is_empty() else ref_pd
-            drift_obs_df, _ = select_drift_observation_window(
-                live_feat_df, baseline_ref, window_hours=168
-            )
-            drift_res = evaluate_feature_drift(baseline_ref, drift_obs_df)
-            widened = bool(drift_res.get("drift_alarm", False))
             wx_map = fetch_weather_forecast_map(region, forecast_days=4)
             forecasts = generate_72h_multi_step_forecast(
                 df_history,
