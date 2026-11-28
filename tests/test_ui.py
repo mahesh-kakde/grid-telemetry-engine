@@ -23,31 +23,46 @@ def test_streamlit_app_renders_and_handles_region_and_shock():
     assert "·" not in markdown_text
     assert "notice-pill" not in markdown_text
 
-    # switch region to NER on Forecast and verify Baseline Note appears cleanly even at 0 of 12 shifted
+    # switch region to NER on Forecast and set horizon to 48h to test per-region state restoration
     at.segmented_control(key="region_control").set_value("NER - Northeast").run()
     assert not at.exception
+    assert not at.warning
     ner_text = "\n".join(el.value for el in at.markdown)
     assert "Baseline Note:" in ner_text
     assert "0 of 12 features shifted" in ner_text
+    at.segmented_control(key="horizon_ctrl").set_value(48).run()
+    assert not at.exception
+    assert "Hourly Forecast Table (Next 48h)" in "\n".join(el.value for el in at.markdown)
 
     # switch region via top region control to Northern Region (NR) and toggle horizon
     at.segmented_control(key="region_control").set_value("NR - North").run()
     assert not at.exception
+    assert not at.warning
     nr_text = "\n".join(el.value for el in at.markdown)
     assert "NR — Northern Region" in nr_text
     assert "December 2024 winter" in nr_text
+    assert at.segmented_control(key="horizon_ctrl").value == 24
 
-    at.segmented_control(key="horizon_ctrl_NR").set_value(72).run()
+    at.segmented_control(key="horizon_ctrl").set_value(72).run()
     assert not at.exception
     assert len(at.expander) == 0
     assert "Hourly Forecast Table (Next 72h)" in "\n".join(el.value for el in at.markdown)
+
+    # switch back to NER and verify 48h selection persisted without rotating widget keys
+    at.segmented_control(key="region_control").set_value("NER - Northeast").run()
+    assert not at.exception
+    assert at.segmented_control(key="horizon_ctrl").value == 48
+
+    # return to NR before Anomaly Check checks
+    at.segmented_control(key="region_control").set_value("NR - North").run()
+    assert not at.exception
 
     # navigate via global header to Anomaly Check and test surge + custom load
     at.segmented_control(key="nav_control").set_value("Anomaly Check").run()
     assert not at.exception
     assert "Anomaly Check (NR — Northern Region)" in "\n".join(el.value for el in at.markdown)
 
-    at.segmented_control(key="scenario_ctrl_NR").set_value("Surge Test").run()
+    at.segmented_control(key="scenario_ctrl").set_value("Surge Test").run()
     assert not at.exception
     shock_markdown = "\n".join(el.value for el in at.markdown)
     assert "Anomaly Alert" in shock_markdown
@@ -56,10 +71,24 @@ def test_streamlit_app_renders_and_handles_region_and_shock():
     assert 'role="button"' in shock_markdown
     assert "aria-label=" in shock_markdown
 
-    at.segmented_control(key="scenario_ctrl_NR").set_value("Custom Load").run()
+    at.segmented_control(key="scenario_ctrl").set_value("Custom Load").run()
     assert not at.exception
+    assert not at.warning
     assert len(at.number_input) == 1
     assert at.number_input[0].max == 350_000.0
+    nr_custom_default = at.number_input(key="custom_mw_ctrl").value
+
+    # switching to NER updates custom load input to NER's regional scale using the same stable key
+    at.segmented_control(key="region_control").set_value("NER - Northeast").run()
+    assert not at.exception
+    at.segmented_control(key="scenario_ctrl").set_value("Custom Load").run()
+    assert not at.exception
+    assert not at.warning
+    ner_custom_default = at.number_input(key="custom_mw_ctrl").value
+    assert ner_custom_default < nr_custom_default * 0.25
+
+    at.segmented_control(key="region_control").set_value("NR - North").run()
+    assert not at.exception
 
     # navigate to Model Health and Info for Nerds via header nav
     at.segmented_control(key="nav_control").set_value("Model Health").run()
@@ -177,6 +206,10 @@ def test_ui_helpers_notices_accessibility_and_report_mobile_css():
     not_found_html = render_not_found_html("/favicon.png")
     assert "<title>404 Not Found | grid-telemetry-engine</title>" in not_found_html
     assert "National Power Grid Telemetry" in not_found_html
+    assert "Error 404" not in not_found_html
+    assert "This Page Went Off the Grid" in not_found_html
+    assert ">Home</a>" in not_found_html
+    assert "Return to Dashboard" not in not_found_html
     assert "border-radius: var(--radius-card)" in not_found_html
     assert "999px" not in not_found_html
     assert "https://github.com/mahesh-kakde/grid-telemetry-engine" in not_found_html
@@ -204,6 +237,11 @@ def test_ui_helpers_notices_accessibility_and_report_mobile_css():
     assert ".footer-author" in css_src
     assert ".st-key-global_header_shell" in css_src
     assert ".st-key-nav_control" in css_src
+    assert ".block-container:has(.st-key-nav_control)" in css_src
+    assert ".st-key-horizon_ctrl:not([data-retained=\"true\"])" in css_src
+    assert '[data-retained="true"]' in css_src
+    assert "st-key-horizon_ctrl_" not in css_src
+    assert "st-key-scenario_ctrl_" not in css_src
     assert "pointer-events: none !important;" in css_src
     assert "flex-direction: column !important;" in css_src
     assert "stHeaderActionElements" in css_src
@@ -240,5 +278,7 @@ def test_streamlit_404_page_title_and_layout():
     assert not at.exception
     assert spy_page_config.call_args.kwargs["page_title"] == "404 Not Found | grid-telemetry-engine"
     rendered = "\n".join(el.value for el in at.markdown)
-    assert "Error 404" in rendered
-    assert "Page Not Found" in rendered
+    assert "Error 404" not in rendered
+    assert "This Page Went Off the Grid" in rendered
+    assert ">Home</a>" in rendered
+    assert "Return to Dashboard" not in rendered

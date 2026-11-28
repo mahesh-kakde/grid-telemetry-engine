@@ -56,6 +56,7 @@ def get_app_css() -> str:
         backdrop-filter: none !important;
         border-bottom: none !important;
         height: 2.5rem !important;
+        min-height: 0 !important;
         z-index: 110 !important;
     }
     header[data-testid="stHeader"] button,
@@ -81,8 +82,8 @@ def get_app_css() -> str:
         padding-right: clamp(1rem, 3vw, 2.75rem) !important;
     }
 
-    /* sticky full-bleed global header shell with brand left and top-level navigation right */
-    .st-key-global_header_shell {
+    /* sticky full-bleed global header shell with brand left and top-level navigation right on desktop */
+    div[data-testid="stVerticalBlock"].st-key-global_header_shell {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -91,17 +92,18 @@ def get_app_css() -> str:
         z-index: 95 !important;
         margin: 0 !important;
         padding: 0 !important;
+        gap: 0 !important;
         background: rgba(245, 245, 247, 0.92) !important;
         backdrop-filter: saturate(180%) blur(12px) !important;
         border-bottom: 1px solid var(--border-hairline) !important;
         box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
     }
-    .st-key-global_header_shell [data-testid="stVerticalBlock"] {
-        gap: 0 !important;
+    div[data-testid="stVerticalBlock"].st-key-global_header_shell > [data-testid="stLayoutWrapper"] {
+        width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-    .st-key-global_header_inner {
+    div.st-key-global_header_inner {
         max-width: 1380px !important;
         width: 100% !important;
         margin: 0 auto !important;
@@ -318,25 +320,25 @@ def get_app_css() -> str:
     .status-err { color: var(--status-err-fg); }
 
     /* left-align top region selector and right-align forecast horizon control */
-    .st-key-region_control,
-    .st-key-region_control > div,
-    .st-key-region_control [data-testid="stButtonGroup"] {
+    .st-key-region_control:not([data-retained="true"]),
+    .st-key-region_control:not([data-retained="true"]) > div,
+    .st-key-region_control:not([data-retained="true"]) [data-testid="stButtonGroup"] {
         display: flex !important;
         justify-content: flex-start !important;
         width: 100% !important;
     }
-    .st-key-region_control [role="radiogroup"] {
+    .st-key-region_control:not([data-retained="true"]) [role="radiogroup"] {
         margin-left: 0 !important;
         justify-content: flex-start !important;
     }
-    [class*="st-key-horizon_ctrl_"],
-    [class*="st-key-horizon_ctrl_"] > div,
-    [class*="st-key-horizon_ctrl_"] [data-testid="stButtonGroup"] {
+    .st-key-horizon_ctrl:not([data-retained="true"]),
+    .st-key-horizon_ctrl:not([data-retained="true"]) > div,
+    .st-key-horizon_ctrl:not([data-retained="true"]) [data-testid="stButtonGroup"] {
         display: flex !important;
         justify-content: flex-end !important;
         width: 100% !important;
     }
-    [class*="st-key-horizon_ctrl_"] [role="radiogroup"] {
+    .st-key-horizon_ctrl:not([data-retained="true"]) [role="radiogroup"] {
         margin-left: auto !important;
         justify-content: flex-end !important;
     }
@@ -394,9 +396,9 @@ def get_app_css() -> str:
     }
 
     /* top header navigation bar styled cleanly without filter-pill borders */
-    div.st-key-nav_control,
-    div.st-key-nav_control > div,
-    div.st-key-nav_control [data-testid="stButtonGroup"] {
+    div.st-key-nav_control:not([data-retained="true"]),
+    div.st-key-nav_control:not([data-retained="true"]) > div,
+    div.st-key-nav_control:not([data-retained="true"]) [data-testid="stButtonGroup"] {
         width: auto !important;
         display: flex !important;
         justify-content: flex-end !important;
@@ -814,6 +816,11 @@ def get_app_css() -> str:
     [data-testid="stStatusWidget"] {
         display: none !important;
     }
+    /* hide retained outgoing nodes immediately so replaced widgets never ghost during reruns */
+    div[data-testid="stElementContainer"][data-retained="true"],
+    .stApp [data-retained="true"] {
+        display: none !important;
+    }
     .stApp [data-stale="true"] {
         transition: opacity 0.14s ease !important;
     }
@@ -833,13 +840,13 @@ def get_app_css() -> str:
     }
 
     @media (max-width: 1480px) {
-        .st-key-global_header_inner {
+        div.st-key-global_header_inner {
             padding-right: 3.1rem !important;
         }
     }
 
     @media (max-width: 960px) {
-        .st-key-global_header_inner {
+        div.st-key-global_header_inner {
             padding: 8px 3rem 8px 1rem !important;
             gap: 8px 14px !important;
         }
@@ -892,30 +899,45 @@ def get_app_css() -> str:
     }
 
     @media (max-width: 768px) {
+        header[data-testid="stHeader"] {
+            height: 2.85rem !important;
+        }
         .block-container {
-            padding-top: 7rem !important;
+            padding-top: 4.5rem !important;
             padding-bottom: 4.25rem !important;
             padding-left: 0.75rem !important;
             padding-right: 0.75rem !important;
         }
-        .st-key-global_header_inner {
+        .block-container:has(.st-key-nav_control) {
+            padding-top: 5.35rem !important;
+        }
+        div[data-testid="stVerticalBlock"].st-key-global_header_shell {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
+        }
+        div.st-key-global_header_inner {
             display: flex !important;
             flex-direction: column !important;
             flex-wrap: nowrap !important;
             align-items: stretch !important;
-            padding: 12px 0.75rem 8px 0.75rem !important;
-            gap: 12px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            gap: 0 !important;
         }
-        .st-key-global_header_inner > div,
-        .st-key-global_header_inner > [data-testid="stElementContainer"]:first-child {
+        div.st-key-global_header_inner > [data-testid="stElementContainer"]:first-child {
             width: 100% !important;
             height: auto !important;
             min-height: 0 !important;
             flex: 0 0 auto !important;
             margin: 0 !important;
-        }
-        .st-key-global_header_inner > [data-testid="stElementContainer"]:first-child {
-            padding-right: 2.5rem !important;
+            padding: 11px 2.75rem 11px 0.75rem !important;
+            box-sizing: border-box !important;
+            background: var(--bg-surface) !important;
+            border-bottom: 1px solid var(--border-subtle) !important;
         }
         h1.global-brand-title {
             display: block !important;
@@ -924,7 +946,19 @@ def get_app_css() -> str:
             white-space: normal !important;
             margin: 0 !important;
         }
-        div[data-testid="stElementContainer"].st-key-nav_control,
+        div[data-testid="stElementContainer"].st-key-nav_control:not([data-retained="true"]) {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex: 0 0 auto !important;
+            margin: 0 !important;
+            padding: 6px 0.75rem !important;
+            box-sizing: border-box !important;
+            background: rgba(245, 245, 247, 0.96) !important;
+            backdrop-filter: saturate(180%) blur(12px) !important;
+            border-bottom: 1px solid var(--border-hairline) !important;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+        }
         div[data-testid="stElementContainer"].st-key-nav_control > div,
         div.st-key-nav_control [data-testid="stButtonGroup"],
         div.st-key-nav_control [data-testid="stButtonGroup"] > div,
@@ -947,10 +981,10 @@ def get_app_css() -> str:
             flex: 1 1 auto !important;
             min-width: 0 !important;
             justify-content: center !important;
-            font-size: 11px !important;
+            font-size: clamp(11.8px, 3.45vw, 13.5px) !important;
             line-height: 1.2 !important;
-            padding: 5px 3px !important;
-            min-height: 30px !important;
+            padding: 6px 3px !important;
+            min-height: 32px !important;
             white-space: nowrap !important;
             letter-spacing: -0.015em !important;
             overflow: visible !important;
@@ -959,7 +993,7 @@ def get_app_css() -> str:
         div.st-key-nav_control [data-testid="stButtonGroup"] [role="radiogroup"] button[data-variant="segmented_control"] span,
         div.st-key-nav_control [data-testid="stButtonGroup"] [role="radiogroup"] button[role="radio"] p,
         div.st-key-nav_control [data-testid="stButtonGroup"] [role="radiogroup"] button[role="radio"] span {
-            font-size: 11px !important;
+            font-size: clamp(11.8px, 3.45vw, 13.5px) !important;
             line-height: 1.2 !important;
             letter-spacing: -0.015em !important;
             margin: 0 !important;
@@ -975,27 +1009,31 @@ def get_app_css() -> str:
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 8px !important;
         }
+        .st-key-region_control [role="radiogroup"] button,
+        .st-key-region_control [role="radiogroup"] button p,
+        .st-key-region_control [role="radiogroup"] button span {
+            font-size: 14px !important;
+        }
         .st-key-region_control [role="radiogroup"] button {
             min-height: 40px !important;
             padding: 6px 10px !important;
-            font-size: 13px !important;
             white-space: nowrap !important;
         }
-        div[data-testid="stElementContainer"][class*="st-key-horizon_ctrl_"],
-        div[data-testid="stElementContainer"][class*="st-key-horizon_ctrl_"] > div,
-        [class*="st-key-horizon_ctrl_"] [data-testid="stButtonGroup"],
-        [class*="st-key-horizon_ctrl_"] [data-testid="stButtonGroup"] > div,
-        div[data-testid="stElementContainer"][class*="st-key-scenario_ctrl_"],
-        div[data-testid="stElementContainer"][class*="st-key-scenario_ctrl_"] > div,
-        [class*="st-key-scenario_ctrl_"] [data-testid="stButtonGroup"],
-        [class*="st-key-scenario_ctrl_"] [data-testid="stButtonGroup"] > div {
+        div[data-testid="stElementContainer"].st-key-horizon_ctrl,
+        div[data-testid="stElementContainer"].st-key-horizon_ctrl > div,
+        .st-key-horizon_ctrl [data-testid="stButtonGroup"],
+        .st-key-horizon_ctrl [data-testid="stButtonGroup"] > div,
+        div[data-testid="stElementContainer"].st-key-scenario_ctrl,
+        div[data-testid="stElementContainer"].st-key-scenario_ctrl > div,
+        .st-key-scenario_ctrl [data-testid="stButtonGroup"],
+        .st-key-scenario_ctrl [data-testid="stButtonGroup"] > div {
             justify-content: flex-start !important;
             width: 100% !important;
             min-width: 100% !important;
             flex: 1 1 100% !important;
         }
-        [class*="st-key-horizon_ctrl_"] [role="radiogroup"],
-        [class*="st-key-scenario_ctrl_"] [role="radiogroup"] {
+        .st-key-horizon_ctrl [role="radiogroup"],
+        .st-key-scenario_ctrl [role="radiogroup"] {
             display: grid !important;
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             gap: 6px !important;
@@ -1004,15 +1042,22 @@ def get_app_css() -> str:
             flex: 1 1 100% !important;
             margin-left: 0 !important;
         }
-        [class*="st-key-horizon_ctrl_"] [role="radiogroup"] button,
-        [class*="st-key-scenario_ctrl_"] [role="radiogroup"] button {
+        .st-key-horizon_ctrl [role="radiogroup"] button,
+        .st-key-horizon_ctrl [role="radiogroup"] button p,
+        .st-key-horizon_ctrl [role="radiogroup"] button span,
+        .st-key-scenario_ctrl [role="radiogroup"] button,
+        .st-key-scenario_ctrl [role="radiogroup"] button p,
+        .st-key-scenario_ctrl [role="radiogroup"] button span {
+            font-size: clamp(12.5px, 3.6vw, 13.5px) !important;
+        }
+        .st-key-horizon_ctrl [role="radiogroup"] button,
+        .st-key-scenario_ctrl [role="radiogroup"] button {
             width: 100% !important;
             min-height: 38px !important;
             margin: 0 !important;
             border-radius: 10px !important;
             justify-content: center !important;
             padding: 6px 6px !important;
-            font-size: 12px !important;
             white-space: nowrap !important;
         }
         .detail-row {
@@ -1024,7 +1069,7 @@ def get_app_css() -> str:
             flex-direction: column;
             align-items: flex-start;
         }
-        div[data-testid="stElementContainer"]:has(.chart-mobile-hint) {
+        div[data-testid="stElementContainer"]:not([data-retained="true"]):has(.chart-mobile-hint) {
             display: block !important;
             height: auto !important;
         }

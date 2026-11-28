@@ -34,6 +34,11 @@ def format_region_option(region_code: str) -> str:
 
 
 NOT_FOUND_PAGE_TITLE = "404 Not Found | grid-telemetry-engine"
+NOT_FOUND_HEADING = "This Page Went Off the Grid"
+NOT_FOUND_DESCRIPTION = (
+    "The telemetry feed or route you are looking for does not exist or has been rerouted."
+)
+NOT_FOUND_HOME_LABEL = "Home"
 
 FAVICON_SVG_DATA_URI = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
@@ -107,11 +112,6 @@ def render_not_found_html(favicon_href: Optional[str] = None) -> str:
             letter-spacing: -0.025em;
             color: var(--text-primary);
             line-height: 1.2;
-        }}
-        .status-label {{
-            font-size: 13.5px;
-            font-weight: 500;
-            color: var(--text-secondary);
         }}
         .page-main {{
             flex: 1 0 auto;
@@ -239,17 +239,16 @@ def render_not_found_html(favicon_href: Optional[str] = None) -> str:
     <header class="site-header">
         <div class="site-header-inner">
             <div class="brand-title">National Power Grid Telemetry</div>
-            <div class="status-label">Error 404</div>
         </div>
     </header>
 
     <main class="page-main">
         <section class="error-card">
             <div class="error-code" aria-hidden="true">404</div>
-            <h1 class="error-title">Page Not Found</h1>
-            <p class="error-desc">The requested page or route does not exist or has been moved.</p>
+            <h1 class="error-title">{html.escape(NOT_FOUND_HEADING)}</h1>
+            <p class="error-desc">{html.escape(NOT_FOUND_DESCRIPTION)}</p>
             <div class="actions">
-                <a href="/" class="btn-home">Return to Dashboard</a>
+                <a href="/" class="btn-home">{html.escape(NOT_FOUND_HOME_LABEL)}</a>
                 <a href="https://maheshkakde.com" class="btn-portfolio" target="_blank" rel="noopener noreferrer">Portfolio</a>
             </div>
         </section>

@@ -136,7 +136,10 @@ def test_asgi_server_security_headers_routes_and_404(monkeypatch):
         res_404 = client.get("/nonexistent-route-audit-check")
         assert res_404.status_code == 404
         assert "<title>404 Not Found | grid-telemetry-engine</title>" in res_404.text
-        assert "Page Not Found" in res_404.text
+        assert "This Page Went Off the Grid" in res_404.text
+        assert "Error 404" not in res_404.text
+        assert ">Home</a>" in res_404.text
+        assert "Return to Dashboard" not in res_404.text
         assert "<main" in res_404.text
         assert "<h1" in res_404.text
 

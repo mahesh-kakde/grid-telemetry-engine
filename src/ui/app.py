@@ -7,8 +7,9 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if importlib.util.find_spec("src") is None and root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from datetime import datetime, timezone
 import html
+import inspect
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
@@ -37,6 +38,9 @@ from src.ui.components import (
     build_shap_driver_cards_html,
 )
 from src.ui.helpers import (
+    NOT_FOUND_DESCRIPTION,
+    NOT_FOUND_HEADING,
+    NOT_FOUND_HOME_LABEL,
     NOT_FOUND_PAGE_TITLE,
     REGION_FULL_NAMES,
     evaluate_snapshot_freshness,
@@ -79,7 +83,7 @@ st.markdown(get_app_css(), unsafe_allow_html=True)
 
 if is_404:
     st.markdown(
-        """
+        f"""
         <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 95; background: #ffffff;
                        border-bottom: 1px solid #d2d2d7;">
             <div style="max-width: 1240px; margin: 0 auto; padding: 14px 32px; display: flex;
@@ -87,7 +91,6 @@ if is_404:
                 <span style="font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: #1d1d1f;">
                     National Power Grid Telemetry
                 </span>
-                <span style="font-size: 13.5px; font-weight: 500; color: #515154;">Error 404</span>
             </div>
         </header>
         <main style="max-width: 500px; margin: 3rem auto; background: #ffffff; border: 1px solid #d2d2d7;
@@ -96,14 +99,14 @@ if is_404:
             <div style="font-size: 72px; font-weight: 700; line-height: 1; margin-bottom: 10px;
                         letter-spacing: -0.04em; font-variant-numeric: tabular-nums;" aria-hidden="true">404</div>
             <h1 style="font-size: 24px !important; font-weight: 700 !important; letter-spacing: -0.02em;
-                       margin: 0 0 8px 0 !important; color: #1d1d1f;">Page Not Found</h1>
+                       margin: 0 0 8px 0 !important; color: #1d1d1f;">{html.escape(NOT_FOUND_HEADING)}</h1>
             <p style="font-size: 14.5px; color: #515154; line-height: 1.55; margin: 0 0 28px 0;">
-                The requested page or route does not exist or has been moved.
+                {html.escape(NOT_FOUND_DESCRIPTION)}
             </p>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <a href="/" target="_self" style="background: #0066cc; color: #ffffff; text-decoration: none;
                    font-weight: 600; font-size: 13.5px; padding: 10px 22px; border-radius: 10px;
-                   border: 1px solid #0066cc;">Return to Dashboard</a>
+                   border: 1px solid #0066cc;">{html.escape(NOT_FOUND_HOME_LABEL)}</a>
                 <a href="https://maheshkakde.com" target="_blank" rel="noopener noreferrer"
                    style="background: #ffffff; color: #1d1d1f; text-decoration: none; font-weight: 600;
                    font-size: 13.5px; padding: 10px 22px; border-radius: 10px; border: 1px solid #d2d2d7;">Portfolio</a>
@@ -306,7 +309,34 @@ def _safe_segmented_choice(selected: Any, state_key: str, default: Any) -> Any:
     return selected
 
 
-# global sticky top navigation bar (brand heading left, sections right)
+def _sync_region_widget_state(
+    widget_key: str,
+    bound_region_key: str,
+    state_key: str,
+    region: str,
+    default: Any,
+    valid_values: Optional[tuple[Any, ...]] = None,
+) -> None:
+    # keep widget keys constant across regions so streamlit updates in place without retained ghost duplicates
+    if state_key not in st.session_state:
+        st.session_state[state_key] = default
+    current_val = st.session_state.get(widget_key)
+    needs_sync = (
+        st.session_state.get(bound_region_key) != region
+        or current_val is None
+        or (valid_values is not None and current_val not in valid_values)
+    )
+    if needs_sync:
+        st.session_state[widget_key] = st.session_state[state_key]
+        st.session_state[bound_region_key] = region
+
+
+_SEGMENTED_REQUIRED_KWARG: Dict[str, Any] = (
+    {"required": True} if "required" in inspect.signature(st.segmented_control).parameters else {}
+)
+
+
+# global sticky top bar: single row on desktop, two-tier brand + nav stack on mobile
 NAV_SECTIONS = ["Forecast", "Anomaly Check", "Model Health", "Info for Nerds"]
 if "active_nav" not in st.session_state:
     st.session_state["active_nav"] = "Forecast"
@@ -331,6 +361,7 @@ with st.container(key="global_header_shell"):
             default=st.session_state["active_nav"],
             key="nav_control",
             label_visibility="collapsed",
+            **_SEGMENTED_REQUIRED_KWARG,
         )
 
 active_nav = _safe_segmented_choice(selected_nav_raw, "active_nav", "Forecast")
@@ -352,6 +383,7 @@ if active_nav != "Info for Nerds":
         key="region_control",
         label_visibility="collapsed",
         wrap=True,
+        **_SEGMENTED_REQUIRED_KWARG,
     )
     selected_region = _safe_segmented_choice(selected_region_raw, "active_region", "ALL_INDIA")
     region_full_name = REGION_FULL_NAMES.get(selected_region, selected_region)
@@ -400,16 +432,22 @@ if active_nav == "Forecast":
         )
     with ctrl_col:
         h_state_key = f"horizon_state_{selected_region}"
-        if h_state_key not in st.session_state:
-            st.session_state[h_state_key] = 24
+        _sync_region_widget_state(
+            widget_key="horizon_ctrl",
+            bound_region_key="_horizon_bound_region",
+            state_key=h_state_key,
+            region=selected_region,
+            default=24,
+            valid_values=(24, 48, 72),
+        )
         horizon_raw = st.segmented_control(
             "Forecast Window",
             options=[24, 48, 72],
             selection_mode="single",
-            default=st.session_state[h_state_key],
             format_func=lambda h: f"Next {h}h",
-            key=f"horizon_ctrl_{selected_region}",
+            key="horizon_ctrl",
             label_visibility="collapsed",
+            **_SEGMENTED_REQUIRED_KWARG,
         )
         selected_horizon = int(_safe_segmented_choice(horizon_raw, h_state_key, 24))
 
@@ -439,7 +477,7 @@ if active_nav == "Forecast":
         data=forecast_csv,
         file_name=f"forecast_{selected_region.lower()}_{selected_horizon}h.csv",
         mime="text/csv",
-        key=f"dl_fc_{selected_region}_{selected_horizon}",
+        key="dl_fc_csv",
     )
 
 elif active_nav == "Anomaly Check":
@@ -450,8 +488,14 @@ elif active_nav == "Anomaly Check":
     )
 
     scen_state_key = f"scenario_state_{selected_region}"
-    if scen_state_key not in st.session_state:
-        st.session_state[scen_state_key] = "baseline"
+    _sync_region_widget_state(
+        widget_key="scenario_ctrl",
+        bound_region_key="_scenario_bound_region",
+        state_key=scen_state_key,
+        region=selected_region,
+        default="baseline",
+        valid_values=("baseline", "surge", "custom"),
+    )
 
     scen_labels = {
         "baseline": "Live Baseline",
@@ -462,11 +506,11 @@ elif active_nav == "Anomaly Check":
         "Evaluation Scenario",
         options=["baseline", "surge", "custom"],
         selection_mode="single",
-        default=st.session_state[scen_state_key],
         format_func=lambda k: scen_labels[k],
-        key=f"scenario_ctrl_{selected_region}",
+        key="scenario_ctrl",
         label_visibility="collapsed",
         wrap=True,
+        **_SEGMENTED_REQUIRED_KWARG,
     )
     scenario = _safe_segmented_choice(scen_raw, scen_state_key, "baseline")
 
@@ -476,15 +520,24 @@ elif active_nav == "Anomaly Check":
         custom_val = min(350_000.0, round(nom_p50 * 2.0 + 15000.0, 0))
     elif scenario == "custom":
         default_custom = min(350_000.0, max(100.0, float(round(nom_p50 * 1.35, 0))))
+        custom_state_key = f"custom_mw_state_{selected_region}"
+        _sync_region_widget_state(
+            widget_key="custom_mw_ctrl",
+            bound_region_key="_custom_mw_bound_region",
+            state_key=custom_state_key,
+            region=selected_region,
+            default=default_custom,
+        )
         custom_val = st.number_input(
             "Test Load Input (MW)",
             min_value=100.0,
             max_value=350_000.0,
-            value=default_custom,
             step=1000.0,
             help="Defaults to +35% above baseline p50. Minor deviations (~15%) remain normal under dual-trigger checks.",
-            key=f"custom_mw_{selected_region}",
+            key="custom_mw_ctrl",
         )
+        if custom_val is not None:
+            st.session_state[custom_state_key] = float(custom_val)
 
     evaluated_scenarios = st.session_state.setdefault("_evaluated_scenarios", set())
     eval_cache_key = (selected_region, None if custom_val is None else round(float(custom_val), 2))
@@ -640,7 +693,7 @@ elif active_nav == "Model Health":
         data=report_html,
         file_name=f"drift_report_{selected_region.lower()}.html",
         mime="text/html",
-        key=f"dl_drift_{selected_region}",
+        key="dl_drift_report",
     )
 
 else:
